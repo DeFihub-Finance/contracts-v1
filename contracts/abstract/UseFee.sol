@@ -58,7 +58,6 @@ abstract contract UseFee is OwnableUpgradeable, UseTreasury {
             : _amount * nonSubscriberFeeBP / 10_000;
     }
 
-    // TODO maybe make "UseFee" extend "UseTreasury"
     function _collectProtocolFees(
         address _token,
         uint _depositAmount,
