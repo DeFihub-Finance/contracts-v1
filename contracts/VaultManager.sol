@@ -6,10 +6,9 @@ import {IERC20Upgradeable, SafeERC20Upgradeable} from "@openzeppelin/contracts-u
 import {IBeefyVaultV7} from "./interfaces/IBeefyVaultV7.sol";
 import {HubOwnable} from "./abstract/HubOwnable.sol";
 import {UseFee} from "./abstract/UseFee.sol";
-import {UseTreasury} from "./abstract/UseTreasury.sol";
 import {SubscriptionManager} from "./SubscriptionManager.sol";
 
-contract VaultManager is HubOwnable, UseTreasury, UseFee {
+contract VaultManager is HubOwnable, UseFee {
     using SafeERC20Upgradeable for IERC20Upgradeable;
     using SafeERC20Upgradeable for IBeefyVaultV7;
 
@@ -36,11 +35,12 @@ contract VaultManager is HubOwnable, UseTreasury, UseFee {
     function initialize(InitializeParams calldata _initializeParams) public initializer {
         __Ownable_init();
         __UseFee_init(
+            _initializeParams.treasury,
             _initializeParams.subscriptionManager,
             _initializeParams.baseFeeBP,
             _initializeParams.nonSubscriberFeeBP
         );
-        setTreasury(_initializeParams.treasury);
+
         transferOwnership(_initializeParams.owner);
         strategyManager = _initializeParams.strategyManager;
     }
@@ -52,12 +52,12 @@ contract VaultManager is HubOwnable, UseTreasury, UseFee {
     ) external {
         IERC20Upgradeable want = IBeefyVaultV7(_vault).want();
 
-        (uint baseFee, uint nonSubscriberFee) = calculateFee(msg.sender, _amount, _permit);
-        uint depositFee = baseFee + nonSubscriberFee;
-
-        want.safeTransferFrom(msg.sender, treasury, depositFee);
-
-        emit Fee(msg.sender, treasury, depositFee, abi.encode(_vault));
+        uint depositFee = _collectProtocolFees(
+            address(want),
+            _amount,
+            abi.encode(_vault),
+            _permit
+        );
 
         _deposit(_vault, _amount - depositFee);
     }

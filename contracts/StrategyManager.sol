@@ -11,13 +11,11 @@ import {IBeefyVaultV7} from './interfaces/IBeefyVaultV7.sol';
 import {ICall} from './interfaces/ICall.sol';
 import {ZapManager} from './zap/ZapManager.sol';
 import {SubscriptionManager} from "./SubscriptionManager.sol";
-import {IUniswapV2Router02, ExtendedRouter} from "./helpers/ExtendedRouter.sol";
 import {VaultManager} from "./VaultManager.sol";
 import {DollarCostAverage} from './DollarCostAverage.sol';
 
 contract StrategyManager is HubOwnable, UseTreasury, ICall {
     using SafeERC20Upgradeable for IERC20Upgradeable;
-    using ExtendedRouter for IUniswapV2Router02;
 
     struct DcaStrategy {
         uint208 poolId;
