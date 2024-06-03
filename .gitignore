@@ -1,0 +1,22 @@
+node_modules
+.env
+.explorer-keys.json
+coverage
+coverage.json
+src/typechain
+
+# Hardhat files
+abi
+cache
+artifacts
+.idea
+
+# Generated files
+.vanity
+eradicate2.cl
+keccak.cl
+profanity.cl
+
+# Autotask build files
+scripts/dca/autotask/build
+

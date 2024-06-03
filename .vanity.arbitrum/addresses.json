@@ -1,0 +1,16 @@
+{
+    "GnosisSafe": "0xcd6e9cba3851f2859304ae85b2b62fa344758c1d",
+    "UniswapRouterV2": "0x5afe00000051a88bb567d084a02c2255d220cef8",
+    "UniswapFactoryV3": "0x1f98431c8ad98523631ae4a59f267346ea31f984",
+    "UniswapRouterV3": "0xe592427a0aece92de3edee1f18e0157c05861564",
+    "UniswapPositionManagerV3": "0xc36442b4a4522e871399cd717abdd847ab11fe88",
+    "ProjectDeployer": "0x2dc7802c85f08bce5fd183f3171f448e33732389",
+    "Stablecoin": "0xaf88d065e77c8cc2239327c5edb3a432268e5831",
+    "SubscriptionManager": "0xb00b5ffff1b54f5a80da3bbccdfd70517f75e0ec",
+    "StrategyManager": "0xb00b5fff2aae2a12c88a8bc95e65c4ea6d133fb8",
+    "DollarCostAverage": "0xb00b5fffcc05c9fc95bb58e297263e44a358e3ad",
+    "VaultManager": "0xb00b5fff668a1caa1fa6fb23298e9dba1b2cf5e4",
+    "ZapManager": "0xb00b5fff8b22925b437d207863d5ec256556ce70",
+    "ZapperUniswapV2": "0x669749a6e497ead343a305c923e6bb98a9dd2eb9",
+    "ZapperUniswapV3": "0x74bf269fc268bb22f55ad41e8fb13bd74cea31b5"
+}
