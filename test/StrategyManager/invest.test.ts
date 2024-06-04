@@ -325,12 +325,13 @@ describe('StrategyManager#invest', () => {
             await invest(account1)
 
             const investmentsLength = await strategyManager.getPositionsLength(account1Address)
-            const investment = await strategyManager.getPosition(account1Address, 0)
+            const position = await strategyManager.getPosition(account1Address, 0)
+            const investments = await strategyManager.getPositionInvestments(account1Address, 0)
 
             expect(investmentsLength).to.be.equal(1n)
-            expect(investment.strategyId).to.be.equal(0n)
-            expect(investment.dcaPositionIds[0]).to.be.equal(0n)
-            expect(investment.dcaPositionIds[1]).to.be.equal(1n)
+            expect(position.strategyId).to.be.equal(0n)
+            expect(investments.dcaPositions[0]).to.be.equal(0n)
+            expect(investments.dcaPositions[1]).to.be.equal(1n)
         })
 
         it('emits PositionCreated event', async () => {
