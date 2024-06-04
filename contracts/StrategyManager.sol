@@ -13,8 +13,9 @@ import {ZapManager} from './zap/ZapManager.sol';
 import {SubscriptionManager} from "./SubscriptionManager.sol";
 import {VaultManager} from "./VaultManager.sol";
 import {DollarCostAverage} from './DollarCostAverage.sol';
+import {UseZap} from "./abstract/UseZap.sol";
 
-contract StrategyManager is HubOwnable, UseTreasury, ICall {
+contract StrategyManager is HubOwnable, UseTreasury, UseZap {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     struct DcaStrategy {
@@ -106,12 +107,10 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
     SubscriptionManager public subscriptionManager;
     DollarCostAverage public dca;
     VaultManager public vaultManager;
-    ZapManager public zapManager;
 
     mapping(uint => bool) internal _hottestStrategiesMapping;
     uint[] internal _hottestStrategiesArray;
     uint8 public maxHottestStrategies;
-    uint public dust;
 
     uint32 public strategistPercentage;
     uint32 public hotStrategistPercentage;
@@ -129,9 +128,6 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
     );
     event PositionClosed(address owner, uint strategyId, uint positionId, uint[][] dcaWithdrawnAmounts, uint[] vaultWithdrawnAmount);
     event PositionCollected(address owner, uint strategyId, uint positionId, uint[] dcaWithdrawnAmounts);
-    event Fee(address from, address to, uint amount, bytes data);
-    event Dust(address from, uint strategyId, uint amount);
-    event DustCollected(address to, uint amount);
     event CollectedStrategistRewards(address strategist, uint amount);
     event StrategistPercentageUpdated(uint32 discountPercentage);
     event HotStrategistPercentageUpdated(uint32 discountPercentage);
@@ -151,6 +147,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
 
     function initialize(InitializeParams calldata _initializeParams) external initializer {
         __Ownable_init();
+        __UseZap_init(_initializeParams.zapManager);
 
         setMaxHottestStrategies(_initializeParams.maxHottestStrategies);
         setStrategistPercentage(_initializeParams.strategistPercentage);
@@ -163,7 +160,6 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         subscriptionManager = _initializeParams.subscriptionManager;
         dca = _initializeParams.dca;
         vaultManager = _initializeParams.vaultManager;
-        zapManager = _initializeParams.zapManager;
     }
 
     function createStrategy(
@@ -256,13 +252,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
             })
         );
 
-        uint _dust = stable.balanceOf(address(this)) - initialBalance - pullFundsResult.strategistFee;
-
-        if (_dust > 0) {
-            dust += _dust;
-
-            emit Dust(msg.sender, _args.strategyId, _dust);
-        }
+        _updateDust(stable, initialBalance + pullFundsResult.strategistFee);
 
         strategy.totalDeposits += _args.inputAmount;
 
@@ -494,7 +484,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
             DcaStrategy memory investment = strategy.dcaInvestments[i];
             IERC20Upgradeable inputToken = IERC20Upgradeable(dca.getPool(investment.poolId).inputToken);
 
-            uint swapOutput = _swapOrZapIfNecessary(
+            uint swapOutput = _zap(
                 _args.swaps[i],
                 stable,
                 inputToken,
@@ -530,7 +520,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
             IBeefyVaultV7 vault = IBeefyVaultV7(investment.vault);
             IERC20Upgradeable inputToken = vault.want();
 
-            uint swapOutput = _swapOrZapIfNecessary(
+            uint swapOutput = _zap(
                 _args.swaps[i],
                 stable,
                 inputToken,
@@ -567,7 +557,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         // Convert to stable if input token is not stable and set amount in stable terms
         uint stableAmount = _args.inputToken == stable
             ? _args.inputToken.balanceOf(address(this)) - initialInputTokenBalance
-            : _swapOrZapIfNecessary(
+            : _zap(
                 _args.inputTokenSwap,
                 _args.inputToken,
                 stable,
@@ -610,37 +600,15 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         if (strategistFee > 0) {
             _strategistRewards[_args.strategist] += strategistFee;
 
-            emit Fee(msg.sender, _args.strategist, strategistFee, abi.encode(_args.strategyId));
+            emit UseFee.Fee(msg.sender, _args.strategist, strategistFee, abi.encode(_args.strategyId));
         }
 
-        emit Fee(msg.sender, treasury, protocolFee, abi.encode(_args.strategyId));
+        emit UseFee.Fee(msg.sender, treasury, protocolFee, abi.encode(_args.strategyId));
 
         return PullFundsResult(
             stableAmount - (protocolFee + strategistFee),
             strategistFee
         );
-    }
-
-    function _swapOrZapIfNecessary(
-        bytes memory _swapOrZap,
-        IERC20Upgradeable _inputToken,
-        IERC20Upgradeable _outputToken,
-        uint _amount
-    ) internal virtual returns (uint) {
-        if (_swapOrZap.length > 1) {
-            _inputToken.safeTransfer(address(zapManager), _amount);
-
-            uint initialBalance = _outputToken.balanceOf(address(this));
-
-            (bool success, bytes memory data) = address(zapManager).call(_swapOrZap);
-
-            if (!success)
-                revert LowLevelCallFailed(address(zapManager), _swapOrZap, data);
-
-            return _outputToken.balanceOf(address(this)) - initialBalance;
-        }
-
-        return _amount;
     }
 
     /**
@@ -720,17 +688,5 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         maxHottestStrategies = _maxHottestStrategies;
 
         emit MaxHotStrategiesUpdated(_maxHottestStrategies);
-    }
-
-    function collectDust() external virtual {
-        if (msg.sender != owner() || msg.sender != treasury)
-            revert Unauthorized();
-
-        uint _dust = dust;
-
-        dust = 0;
-        stable.safeTransfer(treasury, _dust);
-
-        emit DustCollected(msg.sender, _dust);
     }
 }
