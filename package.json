@@ -20,7 +20,7 @@
         "@uniswap/v3-core": "^1.0.1",
         "@uniswap/v3-periphery": "^1.4.4",
         "eslint": "^8.52.0",
-        "hardhat": "^2.19.0",
+        "hardhat": "^2.22.5",
         "ts-loader": "^9.5.1",
         "ts-node": "^10.9.1",
         "tsconfig-paths": "^4.2.0",
