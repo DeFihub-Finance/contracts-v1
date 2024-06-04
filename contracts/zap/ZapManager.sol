@@ -14,8 +14,8 @@ contract ZapManager is HubOwnable, ICall {
 
     struct InitializeParams {
         address owner;
-        UniswapV2Zapper.ConstructorArgs uniswapV2ZapperConstructor;
-        UniswapV3Zapper.ConstructorArgs uniswapV3ZapperConstructor;
+        UniswapV2Zapper.ConstructorParams uniswapV2ZapperConstructor;
+        UniswapV3Zapper.ConstructorParams uniswapV3ZapperConstructor;
     }
 
     /**

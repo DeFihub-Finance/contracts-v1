@@ -12,7 +12,7 @@ contract UniswapV2Zapper is IZapper, Swapper {
 
     address public immutable treasury;
 
-    struct ConstructorArgs {
+    struct ConstructorParams {
         address treasury;
         address swapRouter;
     }
@@ -27,9 +27,9 @@ contract UniswapV2Zapper is IZapper, Swapper {
         uint amountBMin;
     }
 
-    constructor(ConstructorArgs memory constructorArgs) {
-        treasury = constructorArgs.treasury;
-        swapRouter = constructorArgs.swapRouter;
+    constructor(ConstructorParams memory _constructorParams) {
+        treasury = _constructorParams.treasury;
+        swapRouter = _constructorParams.swapRouter;
     }
 
     /**
