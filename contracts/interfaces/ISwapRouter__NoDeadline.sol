@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: MIT
+
+pragma solidity >=0.6.2;
+
 interface ISwapRouter__NoDeadline {
     struct ExactInputParams {
         bytes path;
