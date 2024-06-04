@@ -28,7 +28,6 @@ import { createStrategyFixture } from './fixtures/create-strategy.fixture'
 //
 // SIDE-EFFECTS
 // => save position in the array of investments
-// => increase totalDeposits on strategy used
 //
 // REVERTS
 // => when strategist is not subscribed
@@ -49,9 +48,12 @@ describe('StrategyManager#invest', () => {
     let stablecoin: TestERC20
     let subscriptionSignature: SubscriptionSignature
     let deadline: number
-    let strategy: StrategyManager.StrategyStruct
-    let dcaStrategyPositions: StrategyManager.DcaStrategyStruct[]
-    let vaultStrategyPosition: StrategyManager.VaultStrategyStruct[]
+    let investments: {
+        dcaInvestments: StrategyManager.DcaInvestmentStruct[],
+        vaultInvestments: StrategyManager.VaultInvestmentStruct[],
+    }
+    let dcaStrategyPositions: StrategyManager.DcaInvestmentStruct[]
+    let vaultStrategyPosition: StrategyManager.VaultInvestmentStruct[]
 
     const strategyId = 0
     const amountToInvest = parseEther('10')
@@ -110,7 +112,7 @@ describe('StrategyManager#invest', () => {
         } = await loadFixture(createStrategyFixture))
 
         deadline = await NetworkService.getBlockTimestamp() + 10_000
-        strategy = await strategyManager.getStrategy(0)
+        investments = await strategyManager.getStrategyInvestments(0)
     })
 
     describe('EFFECTS', () => {
@@ -137,8 +139,8 @@ describe('StrategyManager#invest', () => {
                     amountToInvest * BigInt(dcaStrategyPositions[0].percentage) / 100n,
                 )
 
-                expect(dcaPosition0.swaps).to.be.equal(strategy.dcaInvestments[0].swaps)
-                expect(dcaPosition0.poolId).to.be.equal(strategy.dcaInvestments[0].poolId)
+                expect(dcaPosition0.swaps).to.be.equal(investments.dcaInvestments[0].swaps)
+                expect(dcaPosition0.poolId).to.be.equal(investments.dcaInvestments[0].poolId)
                 expect(dcaPositionBalance0.inputTokenBalance).to.be.equal(expectedDcaPositionBalance0)
 
                 /////////////////////
@@ -148,8 +150,8 @@ describe('StrategyManager#invest', () => {
                     amountToInvest * BigInt(dcaStrategyPositions[1].percentage) / 100n,
                 )
 
-                expect(dcaPosition1.swaps).to.be.equal(strategy.dcaInvestments[1].swaps)
-                expect(dcaPosition1.poolId).to.be.equal(strategy.dcaInvestments[1].poolId)
+                expect(dcaPosition1.swaps).to.be.equal(investments.dcaInvestments[1].swaps)
+                expect(dcaPosition1.poolId).to.be.equal(investments.dcaInvestments[1].poolId)
                 expect(dcaPositionBalance1.inputTokenBalance).to.be.equal(expectedDcaPositionBalance1)
 
                 ////////////////////
@@ -185,8 +187,8 @@ describe('StrategyManager#invest', () => {
                 const baseAmountToDCAPosition0 = amountToInvest * BigInt(dcaStrategyPositions[0].percentage) / 100n
                 const expectedDcaPositionBalance0 = ContractFees.discountNonSubscriberFee(baseAmountToDCAPosition0)
 
-                expect(dcaPosition0.swaps).to.be.equal(strategy.dcaInvestments[0].swaps)
-                expect(dcaPosition0.poolId).to.be.equal(strategy.dcaInvestments[0].poolId)
+                expect(dcaPosition0.swaps).to.be.equal(investments.dcaInvestments[0].swaps)
+                expect(dcaPosition0.poolId).to.be.equal(investments.dcaInvestments[0].poolId)
                 expect(dcaPositionBalance0.inputTokenBalance).to.be.equal(expectedDcaPositionBalance0)
 
                 /////////////////////
@@ -195,8 +197,8 @@ describe('StrategyManager#invest', () => {
                 const baseAmountToDCAPosition1 = amountToInvest * BigInt(dcaStrategyPositions[1].percentage) / 100n
                 const expectedDcaPositionBalance1 = ContractFees.discountNonSubscriberFee(baseAmountToDCAPosition1)
 
-                expect(dcaPosition1.swaps).to.be.equal(strategy.dcaInvestments[1].swaps)
-                expect(dcaPosition1.poolId).to.be.equal(strategy.dcaInvestments[1].poolId)
+                expect(dcaPosition1.swaps).to.be.equal(investments.dcaInvestments[1].swaps)
+                expect(dcaPosition1.poolId).to.be.equal(investments.dcaInvestments[1].poolId)
                 expect(dcaPositionBalance1.inputTokenBalance).to.be.equal(expectedDcaPositionBalance1)
 
                 ////////////////////
@@ -317,14 +319,6 @@ describe('StrategyManager#invest', () => {
     })
 
     describe('SIDE-EFFECT', () => {
-        it('increase totalDeposits on strategy used', async () => {
-            await invest(account1)
-
-            const strategy = await strategyManager.getStrategy(strategyId)
-
-            expect(strategy.totalDeposits).to.be.equal(amountToInvest)
-        })
-
         it('save position in the array of investments', async () => {
             const account1Address = await account1.getAddress()
 

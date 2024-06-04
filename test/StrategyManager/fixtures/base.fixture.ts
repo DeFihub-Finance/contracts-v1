@@ -49,7 +49,6 @@ export const baseStrategyManagerFixture = async () => {
 
     await vaultManager.setVaultWhitelistStatus(await vault.getAddress(), true)
 
-    const chainId = await NetworkService.getChainId()
     const TOKEN_IN = await token.getAddress()
     const TOKEN_OUT = await weth.getAddress()
 
@@ -113,11 +112,11 @@ export const baseStrategyManagerFixture = async () => {
     ////////////////////////////////////////////////////////
     // Creating strategies to be used to create strategy //
     ///////////////////////////////////////////////////////
-    const dcaStrategyPositions: StrategyManager.DcaStrategyStruct[] = [
+    const dcaStrategyPositions: StrategyManager.DcaInvestmentStruct[] = [
         { poolId: 0, swaps: 10, percentage: 33 },
         { poolId: 1, swaps: 10, percentage: 33 },
     ]
-    const vaultStrategyPosition: StrategyManager.VaultStrategyStruct[] = [
+    const vaultStrategyPosition: StrategyManager.VaultInvestmentStruct[] = [
         {
             vault: await vault.getAddress(),
             percentage: 34,
