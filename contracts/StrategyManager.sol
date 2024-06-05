@@ -68,7 +68,7 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
     /**
      * @dev swaps bytes are the encoded versions of ZapManager.ProtocolCall used in the callProtocol function
      */
-    struct InvestArgs {
+    struct InvestParams {
         uint strategyId;
         IERC20Upgradeable inputToken;
         uint inputAmount;
@@ -79,13 +79,13 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
         SubscriptionManager.Permit strategistPermit;
     }
 
-    struct InvestInProductArgs {
+    struct InvestInProductParams {
         uint strategyId;
         uint amount;
         bytes[] swaps;
     }
 
-    struct PullFundsArgs {
+    struct PullFundsParams {
         address strategist;
         uint strategyId;
         IERC20Upgradeable inputToken;
@@ -215,53 +215,53 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
         emit StrategyCreated(msg.sender, _strategies.length - 1, metadataHash);
     }
 
-    function invest(InvestArgs calldata _args) external virtual {
-        if (_args.strategyId > _strategies.length)
+    function invest(InvestParams calldata _params) external virtual {
+        if (_params.strategyId > _strategies.length)
             revert StrategyUnavailable();
 
-        Strategy storage strategy = _strategies[_args.strategyId];
-        address strategist = subscriptionManager.isSubscribed(strategy.creator, _args.strategistPermit)
+        Strategy storage strategy = _strategies[_params.strategyId];
+        address strategist = subscriptionManager.isSubscribed(strategy.creator, _params.strategistPermit)
             ? strategy.creator
             : address(0);
 
         uint initialBalance = stable.balanceOf(address(this));
 
         PullFundsResult memory pullFundsResult = _pullFunds(
-            PullFundsArgs({
+            PullFundsParams({
                 strategist: strategist,
-                strategyId: _args.strategyId,
-                inputToken: _args.inputToken,
-                inputAmount: _args.inputAmount,
-                inputTokenSwap: _args.inputTokenSwap,
-                permit: _args.investorPermit
+                strategyId: _params.strategyId,
+                inputToken: _params.inputToken,
+                inputAmount: _params.inputAmount,
+                inputTokenSwap: _params.inputTokenSwap,
+                permit: _params.investorPermit
             })
         );
 
         uint[] memory dcaPositionIds = _investInDca(
-            InvestInProductArgs({
-                strategyId: _args.strategyId,
+            InvestInProductParams({
+                strategyId: _params.strategyId,
                 amount: pullFundsResult.remainingAmount,
-                swaps: _args.dcaSwaps
+                swaps: _params.dcaSwaps
             })
         );
         VaultPosition[] memory vaultPositions = _investInVaults(
-            InvestInProductArgs({
-                strategyId: _args.strategyId,
+            InvestInProductParams({
+                strategyId: _params.strategyId,
                 amount: pullFundsResult.remainingAmount,
-                swaps: _args.vaultSwaps
+                swaps: _params.vaultSwaps
             })
         );
 
         _updateDust(stable, initialBalance + pullFundsResult.strategistFee);
 
-        strategy.totalDeposits += _args.inputAmount;
+        strategy.totalDeposits += _params.inputAmount;
 
         uint positionId = _positions[msg.sender].length;
 
         Position storage position = _positions[msg.sender].push();
 
-        position.strategyId = _args.strategyId;
-        position.depositedAmount = _args.inputAmount;
+        position.strategyId = _params.strategyId;
+        position.depositedAmount = _params.inputAmount;
         position.remainingAmount = pullFundsResult.remainingAmount;
         position.dcaPositionIds = dcaPositionIds;
 
@@ -270,10 +270,10 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
 
         emit PositionCreated(
             msg.sender,
-            _args.strategyId,
+            _params.strategyId,
             positionId,
-            address(_args.inputToken),
-            _args.inputAmount,
+            address(_params.inputToken),
+            _params.inputAmount,
             pullFundsResult.remainingAmount,
             dcaPositionIds,
             vaultPositions
@@ -467,14 +467,14 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
      */
 
     function _investInDca(
-        InvestInProductArgs memory _args
+        InvestInProductParams memory _params
     ) internal virtual returns (uint[] memory) {
-        Strategy memory strategy = _strategies[_args.strategyId];
+        Strategy memory strategy = _strategies[_params.strategyId];
 
         if (strategy.dcaInvestments.length == 0)
             return new uint[](0);
 
-        if (_args.swaps.length != strategy.dcaInvestments.length)
+        if (_params.swaps.length != strategy.dcaInvestments.length)
             revert InvalidSwapsLength();
 
         uint[] memory dcaPositionIds = new uint[](strategy.dcaInvestments.length);
@@ -485,10 +485,10 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
             IERC20Upgradeable inputToken = IERC20Upgradeable(dca.getPool(investment.poolId).inputToken);
 
             uint swapOutput = _zap(
-                _args.swaps[i],
+                _params.swaps[i],
                 stable,
                 inputToken,
-                _args.amount * investment.percentage / 100
+                _params.amount * investment.percentage / 100
             );
 
             inputToken.safeIncreaseAllowance(address(dca), swapOutput);
@@ -503,14 +503,14 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
     }
 
     function _investInVaults(
-        InvestInProductArgs memory _args
+        InvestInProductParams memory _params
     ) internal virtual returns (VaultPosition[] memory) {
-        Strategy memory strategy = _strategies[_args.strategyId];
+        Strategy memory strategy = _strategies[_params.strategyId];
 
         if (strategy.vaultInvestments.length == 0)
             return new VaultPosition[](0);
 
-        if (_args.swaps.length != strategy.vaultInvestments.length)
+        if (_params.swaps.length != strategy.vaultInvestments.length)
             revert InvalidSwapsLength();
 
         VaultPosition[] memory vaultPositions = new VaultPosition[](strategy.vaultInvestments.length);
@@ -521,10 +521,10 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
             IERC20Upgradeable inputToken = vault.want();
 
             uint swapOutput = _zap(
-                _args.swaps[i],
+                _params.swaps[i],
                 stable,
                 inputToken,
-                _args.amount * investment.percentage / 100
+                _params.amount * investment.percentage / 100
             );
 
             inputToken.safeIncreaseAllowance(address(vaultManager), swapOutput);
@@ -541,27 +541,27 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
     }
 
     function _pullFunds(
-        PullFundsArgs memory _args
+        PullFundsParams memory _params
     ) internal virtual returns (
         PullFundsResult memory
     ) {
-        Strategy memory strategy = _strategies[_args.strategyId];
+        Strategy memory strategy = _strategies[_params.strategyId];
 
-        uint currentStrategistPercentage = isHot(_args.strategyId)
+        uint currentStrategistPercentage = isHot(_params.strategyId)
             ? hotStrategistPercentage
             : strategistPercentage;
-        uint initialInputTokenBalance = _args.inputToken.balanceOf(address(this));
+        uint initialInputTokenBalance = _params.inputToken.balanceOf(address(this));
 
-        _args.inputToken.safeTransferFrom(msg.sender, address(this), _args.inputAmount);
+        _params.inputToken.safeTransferFrom(msg.sender, address(this), _params.inputAmount);
 
         // Convert to stable if input token is not stable and set amount in stable terms
-        uint stableAmount = _args.inputToken == stable
-            ? _args.inputToken.balanceOf(address(this)) - initialInputTokenBalance
+        uint stableAmount = _params.inputToken == stable
+            ? _params.inputToken.balanceOf(address(this)) - initialInputTokenBalance
             : _zap(
-                _args.inputTokenSwap,
-                _args.inputToken,
+                _params.inputTokenSwap,
+                _params.inputToken,
                 stable,
-                _args.inputToken.balanceOf(address(this)) - initialInputTokenBalance
+                _params.inputToken.balanceOf(address(this)) - initialInputTokenBalance
             );
 
         uint protocolFee;
@@ -571,10 +571,10 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
             (uint _protocolFee, uint _strategistFee) = _calculateProductFee(
                 address(dca),
                 msg.sender,
-                _args.strategist,
+                _params.strategist,
                 stableAmount * strategy.dcaPercentage / 100,
                 currentStrategistPercentage,
-                _args.permit
+                _params.permit
             );
 
             protocolFee += _protocolFee;
@@ -585,10 +585,10 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
             (uint _protocolFee, uint _strategistFee) = _calculateProductFee(
                 address(vaultManager),
                 msg.sender,
-                _args.strategist,
+                _params.strategist,
                 stableAmount * strategy.vaultPercentage / 100,
                 currentStrategistPercentage,
-                _args.permit
+                _params.permit
             );
 
             protocolFee += _protocolFee;
@@ -598,12 +598,12 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
         stable.safeTransfer(treasury, protocolFee);
 
         if (strategistFee > 0) {
-            _strategistRewards[_args.strategist] += strategistFee;
+            _strategistRewards[_params.strategist] += strategistFee;
 
-            emit UseFee.Fee(msg.sender, _args.strategist, strategistFee, abi.encode(_args.strategyId));
+            emit UseFee.Fee(msg.sender, _params.strategist, strategistFee, abi.encode(_params.strategyId));
         }
 
-        emit UseFee.Fee(msg.sender, treasury, protocolFee, abi.encode(_args.strategyId));
+        emit UseFee.Fee(msg.sender, treasury, protocolFee, abi.encode(_params.strategyId));
 
         return PullFundsResult(
             stableAmount - (protocolFee + strategistFee),

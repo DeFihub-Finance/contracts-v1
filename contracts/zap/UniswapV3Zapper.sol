@@ -11,14 +11,14 @@ import {Swapper} from "./Swapper.sol";
 contract UniswapV3Zapper is IZapper, Swapper {
     INonfungiblePositionManager public immutable positionManager;
 
-    struct ConstructorArgs {
+    struct ConstructorParams {
         address positionManager;
         address swapRouter;
     }
 
-    constructor(ConstructorArgs memory constructorArgs) {
-        positionManager = INonfungiblePositionManager(constructorArgs.positionManager);
-        swapRouter = constructorArgs.swapRouter;
+    constructor(ConstructorParams memory _constructorParams) {
+        positionManager = INonfungiblePositionManager(_constructorParams.positionManager);
+        swapRouter = _constructorParams.swapRouter;
     }
 
     function zap(bytes memory) external pure {
