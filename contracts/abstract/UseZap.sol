@@ -35,20 +35,19 @@ abstract contract UseZap is ICall, Initializable {
         IERC20Upgradeable _outputToken,
         uint _amount
     ) internal virtual returns (uint) {
-        if (_swapOrZap.length > 1 && _inputToken != _outputToken) {
-            _inputToken.safeTransfer(address(zapManager), _amount);
+        if (_swapOrZap.length == 0 || _inputToken == _outputToken)
+            return _amount;
 
-            uint initialBalance = _outputToken.balanceOf(address(this));
+        _inputToken.safeTransfer(address(zapManager), _amount);
 
-            (bool success, bytes memory data) = address(zapManager).call(_swapOrZap);
+        uint initialBalance = _outputToken.balanceOf(address(this));
 
-            if (!success)
-                revert LowLevelCallFailed(address(zapManager), _swapOrZap, data);
+        (bool success, bytes memory data) = address(zapManager).call(_swapOrZap);
 
-            return _outputToken.balanceOf(address(this)) - initialBalance;
-        }
+        if (!success)
+            revert LowLevelCallFailed(address(zapManager), _swapOrZap, data);
 
-        return _amount;
+        return _outputToken.balanceOf(address(this)) - initialBalance;
     }
 
     function _updateDust(
