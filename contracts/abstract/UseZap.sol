@@ -13,8 +13,8 @@ abstract contract UseZap is ICall, Initializable {
     ZapManager public zapManager;
     mapping(address => uint) private _dust;
 
-    event DustCreated(address token, address from, uint amount);
-    event DustCollected(address token, address to, uint amount);
+    event DustCreated(address token, uint amount);
+    event DustCollected(address token, uint amount);
 
     function __UseZap_init(
         ZapManager _zapManager
@@ -58,7 +58,7 @@ abstract contract UseZap is ICall, Initializable {
 
         if (transactionDust > 0) {
             _dust[address(_token)] += transactionDust;
-            emit DustCreated(address(_token), msg.sender, transactionDust);
+            emit DustCreated(address(_token), transactionDust);
         }
     }
 
@@ -68,7 +68,7 @@ abstract contract UseZap is ICall, Initializable {
         _dust[address(_token)] = 0;
         _token.safeTransfer(_to, collectAmount);
 
-        emit DustCollected(address(_token), msg.sender, collectAmount);
+        emit DustCollected(address(_token),  collectAmount);
     }
 
     function dust(address _token) external view returns (uint) {
