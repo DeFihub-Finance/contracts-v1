@@ -27,7 +27,7 @@ abstract contract UseZap is ICall, Initializable {
      * @param _inputToken - Token to be sold
      * @param _outputToken - Token to be bought
      * @param _amount - Amount of input tokens to be sold
-     * @return Amount of output tokens bought, if no zap is needed, returns input token amount
+     * @return Amount of output tokens bought. If no zap is needed, returns input token amount
      */
     function _zap(
         bytes memory _swapOrZap,
