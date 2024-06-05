@@ -29,10 +29,10 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
         uint8 percentage;
     }
 
+    // @notice percentages is a mapping from product id to its percentage
     struct Strategy {
         address creator;
-        uint8 dcaPercentage;
-        uint8 vaultPercentage;
+        mapping(uint8 => uint8) percentages;
     }
 
     struct VaultPosition {
@@ -100,6 +100,9 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
         uint remainingAmount;
         uint strategistFee;
     }
+
+    uint8 public constant PRODUCT_DCA = 0;
+    uint8 public constant PRODUCT_VAULTS = 1;
 
     mapping(address => uint) internal _strategistRewards;
 
@@ -197,8 +200,8 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
 
         Strategy storage strategy = _strategies.push();
         strategy.creator = msg.sender;
-        strategy.dcaPercentage = dcaPercentage;
-        strategy.vaultPercentage = vaultPercentage;
+        strategy.percentages[PRODUCT_DCA] = dcaPercentage;
+        strategy.percentages[PRODUCT_VAULTS] = vaultPercentage;
 
         // Assigning isn't possible because you can't convert an array of structs from memory to storage
         for (uint i = 0; i < _params.dcaInvestments.length; i++) {
@@ -437,8 +440,8 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
         return _positions[_investor];
     }
 
-    function getStrategy(uint _strategyId) external virtual view returns (Strategy memory) {
-        return _strategies[_strategyId];
+    function getStrategyCreator(uint _strategyId) external virtual view returns (address) {
+        return _strategies[_strategyId].creator;
     }
 
     function getStrategyInvestments(
@@ -572,7 +575,7 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
     ) internal virtual returns (
         PullFundsResult memory
     ) {
-        Strategy memory strategy = _strategies[_params.strategyId];
+        Strategy storage strategy = _strategies[_params.strategyId];
 
         uint currentStrategistPercentage = isHot(_params.strategyId)
             ? hotStrategistPercentage
@@ -594,12 +597,12 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
         uint protocolFee;
         uint strategistFee;
 
-        if (strategy.dcaPercentage > 0) {
+        if (strategy.percentages[PRODUCT_DCA] > 0) {
             (uint _protocolFee, uint _strategistFee) = _calculateProductFee(
                 address(dca),
                 msg.sender,
                 _params.strategist,
-                stableAmount * strategy.dcaPercentage / 100,
+                stableAmount * strategy.percentages[PRODUCT_DCA] / 100,
                 currentStrategistPercentage,
                 _params.permit
             );
@@ -608,12 +611,12 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
             strategistFee += _strategistFee;
         }
 
-        if (strategy.vaultPercentage > 0) {
+        if (strategy.percentages[PRODUCT_VAULTS] > 0) {
             (uint _protocolFee, uint _strategistFee) = _calculateProductFee(
                 address(vaultManager),
                 msg.sender,
                 _params.strategist,
-                stableAmount * strategy.vaultPercentage / 100,
+                stableAmount * strategy.percentages[PRODUCT_VAULTS] / 100,
                 currentStrategistPercentage,
                 _params.permit
             );
