@@ -63,15 +63,13 @@ abstract contract UseFee is OwnableUpgradeable, UseTreasury {
         uint _depositAmount,
         bytes memory _eventData,
         SubscriptionManager.Permit calldata _subscriptionPermit
-    ) internal returns (uint) {
+    ) internal returns (uint depositFee) {
         (uint baseFee, uint nonSubscriberFee) = calculateFee(msg.sender, _depositAmount, _subscriptionPermit);
-        uint depositFee = baseFee + nonSubscriberFee;
+        depositFee = baseFee + nonSubscriberFee;
 
         IERC20Upgradeable(_token).safeTransferFrom(msg.sender, treasury, depositFee);
 
         emit Fee(msg.sender, treasury, depositFee, _eventData);
-
-        return depositFee;
     }
 
     function setFee(uint32 _baseFeeBP, uint32 _nonSubscriberFeeBP) external onlyOwner {
