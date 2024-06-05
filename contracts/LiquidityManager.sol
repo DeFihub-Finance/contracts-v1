@@ -16,6 +16,8 @@ contract LiquidityManager is HubOwnable, UseZap, UseFee {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     address public strategyManager;
+    // @notice position managers must be whitelisted to prevent scam strategies using fake position managers
+    mapping(address => bool) public positionManagerWhitelist;
 
     struct InitializeParams {
         address strategyManager;
@@ -28,7 +30,7 @@ contract LiquidityManager is HubOwnable, UseZap, UseFee {
     }
 
     struct AddLiquidityV3Params {
-        INonfungiblePositionManager positionManager;
+        address positionManager;
         IERC20Upgradeable inputToken;
         IERC20Upgradeable token0;
         IERC20Upgradeable token1;
@@ -47,6 +49,7 @@ contract LiquidityManager is HubOwnable, UseZap, UseFee {
     }
 
     error InsufficientFunds(uint requested, uint available);
+    error InvalidPositionManager();
     error Unauthorized();
 
     function initialize(InitializeParams calldata _params) external initializer {
@@ -107,6 +110,9 @@ contract LiquidityManager is HubOwnable, UseZap, UseFee {
         uint tokenId,
         uint128 liquidity
     ) {
+        if (!positionManagerWhitelist[_params.positionManager])
+            revert InvalidPositionManager();
+
         uint initialBalanceInputToken = _params.inputToken.balanceOf(address(this));
 
         uint amountToken0 = _zap(
@@ -131,21 +137,30 @@ contract LiquidityManager is HubOwnable, UseZap, UseFee {
         uint initialBalanceToken0 = _params.token0.balanceOf(address(this));
         uint initialBalanceToken1 = _params.token1.balanceOf(address(this));
 
-        (tokenId, liquidity,,) = _params.positionManager.mint(INonfungiblePositionManager.MintParams({
-            token0: address(_params.token0),
-            token1: address(_params.token1),
-            fee: _params.fee,
-            tickLower: _params.tickLower,
-            tickUpper: _params.tickUpper,
-            amount0Desired: amountToken0,
-            amount1Desired: amountToken1,
-            amount0Min: _params.amount0Min,
-            amount1Min: _params.amount1Min,
-            recipient: msg.sender,
-            deadline: block.timestamp
-        }));
+        (tokenId, liquidity,,) = INonfungiblePositionManager(_params.positionManager).mint(
+            INonfungiblePositionManager.MintParams({
+                token0: address(_params.token0),
+                token1: address(_params.token1),
+                fee: _params.fee,
+                tickLower: _params.tickLower,
+                tickUpper: _params.tickUpper,
+                amount0Desired: amountToken0,
+                amount1Desired: amountToken1,
+                amount0Min: _params.amount0Min,
+                amount1Min: _params.amount1Min,
+                recipient: msg.sender,
+                deadline: block.timestamp
+            })
+        );
 
         _updateDust(_params.token0, initialBalanceToken0);
         _updateDust(_params.token1, initialBalanceToken1);
+    }
+
+    function setPositionManagerWhitelist(
+        address _positionManager,
+        bool _whitelisted
+    ) external virtual onlyOwner {
+        positionManagerWhitelist[_positionManager] = _whitelisted;
     }
 }
