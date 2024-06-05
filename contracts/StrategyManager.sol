@@ -42,8 +42,6 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
 
     struct Position {
         uint strategyId;
-        uint depositedAmount;
-        uint remainingAmount;
         bool closed;
     }
 
@@ -269,8 +267,6 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
         Position storage position = _positions[msg.sender].push();
 
         position.strategyId = _params.strategyId;
-        position.depositedAmount = _params.inputAmount;
-        position.remainingAmount = pullFundsResult.remainingAmount;
         _dcaPositionsPerPosition[msg.sender][positionId] = dcaPositionIds;
 
         for (uint i = 0; i < vaultPositions.length; i++)
