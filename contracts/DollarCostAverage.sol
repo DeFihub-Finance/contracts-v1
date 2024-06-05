@@ -5,16 +5,14 @@ pragma solidity 0.8.22;
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import {IERC20Upgradeable, SafeERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 
-import {IUniswapV2Router02} from "./interfaces/IUniswapV2Router02.sol";
 import {MathHelpers} from "./helpers/MathHelpers.sol";
 import {TokenHelpers} from "./helpers/TokenHelpers.sol";
 import {HubOwnable} from "./abstract/HubOwnable.sol";
-import {UseTreasury} from "./abstract/UseTreasury.sol";
 import {UseFee} from "./abstract/UseFee.sol";
 import {SubscriptionManager} from "./SubscriptionManager.sol";
 import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 
-contract DollarCostAverage is HubOwnable, UseTreasury, UseFee, ReentrancyGuardUpgradeable {
+contract DollarCostAverage is HubOwnable, UseFee, ReentrancyGuardUpgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     struct PositionInfo {
@@ -104,11 +102,11 @@ contract DollarCostAverage is HubOwnable, UseTreasury, UseFee, ReentrancyGuardUp
         __ReentrancyGuard_init();
         __Ownable_init();
         __UseFee_init(
+            _initializeParams.treasury,
             _initializeParams.subscriptionManager,
             _initializeParams.baseFeeBP,
             _initializeParams.nonSubscriberFeeBP
         );
-        setTreasury(_initializeParams.treasury);
 
         transferOwnership(_initializeParams.owner);
 
@@ -165,12 +163,12 @@ contract DollarCostAverage is HubOwnable, UseTreasury, UseFee, ReentrancyGuardUp
 
         PoolInfo memory pool = poolInfo[_poolId];
 
-        (uint baseFee, uint nonSubscriberFee) = calculateFee(msg.sender, _amount, _subscriptionPermit);
-        uint depositFee = baseFee + nonSubscriberFee;
-
-        IERC20Upgradeable(pool.inputToken).safeTransferFrom(msg.sender, treasury, depositFee);
-
-        emit Fee(msg.sender, treasury, depositFee, abi.encode(_poolId));
+        uint depositFee = _collectProtocolFees(
+            pool.inputToken,
+            _amount,
+            abi.encode(_poolId),
+            _subscriptionPermit
+        );
 
         _deposit(_poolId, _swaps, _amount - depositFee);
     }
@@ -227,7 +225,7 @@ contract DollarCostAverage is HubOwnable, UseTreasury, UseFee, ReentrancyGuardUp
 
         uint timestamp = block.timestamp;
 
-        for (uint32 i = 0; i < swapInfo.length;) {
+        for (uint32 i = 0; i < swapInfo.length; ++i) {
             uint208 poolId = swapInfo[i].poolId;
 
             if (poolId >= poolInfo.length)
@@ -265,10 +263,6 @@ contract DollarCostAverage is HubOwnable, UseTreasury, UseFee, ReentrancyGuardUp
             pool.lastSwapTimestamp = timestamp;
 
             emit Swap(poolId, inputTokenAmount, outputTokenAmount);
-
-            unchecked {
-                i++;
-            }
         }
     }
 
@@ -466,11 +460,11 @@ contract DollarCostAverage is HubOwnable, UseTreasury, UseFee, ReentrancyGuardUp
             revert InvalidPoolPath();
 
         // Initialize variables for addresses
-        uint256 firstAddressBytes;
-        uint256 lastAddressBytes;
+        uint firstAddressBytes;
+        uint lastAddressBytes;
 
         // Calculate the offset for the start of the last address
-        uint256 lastAddressOffset = data.length - 20;
+        uint lastAddressOffset = data.length - 20;
 
         // To extract the first address, load the first 20 bytes as an address directly
         assembly {
@@ -486,4 +480,3 @@ contract DollarCostAverage is HubOwnable, UseTreasury, UseFee, ReentrancyGuardUp
         _outputToken = address(uint160(lastAddressBytes));
     }
 }
-

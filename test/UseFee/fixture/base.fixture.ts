@@ -20,7 +20,8 @@ export const baseUseFeeFixture = async () => {
     const useFee = await new TestFee__factory(deployer).deploy()
 
     await useFee.initialize(
-        await subscriptionManager.getAddress(),
+        deployer,
+        subscriptionManager,
         70n,
         30n,
     )
