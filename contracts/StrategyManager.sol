@@ -13,6 +13,7 @@ import {ZapManager} from './zap/ZapManager.sol';
 import {SubscriptionManager} from "./SubscriptionManager.sol";
 import {VaultManager} from "./VaultManager.sol";
 import {DollarCostAverage} from './DollarCostAverage.sol';
+import {LiquidityManager} from './LiquidityManager.sol';
 import {UseZap} from "./abstract/UseZap.sol";
 
 contract StrategyManager is HubOwnable, UseTreasury, UseZap {
@@ -76,8 +77,23 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
     struct CreateStrategyParams {
         DcaInvestment[] dcaInvestments;
         VaultInvestment[] vaultInvestments;
+        LiquidityInvestment[] liquidityInvestments;
         SubscriptionManager.Permit permit;
         bytes32 metadataHash;
+    }
+
+    struct LiquidityInvestParams {
+        IERC20Upgradeable inputToken;
+        bytes swapToken0;
+        bytes swapToken1;
+        uint swapAmountToken0;
+        uint swapAmountToken1;
+        int24 tickLower;
+        int24 tickUpper;
+        uint amount0Min;
+        uint amount1Min;
+        bytes zapToken0;
+        bytes zapToken1;
     }
 
     /**
@@ -90,6 +106,7 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
         bytes inputTokenSwap;
         bytes[] dcaSwaps;
         bytes[] vaultSwaps;
+        LiquidityInvestParams[] liquidityInvestParams;
         SubscriptionManager.Permit investorPermit;
         SubscriptionManager.Permit strategistPermit;
     }
@@ -137,6 +154,7 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
     SubscriptionManager public subscriptionManager;
     DollarCostAverage public dca;
     VaultManager public vaultManager;
+    LiquidityManager public liquidityManager;
 
     mapping(uint => bool) internal _hottestStrategiesMapping;
     uint[] internal _hottestStrategiesArray;
@@ -171,7 +189,7 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
     error InvalidInvestment();
     error PercentageTooHigh();
     error StrategyUnavailable();
-    error InvalidSwapsLength();
+    error InvalidParamsLength();
     error PositionAlreadyClosed();
     error InvalidPositionId(address investor, uint positionId);
 
@@ -203,6 +221,7 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
 
         uint8 dcaPercentage;
         uint8 vaultPercentage;
+        uint8 liquidityPercentage;
 
         for (uint i = 0; i < _params.dcaInvestments.length; i++)
             dcaPercentage += _params.dcaInvestments[i].percentage;
@@ -210,7 +229,10 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
         for (uint i = 0; i < _params.vaultInvestments.length; i++)
             vaultPercentage += _params.vaultInvestments[i].percentage;
 
-        if ((dcaPercentage + vaultPercentage) != 100)
+        for (uint i = 0; i < _params.liquidityInvestments.length; i++)
+            liquidityPercentage += _params.liquidityInvestments[i].percentage;
+
+        if ((dcaPercentage + vaultPercentage + liquidityPercentage) != 100)
             revert InvalidTotalPercentage();
 
         uint strategyId = _strategies.length;
@@ -219,6 +241,7 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
         strategy.creator = msg.sender;
         strategy.percentages[PRODUCT_DCA] = dcaPercentage;
         strategy.percentages[PRODUCT_VAULTS] = vaultPercentage;
+        strategy.percentages[PRODUCT_LIQUIDITY] = liquidityPercentage;
 
         // Assigning isn't possible because you can't convert an array of structs from memory to storage
         for (uint i = 0; i < _params.dcaInvestments.length; i++) {
@@ -237,6 +260,15 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
                 revert InvalidInvestment();
 
             _vaultInvestmentsPerStrategy[strategyId].push(vaultStrategy);
+        }
+
+        for (uint i = 0; i < _params.liquidityInvestments.length; i++) {
+            LiquidityInvestment memory vaultStrategy = _params.liquidityInvestments[i];
+
+            if (!liquidityManager.positionManagerWhitelist(vaultStrategy.positionManager))
+                revert InvalidInvestment();
+
+            _liquidityInvestmentsPerStrategy[strategyId].push(vaultStrategy);
         }
 
         emit StrategyCreated(msg.sender, strategyId, _params.metadataHash);
@@ -277,6 +309,11 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
                 amount: pullFundsResult.remainingAmount,
                 swaps: _params.vaultSwaps
             })
+        );
+        // TODO assign liquidity positions
+        LiquidityPosition[] memory liquidityPositions = _investInLiquidity(
+            _params.strategyId,
+            _params.liquidityInvestParams
         );
 
         _updateDust(stable, initialBalance + pullFundsResult.strategistFee);
@@ -441,7 +478,10 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
         return _positions[_investor][_index];
     }
 
-    function getPositionInvestments(address _investor, uint _positionId) external virtual view returns (
+    function getPositionInvestments(
+        address _investor,
+        uint _positionId
+    ) external virtual view returns (
         uint[] memory dcaPositions,
         VaultPosition[] memory vaultPositions
     ) {
@@ -520,7 +560,7 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
             return new uint[](0);
 
         if (_params.swaps.length != dcaInvestments.length)
-            revert InvalidSwapsLength();
+            revert InvalidParamsLength();
 
         uint[] memory dcaPositionIds = new uint[](dcaInvestments.length);
         uint nextDcaPositionId = dca.getPositionsLength(address(this));
@@ -556,7 +596,7 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
             return new VaultPosition[](0);
 
         if (_params.swaps.length != vaultInvestments.length)
-            revert InvalidSwapsLength();
+            revert InvalidParamsLength();
 
         VaultPosition[] memory vaultPositions = new VaultPosition[](vaultInvestments.length);
 
@@ -583,6 +623,27 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
         }
 
         return vaultPositions;
+    }
+
+    function _investInLiquidity(
+        uint _strategyId,
+        LiquidityInvestParams[] memory _params
+    ) internal virtual returns (LiquidityPosition[] memory) {
+        LiquidityInvestment[] memory liquidityInvestments = _liquidityInvestmentsPerStrategy[_strategyId];
+
+        if (liquidityInvestments.length == 0)
+            return new LiquidityPosition[](0);
+
+        if (_params.length != liquidityInvestments.length)
+            revert InvalidParamsLength();
+
+        LiquidityPosition[] memory liquidityPositions = new LiquidityPosition[](liquidityInvestments.length);
+
+        for (uint i = 0; i < liquidityInvestments.length; i++) {
+            // TODO
+        }
+
+        return liquidityPositions;
     }
 
     function _pullFunds(
@@ -632,6 +693,20 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
                 msg.sender,
                 _params.strategist,
                 stableAmount * strategy.percentages[PRODUCT_VAULTS] / 100,
+                currentStrategistPercentage,
+                _params.permit
+            );
+
+            protocolFee += _protocolFee;
+            strategistFee += _strategistFee;
+        }
+
+        if (strategy.percentages[PRODUCT_LIQUIDITY] > 0) {
+            (uint _protocolFee, uint _strategistFee) = _calculateProductFee(
+                address(liquidityManager),
+                msg.sender,
+                _params.strategist,
+                stableAmount * strategy.percentages[PRODUCT_LIQUIDITY] / 100,
                 currentStrategistPercentage,
                 _params.permit
             );
