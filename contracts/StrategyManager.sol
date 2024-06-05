@@ -29,6 +29,16 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
         uint8 percentage;
     }
 
+    struct LiquidityInvestment {
+        address positionManager;
+        address token0;
+        address token1;
+        uint24 fee;
+        uint16 pricePercentageThresholdBelow;
+        uint16 pricePercentageThresholdAbove;
+        uint8 percentage;
+    }
+
     // @notice percentages is a mapping from product id to its percentage
     struct Strategy {
         address creator;
@@ -38,6 +48,11 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
     struct VaultPosition {
         address vault;
         uint amount;
+    }
+
+    struct LiquidityPosition {
+        address positionManager;
+        uint tokenId;
     }
 
     struct Position {
@@ -101,18 +116,22 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
 
     uint8 public constant PRODUCT_DCA = 0;
     uint8 public constant PRODUCT_VAULTS = 1;
+    uint8 public constant PRODUCT_LIQUIDITY = 2;
 
     mapping(address => uint) internal _strategistRewards;
 
     Strategy[] internal _strategies;
     mapping(uint => DcaInvestment[]) internal _dcaInvestmentsPerStrategy;
     mapping(uint => VaultInvestment[]) internal _vaultInvestmentsPerStrategy;
+    mapping(uint => LiquidityInvestment[]) internal _liquidityInvestmentsPerStrategy;
 
     mapping(address => Position[]) internal _positions;
     // @dev investor => strategy position id => dca position ids
     mapping(address => mapping(uint => uint[])) internal _dcaPositionsPerPosition;
     // @dev investor => strategy position id => vault positions
     mapping(address => mapping(uint => VaultPosition[])) internal _vaultPositionsPerPosition;
+    // @dev investor => strategy position id => liquidity positions
+    mapping(address => mapping(uint => LiquidityPosition[])) internal _liquidityPositionsPerPosition;
 
     IERC20Upgradeable public stable;
     SubscriptionManager public subscriptionManager;
@@ -133,7 +152,7 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
         uint positionId,
         address inputToken,
         uint inputTokenAmount,
-        uint stableAmount,
+        uint stableAmountAfterFees,
         uint[] dcaPositionIds,
         VaultPosition[] vaultPositions
     );
