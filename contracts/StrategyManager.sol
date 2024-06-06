@@ -14,15 +14,10 @@ import {SubscriptionManager} from "./SubscriptionManager.sol";
 import {VaultManager} from "./VaultManager.sol";
 import {DollarCostAverage} from './DollarCostAverage.sol';
 import {UseZap} from "./abstract/UseZap.sol";
+import {InvestmentHelper} from "./libraries/InvestmentHelpers.sol";
 
 contract StrategyManager is HubOwnable, UseTreasury, UseZap {
     using SafeERC20Upgradeable for IERC20Upgradeable;
-
-    struct DcaInvestment {
-        uint208 poolId;
-        uint16 swaps;
-        uint8 percentage;
-    }
 
     struct VaultInvestment {
         address vault;
@@ -50,6 +45,7 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
     struct InitializeParams {
         address owner;
         address treasury;
+        address investmentHelper;
         IERC20Upgradeable stable;
         SubscriptionManager subscriptionManager;
         DollarCostAverage dca;
@@ -61,7 +57,8 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
     }
 
     struct CreateStrategyParams {
-        DcaInvestment[] dcaInvestments;
+        // TODO remove InvestmentHelper. by moving the struct to an interface
+        InvestmentHelper.DcaInvestment[] dcaInvestments;
         VaultInvestment[] vaultInvestments;
         SubscriptionManager.Permit permit;
         bytes32 metadataHash;
@@ -107,7 +104,7 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
     mapping(address => uint) internal _strategistRewards;
 
     Strategy[] internal _strategies;
-    mapping(uint => DcaInvestment[]) internal _dcaInvestmentsPerStrategy;
+    mapping(uint => InvestmentHelper.DcaInvestment[]) internal _dcaInvestmentsPerStrategy;
     mapping(uint => VaultInvestment[]) internal _vaultInvestmentsPerStrategy;
 
     mapping(address => Position[]) internal _positions;
@@ -116,6 +113,7 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
     // @dev investor => strategy position id => vault positions
     mapping(address => mapping(uint => VaultPosition[])) internal _vaultPositionsPerPosition;
 
+    address public investmentHelper;
     IERC20Upgradeable public stable;
     SubscriptionManager public subscriptionManager;
     DollarCostAverage public dca;
@@ -169,6 +167,7 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
 
         transferOwnership(_initializeParams.owner);
 
+        investmentHelper = _initializeParams.investmentHelper;
         stable = _initializeParams.stable;
         subscriptionManager = _initializeParams.subscriptionManager;
         dca = _initializeParams.dca;
@@ -205,7 +204,7 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
 
         // Assigning isn't possible because you can't convert an array of structs from memory to storage
         for (uint i = 0; i < _params.dcaInvestments.length; i++) {
-            DcaInvestment memory dcaStrategy = _params.dcaInvestments[i];
+            InvestmentHelper.DcaInvestment memory dcaStrategy = _params.dcaInvestments[i];
 
             if (dcaStrategy.poolId >= dca.getPoolsLength())
                 revert InvalidInvestment();
@@ -254,6 +253,7 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
                 swaps: _params.dcaSwaps
             })
         );
+
         VaultPosition[] memory vaultPositions = _investInVaults(
             InvestInProductParams({
                 strategyId: _params.strategyId,
@@ -447,7 +447,7 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
     function getStrategyInvestments(
         uint _strategyId
     ) external virtual view returns (
-        DcaInvestment[] memory dcaInvestments,
+        InvestmentHelper.DcaInvestment[] memory dcaInvestments,
         VaultInvestment[] memory vaultInvestments
     ) {
         return (_dcaInvestmentsPerStrategy[_strategyId], _vaultInvestmentsPerStrategy[_strategyId]);
@@ -499,37 +499,24 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
     function _investInDca(
         InvestInProductParams memory _params
     ) internal virtual returns (uint[] memory) {
-        DcaInvestment[] memory dcaInvestments = _dcaInvestmentsPerStrategy[_params.strategyId];
+        (bool success, bytes memory resultData) = investmentHelper.delegatecall(
+            abi.encode(
+                InvestmentHelper.investInDca.selector,
+                InvestmentHelper.DcaInvestmentParams({
+                    dca: dca,
+                    dcaInvestments: _dcaInvestmentsPerStrategy[_params.strategyId],
+                    inputToken: stable,
+                    amount: _params.amount,
+                    zapManager: address(zapManager),
+                    swaps: _params.swaps
+                })
+            )
+        );
 
-        if (dcaInvestments.length == 0)
-            return new uint[](0);
+        if (!success)
+            revert LowLevelCallFailed(address(investmentHelper), "", resultData);
 
-        if (_params.swaps.length != dcaInvestments.length)
-            revert InvalidSwapsLength();
-
-        uint[] memory dcaPositionIds = new uint[](dcaInvestments.length);
-        uint nextDcaPositionId = dca.getPositionsLength(address(this));
-
-        for (uint i = 0; i < dcaInvestments.length; i++) {
-            DcaInvestment memory investment = dcaInvestments[i];
-            IERC20Upgradeable inputToken = IERC20Upgradeable(dca.getPool(investment.poolId).inputToken);
-
-            uint swapOutput = _zap(
-                _params.swaps[i],
-                stable,
-                inputToken,
-                _params.amount * investment.percentage / 100
-            );
-
-            inputToken.safeIncreaseAllowance(address(dca), swapOutput);
-
-            dca.depositUsingStrategy(investment.poolId, investment.swaps, swapOutput);
-
-            dcaPositionIds[i] = nextDcaPositionId;
-            nextDcaPositionId++;
-        }
-
-        return dcaPositionIds;
+        return abi.decode(resultData, (uint[]));
     }
 
     function _investInVaults(
