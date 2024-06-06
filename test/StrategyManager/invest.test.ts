@@ -363,9 +363,17 @@ describe('StrategyManager#invest', () => {
 
     describe('REVERTS', () => {
         it('if swap paths are different than the vault length in strategy', async () => {
-            const tx = invest(account2, { _vaultSwaps: [] })
+            try {
+                await invest(account2, { _vaultSwaps: [] })
+            }
+            catch (e) {
+                const decodedError = ErrorDecoder.decodeLowLevelCallError(e)
 
-            await expect(tx).to.revertedWithCustomError(strategyManager, 'InvalidSwapsLength')
+                if (!(decodedError instanceof ErrorDescription))
+                    throw new Error('Error decoding custom error')
+
+                expect(decodedError.name).to.be.equal('InvalidParamsLength')
+            }
         })
 
         it('if swap paths are different than the dca length in strategy', async () => {
@@ -378,7 +386,7 @@ describe('StrategyManager#invest', () => {
                 if (!(decodedError instanceof ErrorDescription))
                     throw new Error('Error decoding custom error')
 
-                expect(decodedError.name).to.be.equal('InvalidSwapsLength')
+                expect(decodedError.name).to.be.equal('InvalidParamsLength')
             }
         })
 

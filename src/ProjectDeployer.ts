@@ -20,7 +20,7 @@ import {
     UniswapV2Factory__factory,
     UniswapV2Router02__factory,
     Quoter__factory,
-    InvestmentLib__factory,
+    InvestLib__factory,
 } from '@src/typechain'
 import { ZeroHash, ZeroAddress, Signer, AddressLike } from 'ethers'
 import { sendLocalTransaction } from '@src/helpers/transaction'
@@ -60,7 +60,7 @@ export class ProjectDeployer {
             positionManagerUniV3,
             quoterUniV3,
         } = await this.deployUniV3(deployer, weth)
-        const investmentLib = await new InvestmentLib__factory(deployer).deploy()
+        const investmentLib = await new InvestLib__factory(deployer).deploy()
 
         const subscriptionManagerDeployParams = this.getDeploymentInfo(SubscriptionManager__factory)
         const strategyManagerDeployParams = this.getDeploymentInfo(StrategyManager__factory)

@@ -1,7 +1,7 @@
 import {
     DollarCostAverage__factory,
     ICall__factory,
-    InvestmentLib__factory,
+    InvestLib__factory,
     StrategyManager__factory,
     SubscriptionManager__factory,
     VaultManager__factory,
@@ -43,7 +43,7 @@ export class ErrorDecoder {
                         DollarCostAverage__factory.createInterface(),
                         VaultManager__factory.createInterface(),
                         ZapManager__factory.createInterface(),
-                        InvestmentLib__factory.createInterface(),
+                        InvestLib__factory.createInterface(),
                     ]
                         .map(contractInterface => contractInterface.parseError(nextData))
                         .filter(notEmpty)[0]
