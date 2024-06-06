@@ -234,20 +234,38 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
             })
         );
 
-        uint[] memory dcaPositionIds = _investInDca(
-            InvestInProductParams({
-                strategyId: _params.strategyId,
-                amount: pullFundsResult.remainingAmount,
-                swaps: _params.dcaSwaps
-            })
+        uint[] memory dcaPositionIds = abi.decode(
+            _callInvestLib(
+                abi.encodeWithSelector(
+                    InvestLib.investInDca.selector,
+                    InvestLib.DcaInvestmentParams({
+                        dca: dca,
+                        dcaInvestments: _dcaInvestmentsPerStrategy[_params.strategyId],
+                        inputToken: stable,
+                        amount: pullFundsResult.remainingAmount,
+                        zapManager: address(zapManager),
+                        swaps: _params.dcaSwaps
+                    })
+                )
+            ),
+            (uint[])
         );
 
-        InvestLib.VaultPosition[] memory vaultPositions = _investInVaults(
-            InvestInProductParams({
-                strategyId: _params.strategyId,
-                amount: pullFundsResult.remainingAmount,
-                swaps: _params.vaultSwaps
-            })
+        InvestLib.VaultPosition[] memory vaultPositions = abi.decode(
+            _callInvestLib(
+                abi.encodeWithSelector(
+                    InvestLib.investInVaults.selector,
+                    InvestLib.VaultInvestmentParams({
+                        vaultManager: vaultManager,
+                        vaultInvestments: _vaultInvestmentsPerStrategy[_params.strategyId],
+                        inputToken: stable,
+                        amount: pullFundsResult.remainingAmount,
+                        zapManager: address(zapManager),
+                        swaps: _params.vaultSwaps
+                    })
+                )
+            ),
+            (InvestLib.VaultPosition[])
         );
 
         _updateDust(stable, initialBalance + pullFundsResult.strategistFee);
@@ -484,50 +502,17 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
      * ----- Internal functions -----
      */
 
-    function _investInDca(
-        InvestInProductParams memory _params
-    ) internal virtual returns (uint[] memory) {
-        (bool success, bytes memory resultData) = investmentLib.delegatecall(
-            abi.encodeWithSelector(
-                InvestLib.investInDca.selector,
-                InvestLib.DcaInvestmentParams({
-                    dca: dca,
-                    dcaInvestments: _dcaInvestmentsPerStrategy[_params.strategyId],
-                    inputToken: stable,
-                    amount: _params.amount,
-                    zapManager: address(zapManager),
-                    swaps: _params.swaps
-                })
-            )
-        );
+    function _callInvestLib(
+        bytes memory _callData
+    ) internal returns (
+        bytes memory
+    ) {
+        (bool success, bytes memory resultData) = investmentLib.delegatecall(_callData);
 
         if (!success)
             revert LowLevelCallFailed(address(investmentLib), "", resultData);
 
-        return abi.decode(resultData, (uint[]));
-    }
-
-    function _investInVaults(
-        InvestInProductParams memory _params
-    ) internal virtual returns (InvestLib.VaultPosition[] memory) {
-        (bool success, bytes memory resultData) = investmentLib.delegatecall(
-            abi.encodeWithSelector(
-                InvestLib.investInVaults.selector,
-                InvestLib.VaultInvestmentParams({
-                    vaultManager: vaultManager,
-                    vaultInvestments: _vaultInvestmentsPerStrategy[_params.strategyId],
-                    inputToken: stable,
-                    amount: _params.amount,
-                    zapManager: address(zapManager),
-                    swaps: _params.swaps
-                })
-            )
-        );
-
-        if (!success)
-            revert LowLevelCallFailed(address(investmentLib), "", resultData);
-
-        return abi.decode(resultData, (InvestLib.VaultPosition[]));
+        return resultData;
     }
 
     function _pullFunds(
