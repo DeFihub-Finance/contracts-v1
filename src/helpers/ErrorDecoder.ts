@@ -24,7 +24,7 @@ export class ErrorDecoder {
      *
      * @param error - The error to decode
      */
-    public static decodeLowLevelCallError(error: unknown) {
+    public static decodeLowLevelCallError(error: unknown): ErrorDescription | string | undefined {
         const callInterface = ICall__factory.createInterface()
         const typedError = error as { data?: string | null }
 
