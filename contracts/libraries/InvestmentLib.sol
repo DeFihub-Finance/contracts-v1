@@ -3,43 +3,26 @@
 pragma solidity 0.8.26;
 
 import {IERC20Upgradeable, SafeERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
-import {DollarCostAverage} from '../DollarCostAverage.sol';
 import {ICall} from  "../interfaces/ICall.sol";
+import {IStrategyInvestor} from "../interfaces/IStrategyInvestor.sol";
 
-contract InvestmentHelper is ICall {
+library InvestmentLib {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
-    struct DcaInvestment {
-        uint208 poolId;
-        uint16 swaps;
-        uint8 percentage;
-    }
-
-    struct DcaInvestmentParams {
-        DollarCostAverage dca;
-        DcaInvestment[] dcaInvestments;
-        IERC20Upgradeable inputToken;
-        uint amount;
-        address zapManager;
-        bytes[] swaps;
-    }
-
-    error InvalidSwapsLength();
-
     function investInDca(
-        DcaInvestmentParams memory _params
-    ) external returns (uint[] memory) {
+        IStrategyInvestor.DcaInvestmentParams memory _params
+    ) public returns (uint[] memory) {
         if (_params.dcaInvestments.length == 0)
             return new uint[](0);
 
         if (_params.swaps.length != _params.dcaInvestments.length)
-            revert InvalidSwapsLength();
+            revert IStrategyInvestor.InvalidSwapsLength();
 
         uint[] memory dcaPositionIds = new uint[](_params.dcaInvestments.length);
         uint nextDcaPositionId = _params.dca.getPositionsLength(address(this));
 
         for (uint i = 0; i < _params.dcaInvestments.length; i++) {
-            DcaInvestment memory investment = _params.dcaInvestments[i];
+            IStrategyInvestor.DcaInvestment memory investment = _params.dcaInvestments[i];
             IERC20Upgradeable poolInputToken = IERC20Upgradeable(_params.dca.getPool(investment.poolId).inputToken);
 
             uint swapOutput = _zap(
@@ -74,7 +57,7 @@ contract InvestmentHelper is ICall {
         IERC20Upgradeable _inputToken,
         IERC20Upgradeable _outputToken,
         uint _amount
-    ) internal virtual returns (uint) {
+    ) internal returns (uint) {
         if (_swapOrZap.length > 1 && _inputToken != _outputToken) {
             _inputToken.safeTransfer(_zapManager, _amount);
 
@@ -83,7 +66,7 @@ contract InvestmentHelper is ICall {
             (bool success, bytes memory data) = _zapManager.call(_swapOrZap);
 
             if (!success)
-                revert LowLevelCallFailed(_zapManager, _swapOrZap, data);
+                revert ICall.LowLevelCallFailed(_zapManager, _swapOrZap, data);
 
             return _outputToken.balanceOf(address(this)) - initialBalance;
         }
