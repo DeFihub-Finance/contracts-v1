@@ -68,7 +68,7 @@ export class BaseZapHelper {
         const chainId = await NetworkService.getChainId()
         const deadline = await NetworkService.getDeadline()
         const subscriptionSigner = await this.getSubscriptionSigner()
-        const strategist = (await this.strategyManager.getStrategy(strategyId)).creator
+        const strategist = await this.strategyManager.getStrategyCreator(strategyId)
 
         const investorPermit = await subscriptionSigner
             .signSubscriptionPermit(investor, deadline, chainId)
