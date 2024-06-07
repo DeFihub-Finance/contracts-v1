@@ -174,10 +174,10 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
         uint8 dcaPercentage;
         uint8 vaultPercentage;
 
-        for (uint i = 0; i < _params.dcaInvestments.length; i++)
+        for (uint i = 0; i < _params.dcaInvestments.length; ++i)
             dcaPercentage += _params.dcaInvestments[i].percentage;
 
-        for (uint i = 0; i < _params.vaultInvestments.length; i++)
+        for (uint i = 0; i < _params.vaultInvestments.length; ++i)
             vaultPercentage += _params.vaultInvestments[i].percentage;
 
         if ((dcaPercentage + vaultPercentage) != 100)
@@ -191,7 +191,7 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
         strategy.percentages[PRODUCT_VAULTS] = vaultPercentage;
 
         // Assigning isn't possible because you can't convert an array of structs from memory to storage
-        for (uint i = 0; i < _params.dcaInvestments.length; i++) {
+        for (uint i = 0; i < _params.dcaInvestments.length; ++i) {
             InvestLib.DcaInvestment memory dcaStrategy = _params.dcaInvestments[i];
 
             if (dcaStrategy.poolId >= dca.getPoolsLength())
@@ -200,7 +200,7 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
             _dcaInvestmentsPerStrategy[strategyId].push(dcaStrategy);
         }
 
-        for (uint i = 0; i < _params.vaultInvestments.length; i++) {
+        for (uint i = 0; i < _params.vaultInvestments.length; ++i) {
             InvestLib.VaultInvestment memory vaultStrategy = _params.vaultInvestments[i];
 
             if (!vaultManager.whitelistedVaults(vaultStrategy.vault))
@@ -279,7 +279,7 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
         position.remainingAmount = pullFundsResult.remainingAmount;
         _dcaPositionsPerPosition[msg.sender][positionId] = dcaPositionIds;
 
-        for (uint i = 0; i < vaultPositions.length; i++)
+        for (uint i = 0; i < vaultPositions.length; ++i)
             _vaultPositionsPerPosition[msg.sender][positionId].push(vaultPositions[i]);
 
         emit PositionCreated(
@@ -308,7 +308,7 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
         uint[] memory vaultsWithdrawnAmounts = new uint[](vaultPositions.length);
 
         // close dca positions
-        for (uint i = 0; i < dcaPositions.length; i++) {
+        for (uint i = 0; i < dcaPositions.length; ++i) {
             DollarCostAverage.PositionInfo memory dcaPosition = dca.getPosition(
                 address(this),
                 dcaPositions[i]
@@ -340,7 +340,7 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
         }
 
         // close vault positions
-        for (uint i = 0; i < vaultPositions.length; i++) {
+        for (uint i = 0; i < vaultPositions.length; ++i) {
             InvestLib.VaultPosition memory vaultPosition = vaultPositions[i];
             IBeefyVaultV7 vault = IBeefyVaultV7(vaultPosition.vault);
 
@@ -377,7 +377,7 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
 
         uint[] memory dcaWithdrawnAmounts = new uint[](dcaPositions.length);
 
-        for (uint i; i < dcaPositions.length; i++) {
+        for (uint i; i < dcaPositions.length; ++i) {
             DollarCostAverage.PositionInfo memory dcaPosition = dca.getPosition(
                 address(this),
                 dcaPositions[i]
@@ -648,10 +648,10 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
         if (_strategyIds.length > maxHottestStrategies)
             revert TooManyUsers();
 
-        for (uint i = 0; i < _hottestStrategiesArray.length; i++)
+        for (uint i = 0; i < _hottestStrategiesArray.length; ++i)
             _hottestStrategiesMapping[_hottestStrategiesArray[i]] = false;
 
-        for (uint i = 0; i < _strategyIds.length; i++)
+        for (uint i = 0; i < _strategyIds.length; ++i)
             _hottestStrategiesMapping[_strategyIds[i]] = true;
 
         _hottestStrategiesArray = _strategyIds;
