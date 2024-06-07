@@ -13,8 +13,8 @@ abstract contract UseZap is ICall, Initializable {
     ZapManager public zapManager;
     mapping(address => uint) private _dust;
 
-    event DustCreated(address token, address from, uint amount);
-    event DustCollected(address token, address to, uint amount);
+    event DustCreated(address token, uint amount);
+    event DustCollected(address token, uint amount);
 
     function __UseZap_init(
         ZapManager _zapManager
@@ -27,7 +27,7 @@ abstract contract UseZap is ICall, Initializable {
      * @param _inputToken - Token to be sold
      * @param _outputToken - Token to be bought
      * @param _amount - Amount of input tokens to be sold
-     * @return Amount of output tokens bought, if no zap is needed, returns input token amount
+     * @return Amount of output tokens bought. If no zap is needed, returns input token amount
      */
     function _zap(
         bytes memory _swapOrZap,
@@ -35,20 +35,19 @@ abstract contract UseZap is ICall, Initializable {
         IERC20Upgradeable _outputToken,
         uint _amount
     ) internal virtual returns (uint) {
-        if (_swapOrZap.length > 1 && _inputToken != _outputToken) {
-            _inputToken.safeTransfer(address(zapManager), _amount);
+        if (_swapOrZap.length == 0 || _inputToken == _outputToken)
+            return _amount;
 
-            uint initialBalance = _outputToken.balanceOf(address(this));
+        _inputToken.safeTransfer(address(zapManager), _amount);
 
-            (bool success, bytes memory data) = address(zapManager).call(_swapOrZap);
+        uint initialBalance = _outputToken.balanceOf(address(this));
 
-            if (!success)
-                revert LowLevelCallFailed(address(zapManager), _swapOrZap, data);
+        (bool success, bytes memory data) = address(zapManager).call(_swapOrZap);
 
-            return _outputToken.balanceOf(address(this)) - initialBalance;
-        }
+        if (!success)
+            revert LowLevelCallFailed(address(zapManager), _swapOrZap, data);
 
-        return _amount;
+        return _outputToken.balanceOf(address(this)) - initialBalance;
     }
 
     function _updateDust(
@@ -59,7 +58,7 @@ abstract contract UseZap is ICall, Initializable {
 
         if (transactionDust > 0) {
             _dust[address(_token)] += transactionDust;
-            emit DustCreated(address(_token), msg.sender, transactionDust);
+            emit DustCreated(address(_token), transactionDust);
         }
     }
 
@@ -69,7 +68,7 @@ abstract contract UseZap is ICall, Initializable {
         _dust[address(_token)] = 0;
         _token.safeTransfer(_to, collectAmount);
 
-        emit DustCollected(address(_token), msg.sender, collectAmount);
+        emit DustCollected(address(_token),  collectAmount);
     }
 
     function dust(address _token) external view returns (uint) {
