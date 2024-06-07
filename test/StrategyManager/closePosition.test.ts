@@ -29,7 +29,7 @@ describe('StrategyManager#closePosition', () => {
     async function snapshotStrategyTokenBalances() {
         const positionTokenBalances: Record<string, bigint> = {}
 
-        const { dcaPositionIds, vaultPositions } = await strategyManager.getPosition(
+        const { dcaPositions, vaultPositions } = await strategyManager.getPositionInvestments(
             await account1.getAddress(),
             strategyPositionId,
         )
@@ -41,7 +41,7 @@ describe('StrategyManager#closePosition', () => {
                 positionTokenBalances[token] = balance
         }
 
-        for (const positionId of dcaPositionIds) {
+        for (const positionId of dcaPositions) {
             const strategyManagerAddress = await strategyManager.getAddress()
 
             const [{ inputTokenBalance, outputTokenBalance }, { poolId }]= await Promise.all([

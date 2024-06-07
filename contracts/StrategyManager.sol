@@ -44,8 +44,6 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
         uint strategyId;
         uint depositedAmount;
         uint remainingAmount;
-        uint[] dcaPositionIds;
-        VaultPosition[] vaultPositions;
         bool closed;
     }
 
@@ -103,12 +101,17 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
         uint strategistFee;
     }
 
-    mapping(address => Position[]) internal _positions;
     mapping(address => uint) internal _strategistRewards;
 
     Strategy[] internal _strategies;
     mapping(uint => DcaInvestment[]) internal _dcaInvestmentsPerStrategy;
     mapping(uint => VaultInvestment[]) internal _vaultInvestmentsPerStrategy;
+
+    mapping(address => Position[]) internal _positions;
+    // @dev investor => strategy position id => dca position ids
+    mapping(address => mapping(uint => uint[])) internal _dcaPositionsPerPosition;
+    // @dev investor => strategy position id => vault positions
+    mapping(address => mapping(uint => VaultPosition[])) internal _vaultPositionsPerPosition;
 
     IERC20Upgradeable public stable;
     SubscriptionManager public subscriptionManager;
@@ -265,10 +268,10 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
         position.strategyId = _params.strategyId;
         position.depositedAmount = _params.inputAmount;
         position.remainingAmount = pullFundsResult.remainingAmount;
-        position.dcaPositionIds = dcaPositionIds;
+        _dcaPositionsPerPosition[msg.sender][positionId] = dcaPositionIds;
 
         for (uint i = 0; i < vaultPositions.length; ++i)
-            position.vaultPositions.push(vaultPositions[i]);
+            _vaultPositionsPerPosition[msg.sender][positionId].push(vaultPositions[i]);
 
         emit PositionCreated(
             msg.sender,
@@ -284,20 +287,22 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
 
     function closePosition(uint _positionId) external virtual {
         Position storage position = _positions[msg.sender][_positionId];
+        uint[] memory dcaPositions = _dcaPositionsPerPosition[msg.sender][_positionId];
+        VaultPosition[] memory vaultPositions = _vaultPositionsPerPosition[msg.sender][_positionId];
 
         if (position.closed)
             revert PositionAlreadyClosed();
 
         position.closed = true;
 
-        uint[][] memory dcaWithdrawnAmounts = new uint[][](position.dcaPositionIds.length);
-        uint[] memory vaultsWithdrawnAmounts = new uint[](position.vaultPositions.length);
+        uint[][] memory dcaWithdrawnAmounts = new uint[][](dcaPositions.length);
+        uint[] memory vaultsWithdrawnAmounts = new uint[](vaultPositions.length);
 
         // close dca positions
-        for (uint i = 0; i < position.dcaPositionIds.length; ++i) {
+        for (uint i = 0; i < dcaPositions.length; ++i) {
             DollarCostAverage.PositionInfo memory dcaPosition = dca.getPosition(
                 address(this),
-                position.dcaPositionIds[i]
+                dcaPositions[i]
             );
             DollarCostAverage.PoolInfo memory poolInfo = dca.getPool(dcaPosition.poolId);
             IERC20Upgradeable inputToken = IERC20Upgradeable(poolInfo.inputToken);
@@ -305,7 +310,7 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
             uint initialInputTokenBalance = inputToken.balanceOf(address(this));
             uint initialOutputTokenBalance = outputToken.balanceOf(address(this));
 
-            dca.withdrawAll(position.dcaPositionIds[i]);
+            dca.withdrawAll(dcaPositions[i]);
 
             uint inputTokenAmount = inputToken.balanceOf(address(this)) - initialInputTokenBalance;
             uint outputTokenAmount = outputToken.balanceOf(address(this)) - initialOutputTokenBalance;
@@ -326,8 +331,8 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
         }
 
         // close vault positions
-        for (uint i = 0; i < position.vaultPositions.length; ++i) {
-            VaultPosition memory vaultPosition = position.vaultPositions[i];
+        for (uint i = 0; i < vaultPositions.length; ++i) {
+            VaultPosition memory vaultPosition = vaultPositions[i];
             IBeefyVaultV7 vault = IBeefyVaultV7(vaultPosition.vault);
 
             uint initialBalance = vault.want().balanceOf(address(this));
@@ -356,22 +361,23 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
             revert InvalidPositionId(msg.sender, _positionId);
 
         Position storage position = _positions[msg.sender][_positionId];
+        uint[] memory dcaPositions = _dcaPositionsPerPosition[msg.sender][_positionId];
 
         if (position.closed)
             revert PositionAlreadyClosed();
 
-        uint[] memory dcaWithdrawnAmounts = new uint[](position.dcaPositionIds.length);
+        uint[] memory dcaWithdrawnAmounts = new uint[](dcaPositions.length);
 
-        for (uint i; i < position.dcaPositionIds.length; ++i) {
+        for (uint i; i < dcaPositions.length; ++i) {
             DollarCostAverage.PositionInfo memory dcaPosition = dca.getPosition(
                 address(this),
-                position.dcaPositionIds[i]
+                dcaPositions[i]
             );
             DollarCostAverage.PoolInfo memory poolInfo = dca.getPool(dcaPosition.poolId);
             IERC20Upgradeable outputToken = IERC20Upgradeable(poolInfo.outputToken);
             uint initialOutputTokenBalance = outputToken.balanceOf(address(this));
 
-            dca.withdrawSwapped(position.dcaPositionIds[i]);
+            dca.withdrawSwapped(dcaPositions[i]);
 
             uint outputTokenAmount = outputToken.balanceOf(address(this)) - initialOutputTokenBalance;
 
@@ -415,6 +421,16 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
         uint _index
     ) external virtual view returns (Position memory) {
         return _positions[_investor][_index];
+    }
+
+    function getPositionInvestments(address _investor, uint _positionId) external virtual view returns (
+        uint[] memory dcaPositions,
+        VaultPosition[] memory vaultPositions
+    ) {
+        return (
+            _dcaPositionsPerPosition[_investor][_positionId],
+            _vaultPositionsPerPosition[_investor][_positionId]
+        );
     }
 
     function getPositions(address _investor) external virtual view returns (Position[] memory) {
@@ -626,7 +642,7 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
      * @dev Takes the base fee of a product and splits it between the protocol and strategist fees by applying the current strategist percentage.
      *
      * @param _product The product to calculate the fee for
-     * @param _user The user that is paying the fee
+     * @param _investor The user that is paying the fee
      * @param _strategist The strategist that created the strategy
      * @param _amount The amount being deposited into the product
      * @param _currentStrategistPercentage Percentage based on the strategy being one of the hottest deals
@@ -637,7 +653,7 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
      **/
     function _calculateProductFee(
         address _product,
-        address _user,
+        address _investor,
         address _strategist,
         uint _amount,
         uint _currentStrategistPercentage,
@@ -647,7 +663,7 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
         uint strategistFee
     ) {
         (uint baseFee, uint nonSubscriberFee) = UseFee(_product).calculateFee(
-            _user,
+            _investor,
             _amount,
             _permit
         );
