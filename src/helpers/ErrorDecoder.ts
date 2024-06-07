@@ -32,32 +32,40 @@ export class ErrorDecoder {
             let parsedError: ErrorDescription | null = null
             let nextData = typedError.data
 
-            while (nextData) {
-                parsedError = callInterface.parseError(nextData)
+            try {
+                while (nextData && nextData !== '0x') {
+                    parsedError = callInterface.parseError(nextData)
 
-                // if error cannot be parsed by the ICall interface, it isn't an instance of LowLevelCallError, therefore we try parsing it with other contract interfaces
-                if (!parsedError) {
-                    const customError = [
-                        SubscriptionManager__factory.createInterface(),
-                        StrategyManager__factory.createInterface(),
-                        DollarCostAverage__factory.createInterface(),
-                        VaultManager__factory.createInterface(),
-                        ZapManager__factory.createInterface(),
-                        InvestLib__factory.createInterface(),
-                    ]
-                        .map(contractInterface => contractInterface.parseError(nextData))
-                        .filter(notEmpty)[0]
+                    // if error cannot be parsed by the ICall interface, it isn't an instance of LowLevelCallError, therefore we try parsing it with other contract interfaces
+                    if (!parsedError) {
+                        const customError = [
+                            SubscriptionManager__factory.createInterface(),
+                            StrategyManager__factory.createInterface(),
+                            DollarCostAverage__factory.createInterface(),
+                            VaultManager__factory.createInterface(),
+                            ZapManager__factory.createInterface(),
+                            InvestLib__factory.createInterface(),
+                        ]
+                            .map(contractInterface => contractInterface.parseError(nextData))
+                            .filter(notEmpty)[0]
 
-                    if (customError)
-                        return customError
+                        if (customError)
+                            return customError
+                    }
+
+                    nextData = (parsedError as unknown as LowLevelCallError).args.revertData
                 }
 
-                nextData = (parsedError as unknown as LowLevelCallError).args.revertData
+                // returns error message if it's a string
+                if (parsedError?.signature === 'Error(string)')
+                    return parsedError.args[0]
             }
+            catch (e) {
+                // console.log(e)
+                console.log({ parsedError, nextData })
 
-            // returns error message if it's a string
-            if (parsedError?.signature === 'Error(string)')
-                return parsedError.args[0]
+                throw e
+            }
         }
     }
 }

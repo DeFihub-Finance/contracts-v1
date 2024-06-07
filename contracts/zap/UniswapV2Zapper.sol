@@ -65,18 +65,19 @@ contract UniswapV2Zapper is IZapper, Swapper {
             IERC20Upgradeable(zapData.tokenB).balanceOf(address(this)),
             zapData.amountAMin,
             zapData.amountBMin,
-            msg.sender,
+            address(this),
             block.timestamp
         );
 
-        uint balanceTokenA = IERC20Upgradeable(zapData.tokenA).balanceOf(address(this));
-        uint balanceTokenB = IERC20Upgradeable(zapData.tokenB).balanceOf(address(this));
-
-        if (balanceTokenA > 0)
-            tokenA.safeTransfer(treasury, balanceTokenA);
-
-        if (balanceTokenB > 0)
-            tokenB.safeTransfer(treasury, balanceTokenB);
+        // TODO leaving dust in this contract will not be safe since it delegates calls to swapper which calls any function of the swap router
+//        uint balanceTokenA = IERC20Upgradeable(zapData.tokenA).balanceOf(address(this));
+//        uint balanceTokenB = IERC20Upgradeable(zapData.tokenB).balanceOf(address(this));
+//
+//        if (balanceTokenA > 0)
+//            tokenA.safeTransfer(treasury, balanceTokenA);
+//
+//        if (balanceTokenB > 0)
+//            tokenB.safeTransfer(treasury, balanceTokenB);
 
         emit Zapped(swapRouter, data);
     }

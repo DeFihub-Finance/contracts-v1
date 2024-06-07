@@ -80,6 +80,7 @@ export class UniswapV3ZapHelper extends BaseZapHelper {
             [
                 {
                     path: await path.encodedPath(),
+                    // TODO Recipient can be strategy manager when just swapping instead of adding liquidity
                     recipient: await unwrapAddressLike(this.zapManager),
                     deadline: await NetworkService.getDeadline(),
                     amountIn: amountWithoutFees,

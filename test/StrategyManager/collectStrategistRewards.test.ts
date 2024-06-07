@@ -2,7 +2,7 @@ import { expect } from 'chai'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import { investFixture } from './fixtures/invest.fixture'
 import { Signer } from 'ethers'
-import { ERC20, StrategyManager } from '@src/typechain'
+import { ERC20, StrategyManager, ZapManager } from '@src/typechain'
 
 // EFFECTS
 // => given a strategist with rewards to collect
@@ -18,6 +18,7 @@ describe('StrategyManager#collectStrategistRewards', () => {
     let account0: Signer
     let account1: Signer
     let strategyManager: StrategyManager
+    let zapManager: ZapManager
     let rewardToken: ERC20
     let strategistAddress: string
 
@@ -29,6 +30,7 @@ describe('StrategyManager#collectStrategistRewards', () => {
             account1,
             strategyManager,
             strategistAddress,
+            zapManager,
             rewardToken,
         } = await loadFixture(investFixture))
     })
@@ -63,7 +65,7 @@ describe('StrategyManager#collectStrategistRewards', () => {
             it('calculates rewards properly', async () => {
                 expect(
                     await strategyManager.getStrategistRewards(account0) +
-                    await strategyManager.dust(rewardToken) -
+                    await zapManager.dust(rewardToken) -
                     await rewardToken.balanceOf(strategyManager),
                 ).to.equal(0)
 
@@ -72,7 +74,10 @@ describe('StrategyManager#collectStrategistRewards', () => {
                 expect(await strategyManager.getStrategistRewards(account0))
                     .to.equal(0)
 
-                expect(await strategyManager.dust(rewardToken) - await rewardToken.balanceOf(strategyManager))
+                expect(
+                    await zapManager.dust(rewardToken) -
+                    await rewardToken.balanceOf(strategyManager),
+                )
                     .to.equal(0)
             })
         })
