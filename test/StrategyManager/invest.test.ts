@@ -278,7 +278,7 @@ describe('StrategyManager#invest', () => {
             let initialStrategistRewards: bigint
 
             beforeEach(async () => {
-                strategist = (await strategyManager.getStrategy(strategyId)).creator
+                strategist = await strategyManager.getStrategyCreator(strategyId)
                 investor = await account2.getAddress()
                 initialStrategistRewards = await strategyManager
                     .getStrategistRewards(strategist)
