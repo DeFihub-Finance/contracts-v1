@@ -111,7 +111,7 @@ contract VaultManager is HubOwnable, UseFee {
     function getWhitelistedVaults() external virtual view returns (address[] memory) {
         address[] memory vaultArray = new address[](_vaultArray.length);
 
-        for (uint i; i < _vaultArray.length; i++) {
+        for (uint i; i < _vaultArray.length; ++i) {
             address vault = _vaultArray[i];
 
             if (whitelistedVaults[vault])

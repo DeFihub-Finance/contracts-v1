@@ -225,7 +225,7 @@ contract DollarCostAverage is HubOwnable, UseFee, ReentrancyGuardUpgradeable {
 
         uint timestamp = block.timestamp;
 
-        for (uint32 i = 0; i < swapInfo.length; ++i) {
+        for (uint32 i; i < swapInfo.length; ++i) {
             uint208 poolId = swapInfo[i].poolId;
 
             if (poolId >= poolInfo.length)
@@ -294,7 +294,7 @@ contract DollarCostAverage is HubOwnable, UseFee, ReentrancyGuardUpgradeable {
     }
 
     function withdrawSwappedMany(uint[] calldata _positionId) external virtual nonReentrant {
-        for (uint i = 0; i < _positionId.length; i++)
+        for (uint i; i < _positionId.length; ++i)
             _withdrawSwapped(_positionId[i]);
     }
 

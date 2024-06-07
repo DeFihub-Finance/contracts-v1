@@ -18,7 +18,7 @@ contract DollarCostAverage__NoDeadline is DollarCostAverage {
 
         uint timestamp = block.timestamp;
 
-        for (uint32 i = 0; i < swapInfo.length; ++i) {
+        for (uint32 i; i < swapInfo.length; ++i) {
             uint208 poolId = swapInfo[i].poolId;
 
             if (poolId >= poolInfo.length)

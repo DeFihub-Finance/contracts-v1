@@ -59,7 +59,7 @@ library InvestLib {
         uint[] memory dcaPositionIds = new uint[](_params.dcaInvestments.length);
         uint nextDcaPositionId = _params.dca.getPositionsLength(address(this));
 
-        for (uint i = 0; i < _params.dcaInvestments.length; i++) {
+        for (uint i; i < _params.dcaInvestments.length; ++i) {
             DcaInvestment memory investment = _params.dcaInvestments[i];
             IERC20Upgradeable poolInputToken = IERC20Upgradeable(_params.dca.getPool(investment.poolId).inputToken);
 
@@ -93,7 +93,7 @@ library InvestLib {
 
         VaultPosition[] memory vaultPositions = new VaultPosition[](_params.vaultInvestments.length);
 
-        for (uint i = 0; i < _params.vaultInvestments.length; i++) {
+        for (uint i; i < _params.vaultInvestments.length; ++i) {
             VaultInvestment memory investment = _params.vaultInvestments[i];
             IBeefyVaultV7 vault = IBeefyVaultV7(investment.vault);
             IERC20Upgradeable vaultWantToken = vault.want();
