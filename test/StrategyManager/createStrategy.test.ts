@@ -167,7 +167,7 @@ describe('StrategyManager#createStrategy', () => {
                     vault: '',
                 }))
 
-            const dcaInvestment: StrategyManager.DcaInvestmentStruct[] = new Array(21)
+            const dcaInvestments: StrategyManager.DcaInvestmentStruct[] = new Array(21)
                 .map(() => ({
                     // @dev percentage doesn't matter here, the investmentCount check happens before
                     percentage: 0,
@@ -176,8 +176,8 @@ describe('StrategyManager#createStrategy', () => {
                 }))
 
             const tx = strategyManager.connect(account0).createStrategy({
-                dcaInvestments: dcaInvestment,
-                vaultInvestments: vaultInvestments,
+                dcaInvestments,
+                vaultInvestments,
                 permit: await subscriptionSignature.signSubscriptionPermit(
                     await account0.getAddress(),
                     deadline,
