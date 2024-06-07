@@ -161,8 +161,8 @@ describe('StrategyManager#invest (zap)', () => {
         }
 
         beforeEach(async () => {
-            await strategyManager.connect(account0).createStrategy(
-                [
+            await strategyManager.connect(account0).createStrategy({
+                dcaInvestments: [
                     {
                         poolId: stableBtcPoolId,
                         swaps: 10,
@@ -174,10 +174,10 @@ describe('StrategyManager#invest (zap)', () => {
                         percentage: 50n,
                     },
                 ],
-                [],
-                permitAccount0,
-                ZeroHash,
-            )
+                vaultInvestments: [],
+                permit: permitAccount0,
+                metadataHash: ZeroHash,
+            })
 
             await stablecoin.connect(account0).mint(account0, amount)
             await stablecoin.connect(account0).approve(strategyManager, amount)
@@ -323,9 +323,9 @@ describe('StrategyManager#invest (zap)', () => {
         beforeEach(async () => {
             initialLpBalance = await btcEthLpUniV2.balanceOf(account0)
 
-            await strategyManager.connect(account0).createStrategy(
-                [],
-                [
+            await strategyManager.connect(account0).createStrategy({
+                dcaInvestments: [],
+                vaultInvestments: [
                     {
                         vault: await createVault(wbtc),
                         percentage: 50n,
@@ -335,9 +335,9 @@ describe('StrategyManager#invest (zap)', () => {
                         percentage: 50n,
                     },
                 ],
-                permitAccount0,
-                ZeroHash,
-            )
+                permit: permitAccount0,
+                metadataHash: ZeroHash,
+            })
 
             await stablecoin.connect(account0).mint(account0, amount)
             await stablecoin.connect(account0).approve(strategyManager, amount)
@@ -462,8 +462,8 @@ describe('StrategyManager#invest (zap)', () => {
             initialLpBalance = await btcEthLpUniV2.balanceOf(account0)
             initialStablecoinBalance = await stablecoin.balanceOf(account0)
 
-            await strategyManager.connect(account0).createStrategy(
-                [
+            await strategyManager.connect(account0).createStrategy({
+                dcaInvestments: [
                     {
                         poolId: stableBtcPoolId,
                         swaps: 10,
@@ -475,7 +475,7 @@ describe('StrategyManager#invest (zap)', () => {
                         percentage: 25n,
                     },
                 ],
-                [
+                vaultInvestments: [
                     {
                         vault: await createVault(wbtc),
                         percentage: 25n,
@@ -485,9 +485,9 @@ describe('StrategyManager#invest (zap)', () => {
                         percentage: 25n,
                     },
                 ],
-                permitAccount0,
-                ZeroHash,
-            )
+                permit: permitAccount0,
+                metadataHash: ZeroHash,
+            })
 
             await stablecoin.connect(account0).mint(account0, amount)
             await stablecoin.connect(account0).approve(strategyManager, amount)

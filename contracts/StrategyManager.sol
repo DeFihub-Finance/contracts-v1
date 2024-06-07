@@ -18,24 +18,21 @@ import {UseZap} from "./abstract/UseZap.sol";
 contract StrategyManager is HubOwnable, UseTreasury, UseZap {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
-    struct DcaStrategy {
+    struct DcaInvestment {
         uint208 poolId;
         uint16 swaps;
         uint8 percentage;
     }
 
-    struct VaultStrategy {
+    struct VaultInvestment {
         address vault;
         uint8 percentage;
     }
 
     struct Strategy {
         address creator;
-        uint totalDeposits;
         uint8 dcaPercentage;
         uint8 vaultPercentage;
-        DcaStrategy[] dcaInvestments;
-        VaultStrategy[] vaultInvestments;
     }
 
     struct VaultPosition {
@@ -63,6 +60,13 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
         uint8 maxHottestStrategies;
         uint32 strategistPercentage;
         uint32 hotStrategistPercentage;
+    }
+
+    struct CreateStrategyParams {
+        DcaInvestment[] dcaInvestments;
+        VaultInvestment[] vaultInvestments;
+        SubscriptionManager.Permit permit;
+        bytes32 metadataHash;
     }
 
     /**
@@ -101,7 +105,10 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
 
     mapping(address => Position[]) internal _positions;
     mapping(address => uint) internal _strategistRewards;
+
     Strategy[] internal _strategies;
+    mapping(uint => DcaInvestment[]) internal _dcaInvestmentsPerStrategy;
+    mapping(uint => VaultInvestment[]) internal _vaultInvestmentsPerStrategy;
 
     IERC20Upgradeable public stable;
     SubscriptionManager public subscriptionManager;
@@ -162,15 +169,10 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
         vaultManager = _initializeParams.vaultManager;
     }
 
-    function createStrategy(
-        DcaStrategy[] memory _dcaInvestments,
-        VaultStrategy[] memory _vaultInvestments,
-        SubscriptionManager.Permit calldata _permit,
-        bytes32 metadataHash
-    ) external virtual {
-        uint investmentCount = _dcaInvestments.length + _vaultInvestments.length;
+    function createStrategy(CreateStrategyParams memory _params) external virtual {
+        uint investmentCount = _params.dcaInvestments.length + _params.vaultInvestments.length;
 
-        if (!subscriptionManager.isSubscribed(msg.sender, _permit))
+        if (!subscriptionManager.isSubscribed(msg.sender, _params.permit))
             revert Unauthorized();
 
         if (investmentCount > 20)
@@ -179,14 +181,16 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
         uint8 dcaPercentage;
         uint8 vaultPercentage;
 
-        for (uint i = 0; i < _dcaInvestments.length; i++)
-            dcaPercentage += _dcaInvestments[i].percentage;
+        for (uint i = 0; i < _params.dcaInvestments.length; ++i)
+            dcaPercentage += _params.dcaInvestments[i].percentage;
 
-        for (uint i = 0; i < _vaultInvestments.length; i++)
-            vaultPercentage += _vaultInvestments[i].percentage;
+        for (uint i = 0; i < _params.vaultInvestments.length; ++i)
+            vaultPercentage += _params.vaultInvestments[i].percentage;
 
         if ((dcaPercentage + vaultPercentage) != 100)
             revert InvalidTotalPercentage();
+
+        uint strategyId = _strategies.length;
 
         Strategy storage strategy = _strategies.push();
         strategy.creator = msg.sender;
@@ -194,25 +198,25 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
         strategy.vaultPercentage = vaultPercentage;
 
         // Assigning isn't possible because you can't convert an array of structs from memory to storage
-        for (uint i = 0; i < _dcaInvestments.length; i++) {
-            DcaStrategy memory dcaStrategy = _dcaInvestments[i];
+        for (uint i = 0; i < _params.dcaInvestments.length; ++i) {
+            DcaInvestment memory dcaStrategy = _params.dcaInvestments[i];
 
             if (dcaStrategy.poolId >= dca.getPoolsLength())
                 revert InvalidInvestment();
 
-            strategy.dcaInvestments.push(dcaStrategy);
+            _dcaInvestmentsPerStrategy[strategyId].push(dcaStrategy);
         }
 
-        for (uint i = 0; i < _vaultInvestments.length; i++) {
-            VaultStrategy memory vaultStrategy = _vaultInvestments[i];
+        for (uint i = 0; i < _params.vaultInvestments.length; ++i) {
+            VaultInvestment memory vaultStrategy = _params.vaultInvestments[i];
 
             if (!vaultManager.whitelistedVaults(vaultStrategy.vault))
                 revert InvalidInvestment();
 
-            strategy.vaultInvestments.push(vaultStrategy);
+            _vaultInvestmentsPerStrategy[strategyId].push(vaultStrategy);
         }
 
-        emit StrategyCreated(msg.sender, _strategies.length - 1, metadataHash);
+        emit StrategyCreated(msg.sender, strategyId, _params.metadataHash);
     }
 
     function invest(InvestParams calldata _params) external virtual {
@@ -254,8 +258,6 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
 
         _updateDust(stable, initialBalance + pullFundsResult.strategistFee);
 
-        strategy.totalDeposits += _params.inputAmount;
-
         uint positionId = _positions[msg.sender].length;
 
         Position storage position = _positions[msg.sender].push();
@@ -265,7 +267,7 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
         position.remainingAmount = pullFundsResult.remainingAmount;
         position.dcaPositionIds = dcaPositionIds;
 
-        for (uint i = 0; i < vaultPositions.length; i++)
+        for (uint i = 0; i < vaultPositions.length; ++i)
             position.vaultPositions.push(vaultPositions[i]);
 
         emit PositionCreated(
@@ -292,7 +294,7 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
         uint[] memory vaultsWithdrawnAmounts = new uint[](position.vaultPositions.length);
 
         // close dca positions
-        for (uint i = 0; i < position.dcaPositionIds.length; i++) {
+        for (uint i = 0; i < position.dcaPositionIds.length; ++i) {
             DollarCostAverage.PositionInfo memory dcaPosition = dca.getPosition(
                 address(this),
                 position.dcaPositionIds[i]
@@ -324,7 +326,7 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
         }
 
         // close vault positions
-        for (uint i = 0; i < position.vaultPositions.length; i++) {
+        for (uint i = 0; i < position.vaultPositions.length; ++i) {
             VaultPosition memory vaultPosition = position.vaultPositions[i];
             IBeefyVaultV7 vault = IBeefyVaultV7(vaultPosition.vault);
 
@@ -360,7 +362,7 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
 
         uint[] memory dcaWithdrawnAmounts = new uint[](position.dcaPositionIds.length);
 
-        for (uint i; i < position.dcaPositionIds.length; i++) {
+        for (uint i; i < position.dcaPositionIds.length; ++i) {
             DollarCostAverage.PositionInfo memory dcaPosition = dca.getPosition(
                 address(this),
                 position.dcaPositionIds[i]
@@ -423,6 +425,15 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
         return _strategies[_strategyId];
     }
 
+    function getStrategyInvestments(
+        uint _strategyId
+    ) external virtual view returns (
+        DcaInvestment[] memory dcaInvestments,
+        VaultInvestment[] memory vaultInvestments
+    ) {
+        return (_dcaInvestmentsPerStrategy[_strategyId], _vaultInvestmentsPerStrategy[_strategyId]);
+    }
+
     function getStrategiesLength() external virtual view returns (uint) {
         return _strategies.length;
     }
@@ -469,19 +480,19 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
     function _investInDca(
         InvestInProductParams memory _params
     ) internal virtual returns (uint[] memory) {
-        Strategy memory strategy = _strategies[_params.strategyId];
+        DcaInvestment[] memory dcaInvestments = _dcaInvestmentsPerStrategy[_params.strategyId];
 
-        if (strategy.dcaInvestments.length == 0)
+        if (dcaInvestments.length == 0)
             return new uint[](0);
 
-        if (_params.swaps.length != strategy.dcaInvestments.length)
+        if (_params.swaps.length != dcaInvestments.length)
             revert InvalidSwapsLength();
 
-        uint[] memory dcaPositionIds = new uint[](strategy.dcaInvestments.length);
+        uint[] memory dcaPositionIds = new uint[](dcaInvestments.length);
         uint nextDcaPositionId = dca.getPositionsLength(address(this));
 
-        for (uint i = 0; i < strategy.dcaInvestments.length; i++) {
-            DcaStrategy memory investment = strategy.dcaInvestments[i];
+        for (uint i = 0; i < dcaInvestments.length; ++i) {
+            DcaInvestment memory investment = dcaInvestments[i];
             IERC20Upgradeable inputToken = IERC20Upgradeable(dca.getPool(investment.poolId).inputToken);
 
             uint swapOutput = _zap(
@@ -505,18 +516,18 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
     function _investInVaults(
         InvestInProductParams memory _params
     ) internal virtual returns (VaultPosition[] memory) {
-        Strategy memory strategy = _strategies[_params.strategyId];
+        VaultInvestment[] memory vaultInvestments = _vaultInvestmentsPerStrategy[_params.strategyId];
 
-        if (strategy.vaultInvestments.length == 0)
+        if (vaultInvestments.length == 0)
             return new VaultPosition[](0);
 
-        if (_params.swaps.length != strategy.vaultInvestments.length)
+        if (_params.swaps.length != vaultInvestments.length)
             revert InvalidSwapsLength();
 
-        VaultPosition[] memory vaultPositions = new VaultPosition[](strategy.vaultInvestments.length);
+        VaultPosition[] memory vaultPositions = new VaultPosition[](vaultInvestments.length);
 
-        for (uint i = 0; i < strategy.vaultInvestments.length; i++) {
-            VaultStrategy memory investment = strategy.vaultInvestments[i];
+        for (uint i = 0; i < vaultInvestments.length; ++i) {
+            VaultInvestment memory investment = vaultInvestments[i];
             IBeefyVaultV7 vault = IBeefyVaultV7(investment.vault);
             IERC20Upgradeable inputToken = vault.want();
 
@@ -673,10 +684,10 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
         if (_strategyIds.length > maxHottestStrategies)
             revert TooManyUsers();
 
-        for (uint i = 0; i < _hottestStrategiesArray.length; i++)
+        for (uint i = 0; i < _hottestStrategiesArray.length; ++i)
             _hottestStrategiesMapping[_hottestStrategiesArray[i]] = false;
 
-        for (uint i = 0; i < _strategyIds.length; i++)
+        for (uint i = 0; i < _strategyIds.length; ++i)
             _hottestStrategiesMapping[_strategyIds[i]] = true;
 
         _hottestStrategiesArray = _strategyIds;

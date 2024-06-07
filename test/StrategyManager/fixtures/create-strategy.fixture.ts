@@ -37,28 +37,28 @@ export const createStrategyFixture = async () => {
     /////////////////////////////////////////
     // Create default strategy for tests  //
     ////////////////////////////////////////
-    await strategyManager.connect(account0).createStrategy(
-        dcaStrategyPositions,
-        vaultStrategyPosition,
-        await subscriptionSignature.signSubscriptionPermit(
+    await strategyManager.connect(account0).createStrategy({
+        dcaInvestments: dcaStrategyPositions,
+        vaultInvestments: vaultStrategyPosition,
+        permit: await subscriptionSignature.signSubscriptionPermit(
             await account0.getAddress(),
             await NetworkService.getBlockTimestamp() + 10_000,
         ),
-        nameBioHash,
-    )
+        metadataHash: nameBioHash,
+    })
 
     //////////////////////////////////////////////
     // Create strategy for swap and deposit test//
     //////////////////////////////////////////////
-    await strategyManager.connect(account0).createStrategy(
-        [{ poolId: 2, swaps: 10, percentage: 66 }],
-        vaultStrategyPosition,
-        await subscriptionSignature.signSubscriptionPermit(
+    await strategyManager.connect(account0).createStrategy({
+        dcaInvestments: [{ poolId: 2, swaps: 10, percentage: 66 }],
+        vaultInvestments: vaultStrategyPosition,
+        permit: await subscriptionSignature.signSubscriptionPermit(
             await account0.getAddress(),
             await NetworkService.getBlockTimestamp() + 10_000,
         ),
-        nameBioHash,
-    )
+        metadataHash: nameBioHash,
+    })
 
     return {
         account0,
