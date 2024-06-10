@@ -232,4 +232,86 @@ library InvestLib {
 
         return liquidityPositions;
     }
+
+    struct ClosePositionParams {
+        // dca
+        DollarCostAverage dca;
+        uint[] dcaPositions;
+        // vaults
+        VaultPosition[] vaultPositions;
+    }
+
+    function closePosition(ClosePositionParams memory _params) public returns (
+        uint[][] memory dcaWithdrawnAmounts,
+        uint[] memory vaultWithdrawnAmounts
+    ) {
+        return (
+            _closeDcaPositions(_params.dca, _params.dcaPositions),
+            _closeVaultPositions(_params.vaultPositions)
+        );
+    }
+
+    function _closeDcaPositions(
+        DollarCostAverage dca,
+        uint[] memory dcaPositions
+    ) internal returns (uint[][] memory) {
+        uint[][] memory dcaWithdrawnAmounts = new uint[][](dcaPositions.length);
+
+        for (uint i; i < dcaPositions.length; ++i) {
+            DollarCostAverage.PositionInfo memory dcaPosition = dca.getPosition(
+                address(this),
+                dcaPositions[i]
+            );
+            DollarCostAverage.PoolInfo memory poolInfo = dca.getPool(dcaPosition.poolId);
+            IERC20Upgradeable inputToken = IERC20Upgradeable(poolInfo.inputToken);
+            IERC20Upgradeable outputToken = IERC20Upgradeable(poolInfo.outputToken);
+            uint initialInputTokenBalance = inputToken.balanceOf(address(this));
+            uint initialOutputTokenBalance = outputToken.balanceOf(address(this));
+
+            dca.withdrawAll(dcaPositions[i]);
+
+            uint inputTokenAmount = inputToken.balanceOf(address(this)) - initialInputTokenBalance;
+            uint outputTokenAmount = outputToken.balanceOf(address(this)) - initialOutputTokenBalance;
+
+            if (inputTokenAmount > 0 || outputTokenAmount > 0) {
+                dcaWithdrawnAmounts[i] = new uint[](2);
+
+                if (inputTokenAmount > 0) {
+                    dcaWithdrawnAmounts[i][0] = inputTokenAmount;
+                    inputToken.safeTransfer(msg.sender, inputTokenAmount);
+                }
+
+                if (outputTokenAmount > 0) {
+                    dcaWithdrawnAmounts[i][1] = outputTokenAmount;
+                    outputToken.safeTransfer(msg.sender, outputTokenAmount);
+                }
+            }
+        }
+
+        return dcaWithdrawnAmounts;
+    }
+
+    function _closeVaultPositions(
+        VaultPosition[] memory _vaultPositions
+    ) internal returns (uint[] memory) {
+        uint[] memory vaultsWithdrawnAmounts = new uint[](_vaultPositions.length);
+
+        for (uint i; i < _vaultPositions.length; ++i) {
+            InvestLib.VaultPosition memory vaultPosition = _vaultPositions[i];
+            IBeefyVaultV7 vault = IBeefyVaultV7(vaultPosition.vault);
+
+            uint initialBalance = vault.want().balanceOf(address(this));
+
+            vault.withdraw(vaultPosition.amount);
+
+            uint withdrawnAmount = vault.want().balanceOf(address(this)) - initialBalance;
+
+            if (withdrawnAmount > 0) {
+                vaultsWithdrawnAmounts[i] = withdrawnAmount;
+                vault.want().safeTransfer(msg.sender, withdrawnAmount);
+            }
+        }
+
+        return vaultsWithdrawnAmounts;
+    }
 }

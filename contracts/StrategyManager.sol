@@ -275,15 +275,15 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
                         zapManager: zapManager,
                         inputToken: stable,
                         amount: pullFundsResult.remainingAmount,
-                        // dca
+                    // dca
                         dcaInvestments: _dcaInvestmentsPerStrategy[_params.strategyId],
                         dcaSwaps: _params.dcaSwaps,
-                        // vaults
+                    // vaults
                         vaultInvestments: _vaultInvestmentsPerStrategy[_params.strategyId],
-                        vaultSwaps : _params.vaultSwaps,
-                        // liquidity
-                        liquidityInvestments : _liquidityInvestmentsPerStrategy[_params.strategyId],
-                        liquidityZaps : _params.liquidityZaps
+                        vaultSwaps: _params.vaultSwaps,
+                    // liquidity
+                        liquidityInvestments: _liquidityInvestmentsPerStrategy[_params.strategyId],
+                        liquidityZaps: _params.liquidityZaps
                     })
                 )
             ),
@@ -325,64 +325,26 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
 
         position.closed = true;
 
-        uint[][] memory dcaWithdrawnAmounts = new uint[][](dcaPositions.length);
-        uint[] memory vaultsWithdrawnAmounts = new uint[](vaultPositions.length);
-
-        // close dca positions
-        for (uint i; i < dcaPositions.length; ++i) {
-            DollarCostAverage.PositionInfo memory dcaPosition = dca.getPosition(
-                address(this),
-                dcaPositions[i]
-            );
-            DollarCostAverage.PoolInfo memory poolInfo = dca.getPool(dcaPosition.poolId);
-            IERC20Upgradeable inputToken = IERC20Upgradeable(poolInfo.inputToken);
-            IERC20Upgradeable outputToken = IERC20Upgradeable(poolInfo.outputToken);
-            uint initialInputTokenBalance = inputToken.balanceOf(address(this));
-            uint initialOutputTokenBalance = outputToken.balanceOf(address(this));
-
-            dca.withdrawAll(dcaPositions[i]);
-
-            uint inputTokenAmount = inputToken.balanceOf(address(this)) - initialInputTokenBalance;
-            uint outputTokenAmount = outputToken.balanceOf(address(this)) - initialOutputTokenBalance;
-
-            if (inputTokenAmount > 0 || outputTokenAmount > 0) {
-                dcaWithdrawnAmounts[i] = new uint[](2);
-
-                if (inputTokenAmount > 0) {
-                    dcaWithdrawnAmounts[i][0] = inputTokenAmount;
-                    inputToken.safeTransfer(msg.sender, inputTokenAmount);
-                }
-
-                if (outputTokenAmount > 0) {
-                    dcaWithdrawnAmounts[i][1] = outputTokenAmount;
-                    outputToken.safeTransfer(msg.sender, outputTokenAmount);
-                }
-            }
-        }
-
-        // close vault positions
-        for (uint i; i < vaultPositions.length; ++i) {
-            InvestLib.VaultPosition memory vaultPosition = vaultPositions[i];
-            IBeefyVaultV7 vault = IBeefyVaultV7(vaultPosition.vault);
-
-            uint initialBalance = vault.want().balanceOf(address(this));
-
-            vault.withdraw(vaultPosition.amount);
-
-            uint withdrawnAmount = vault.want().balanceOf(address(this)) - initialBalance;
-
-            if (withdrawnAmount > 0) {
-                vaultsWithdrawnAmounts[i] = withdrawnAmount;
-                vault.want().safeTransfer(msg.sender, withdrawnAmount);
-            }
-        }
+        (uint[][] memory dcaWithdrawnAmounts, uint[] memory vaultWithdrawnAmounts) = abi.decode(
+            _callInvestLib(
+                abi.encodeWithSelector(
+                    InvestLib.closePosition.selector,
+                    InvestLib.ClosePositionParams({
+                        dca: dca,
+                        dcaPositions: dcaPositions,
+                        vaultPositions: vaultPositions
+                    })
+                )
+            ),
+            (uint[][], uint[])
+        );
 
         emit PositionClosed(
             msg.sender,
             position.strategyId,
             _positionId,
             dcaWithdrawnAmounts,
-            vaultsWithdrawnAmounts
+            vaultWithdrawnAmounts
         );
     }
 
