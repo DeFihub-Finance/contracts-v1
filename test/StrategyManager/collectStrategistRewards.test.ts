@@ -65,7 +65,7 @@ describe('StrategyManager#collectStrategistRewards', () => {
             it('calculates rewards properly', async () => {
                 expect(
                     await strategyManager.getStrategistRewards(account0) +
-                    await zapManager.dust(rewardToken) -
+                    await rewardToken.balanceOf(zapManager) -
                     await rewardToken.balanceOf(strategyManager),
                 ).to.equal(0)
 
@@ -75,7 +75,7 @@ describe('StrategyManager#collectStrategistRewards', () => {
                     .to.equal(0)
 
                 expect(
-                    await zapManager.dust(rewardToken) -
+                    await rewardToken.balanceOf(zapManager) -
                     await rewardToken.balanceOf(strategyManager),
                 )
                     .to.equal(0)

@@ -8,7 +8,6 @@ import {IBeefyVaultV7} from '../interfaces/IBeefyVaultV7.sol';
 import {DollarCostAverage} from '../DollarCostAverage.sol';
 import {VaultManager} from '../VaultManager.sol';
 import {ZapManager} from "../zap/ZapManager.sol";
-import "hardhat/console.sol";
 
 library InvestLib {
     using SafeERC20Upgradeable for IERC20Upgradeable;

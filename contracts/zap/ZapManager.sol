@@ -8,7 +8,6 @@ import {UniswapV2Zapper} from "./UniswapV2Zapper.sol";
 import {UniswapV3Zapper} from "./UniswapV3Zapper.sol";
 import {HubOwnable} from "../abstract/HubOwnable.sol";
 import {ICall} from "../interfaces/ICall.sol";
-import "hardhat/console.sol";
 
 contract ZapManager is HubOwnable, ICall {
     using SafeERC20Upgradeable for IERC20Upgradeable;
@@ -21,6 +20,8 @@ contract ZapManager is HubOwnable, ICall {
 
     /**
      * @dev data bytes are the encoded versions of the bytes argument received by "zap()" or "swap()" functions of the zappers
+     * @dev if "data" is a swap transaction, you must set the recipient of the swap transaction output with your address (or the contract address where you will be using the tokens), otherwise tokens will not be sent to you
+     * @dev if "data" is a liquidity provision transaction, you must set the recipient of both swap transactions as THIS CONTRACT's address, otherwise it won't have enough funds to add liquidity, then it will automatically forward the LP tokens to the recipient
      */
     struct ProtocolCall {
         string protocolName;
@@ -32,11 +33,6 @@ contract ZapManager is HubOwnable, ICall {
 
     mapping(string => address) public protocolImplementations;
     address[] internal supportedProtocols;
-
-    mapping(address => uint) private _dust;
-
-    event DustCreated(address token, address from, uint amount);
-    event DustCollected(address token, address to, uint amount);
 
     error UnsupportedProtocol(string protocol);
     error InvalidAddress(address addr);
@@ -52,11 +48,12 @@ contract ZapManager is HubOwnable, ICall {
     }
 
     /**
+     * @notice Performs a zap operation using the specified protocol call data.
      * @param _protocolCallData - Encoded version of ZapManager.ProtocolCall
      * @param _inputToken - Token to be sold
      * @param _outputToken - Token to be bought
      * @param _amount - Amount of input tokens to be sold
-     * @return Amount of output tokens bought, if no zap is needed, returns input token amount
+     * @return The amount of output tokens bought. If no zap is needed, returns the input token amount.
      */
     function zap(
         bytes memory _protocolCallData,
@@ -75,8 +72,6 @@ contract ZapManager is HubOwnable, ICall {
             // make call to external dex
             callProtocol(abi.decode(_protocolCallData, (ProtocolCall)));
 
-            _updateDust(_inputToken, initialBalanceInputToken);
-
             uint amountOut = _outputToken.balanceOf(address(this)) - initialBalanceOutputToken;
 
             _outputToken.safeTransfer(msg.sender, amountOut);
@@ -88,7 +83,6 @@ contract ZapManager is HubOwnable, ICall {
     }
 
     function callProtocol(ProtocolCall memory _protocolCall) internal {
-        console.log('callProtocol');
         address protocolAddr = protocolImplementations[_protocolCall.protocolName];
 
         if (protocolAddr == address(0))
@@ -102,16 +96,18 @@ contract ZapManager is HubOwnable, ICall {
 
         if (!success)
             revert LowLevelCallFailed(protocolAddr, _protocolCall.data, data);
+    }
 
-//        uint inputTokenBalance = _protocolCall.inputToken.balanceOf(address(this));
-//
-//        if (inputTokenBalance > 0)
-//            _protocolCall.inputToken.transfer(msg.sender, inputTokenBalance);
+    function getSupportedProtocols() external view returns (address[] memory) {
+        return supportedProtocols;
+    }
 
-//        _protocolCall.outputToken.transfer(
-//            msg.sender,
-//            _protocolCall.outputToken.balanceOf(address(this))
-//        );
+    /**
+     * @dev This contract shouldn't hold any tokens, but some dust might get stuck when swapping or adding liquidity
+     */
+    function collectDust(IERC20Upgradeable[] calldata _tokens) external onlyOwner {
+        for (uint i; i < _tokens.length; ++i)
+            _tokens[i].safeTransfer(msg.sender, _tokens[i].balanceOf(address(this)));
     }
 
     function addProtocol(string memory _protocolName, address _protocolAddr) public onlyOwner {
@@ -123,36 +119,5 @@ contract ZapManager is HubOwnable, ICall {
 
         protocolImplementations[_protocolName] = _protocolAddr;
         supportedProtocols.push(_protocolAddr);
-    }
-
-    function getSupportedProtocols() external view returns (address[] memory) {
-        return supportedProtocols;
-    }
-
-    // dust
-    function _updateDust(
-        IERC20Upgradeable _token,
-        uint _initialBalance
-    ) internal virtual {
-        uint transactionDust = _token.balanceOf(address(this)) - _initialBalance;
-
-        if (transactionDust > 0) {
-            _dust[address(_token)] += transactionDust;
-            emit DustCreated(address(_token), msg.sender, transactionDust);
-        }
-    }
-
-    // TODO make public
-    function _collectDust(IERC20Upgradeable _token, address _to) internal virtual {
-        uint collectAmount = _dust[address(_token)];
-
-        _dust[address(_token)] = 0;
-        _token.safeTransfer(_to, collectAmount);
-
-        emit DustCollected(address(_token), msg.sender, collectAmount);
-    }
-
-    function dust(address _token) external view returns (uint) {
-        return _dust[_token];
     }
 }

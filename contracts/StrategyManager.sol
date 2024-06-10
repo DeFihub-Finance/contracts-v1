@@ -14,7 +14,6 @@ import {SubscriptionManager} from "./SubscriptionManager.sol";
 import {VaultManager} from "./VaultManager.sol";
 import {DollarCostAverage} from './DollarCostAverage.sol';
 import {InvestLib} from "./libraries/InvestLib.sol";
-import "hardhat/console.sol";
 
 contract StrategyManager is HubOwnable, UseTreasury, ICall {
     using SafeERC20Upgradeable for IERC20Upgradeable;
@@ -243,8 +242,6 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         if (stable.allowance(address(this), address(zapManager)) < pullFundsResult.remainingAmount)
             stable.approve(address(zapManager), type(uint256).max);
 
-        console.log('before dca', address(stable));
-
         uint[] memory dcaPositionIds = abi.decode(
             _callInvestLib(
                 abi.encodeWithSelector(
@@ -262,8 +259,6 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
             (uint[])
         );
 
-        console.log('after dca');
-
         InvestLib.VaultPosition[] memory vaultPositions = abi.decode(
             _callInvestLib(
                 abi.encodeWithSelector(
@@ -280,8 +275,6 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
             ),
             (InvestLib.VaultPosition[])
         );
-
-        console.log('aft vaults invest');
 
         // TODO move to zap manager
 //        _updateDust(stable, initialBalance + pullFundsResult.strategistFee);

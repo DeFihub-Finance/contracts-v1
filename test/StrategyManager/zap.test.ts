@@ -26,7 +26,7 @@ import { Compare } from '@src/Compare'
 import { zapFixture } from './fixtures/zap.fixture'
 import { ErrorDecoder } from '@src/helpers/ErrorDecoder'
 
-describe.only('StrategyManager#invest (zap)', () => {
+describe('StrategyManager#invest (zap)', () => {
     const amount = parseEther('1000')
     const INSUFFICIENT_OUTPUT_AMOUNT = 'UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT'
 
@@ -120,17 +120,6 @@ describe.only('StrategyManager#invest (zap)', () => {
             ETH_PRICE_BN,
         } = await loadFixture(zapFixture))
     })
-
-    // TODO enable this
-    // afterEach(async () => {
-    //     await Promise.all([
-    //         stablecoin,
-    //         wbtc,
-    //         weth,
-    //     ]
-    //         .map(async token => expect(await token.balanceOf(zapManager))
-    //             .to.equal(await zapManager.dust(token))))
-    // })
 
     describe('zaps into DCA strategy', () => {
         async function validateDcaZap(tolerance: BigNumber) {
