@@ -1,5 +1,5 @@
 import { expect } from 'chai'
-import { AbiCoder, BigNumberish, parseEther, Signer } from 'ethers'
+import { AbiCoder, BigNumberish, ErrorDescription, parseEther, Signer } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import {
     DollarCostAverage,
@@ -11,6 +11,7 @@ import { SubscriptionSignature } from '@src/SubscriptionSignature'
 import { NetworkService } from '@src/NetworkService'
 import { ContractFees } from '@src/ContractFees'
 import { createStrategyFixture } from './fixtures/create-strategy.fixture'
+import { ErrorDecoder } from '@src/helpers/ErrorDecoder'
 
 // EFFECTS
 // => when user is subscribed
@@ -362,15 +363,31 @@ describe('StrategyManager#invest', () => {
 
     describe('REVERTS', () => {
         it('if swap paths are different than the vault length in strategy', async () => {
-            const tx = invest(account2, { _vaultSwaps: [] })
+            try {
+                await invest(account2, { _vaultSwaps: [] })
+            }
+            catch (e) {
+                const decodedError = ErrorDecoder.decodeLowLevelCallError(e)
 
-            await expect(tx).to.revertedWithCustomError(strategyManager, 'InvalidSwapsLength')
+                if (!(decodedError instanceof ErrorDescription))
+                    throw new Error('Error decoding custom error')
+
+                expect(decodedError.name).to.be.equal('InvalidParamsLength')
+            }
         })
 
         it('if swap paths are different than the dca length in strategy', async () => {
-            const tx = invest(account2, { _dcaSwaps: [] })
+            try {
+                await invest(account2, { _dcaSwaps: [] })
+            }
+            catch (e) {
+                const decodedError = ErrorDecoder.decodeLowLevelCallError(e)
 
-            await expect(tx).to.revertedWithCustomError(strategyManager, 'InvalidSwapsLength')
+                if (!(decodedError instanceof ErrorDescription))
+                    throw new Error('Error decoding custom error')
+
+                expect(decodedError.name).to.be.equal('InvalidParamsLength')
+            }
         })
 
         it('if strategyId do not exist', async () => {

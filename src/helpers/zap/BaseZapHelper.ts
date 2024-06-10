@@ -20,45 +20,6 @@ export class BaseZapHelper {
     ) {
     }
 
-    /**
-     * Decodes a stack of low-level call errors and throws a human-readable error message
-     *
-     * @param error - The error to decode
-     * @param stackDepth - The number of nested calls to decode
-     */
-    public static decodeLowLevelCallError(error: unknown, stackDepth = 3) {
-        const callInterface = ICall__factory.createInterface()
-        const typedError = error as { data?: string | null }
-
-        if (typedError.data) {
-            let parsedError: ErrorDescription | null = null
-            let nextData = typedError.data
-
-            for (let i = 0; i < stackDepth; i++) {
-                parsedError = callInterface.parseError(nextData)
-
-                if (!parsedError)
-                    throw error
-
-                nextData = parsedError.args[2]
-            }
-
-            if (!parsedError)
-                throw error
-
-            try {
-                // Attempt to decode the revert reason from the error data
-                return toUtf8String(`0x${ parsedError.args[2].slice(138) }`)
-                    .replace(/\0/g, '')
-            }
-            catch (decodingError) {
-                throw new Error(parsedError.args[2])
-            }
-        }
-
-        throw error
-    }
-
     protected async getInvestmentAmountWithoutFee(
         strategyId: bigint,
         product: AddressLike,
