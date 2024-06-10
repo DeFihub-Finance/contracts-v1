@@ -19,7 +19,17 @@ contract ZapManager is HubOwnable, ICall {
     }
 
     /**
-     * @dev data bytes are the encoded versions of the bytes argument received by "zap()" or "swap()" functions of the zappers
+     * @dev Encapsulates data required to perform a protocol-specific zap or swap operation.
+     * @param protocolName The name of the protocol to call.
+     * @param inputToken The ERC20 token to be used as input.
+     * @param outputToken The ERC20 token to be received as output.
+     * @param zapperFunctionSignature The function signature of the zapper's function to call.
+     * @param data The encoded function signature and data to pass to the zapper function.
+     *             If `data` represents a swap transaction, the recipient must be set to the address
+     *             that will use the output tokens (typically the sender's address).
+     *             If `data` represents a liquidity provision transaction, the recipient for the swap
+     *             must be this contract's address (LiquidityManager) to ensure sufficient funds are available for liquidity provision.
+     *             The minted LP tokens will then be forwarded to the intended recipient.
      */
     struct ProtocolCall {
         string protocolName;
@@ -45,7 +55,35 @@ contract ZapManager is HubOwnable, ICall {
         transferOwnership(_params.owner);
     }
 
-    function callProtocol(ProtocolCall memory _protocolCall) external {
+    /**
+     * @notice Performs a zap operation using the specified protocol call data.
+     * @param _protocolCallData - Encoded version of ZapManager.ProtocolCall
+     * @param _inputToken The ERC20 token to be sold.
+     * @param _outputToken The ERC20 token to be bought.
+     * @param _amount - Amount of input tokens to be sold
+     * @return The amount of output tokens bought. If no zap is needed, returns the input token amount.
+     */
+    function zap(
+        bytes memory _protocolCallData,
+        IERC20Upgradeable _inputToken,
+        IERC20Upgradeable _outputToken,
+        uint _amount
+    ) external virtual returns (uint) {
+        if (_protocolCallData.length == 0)
+            return _amount;
+
+        uint initialBalanceOutputToken = _outputToken.balanceOf(msg.sender);
+
+        // pull tokens
+        _inputToken.safeTransferFrom(msg.sender, address(this), _amount);
+
+        // make call to external dex
+        callProtocol(abi.decode(_protocolCallData, (ProtocolCall)));
+
+        return _outputToken.balanceOf(msg.sender) - initialBalanceOutputToken;
+    }
+
+    function callProtocol(ProtocolCall memory _protocolCall) internal {
         address protocolAddr = protocolImplementations[_protocolCall.protocolName];
 
         if (protocolAddr == address(0))
@@ -59,16 +97,18 @@ contract ZapManager is HubOwnable, ICall {
 
         if (!success)
             revert LowLevelCallFailed(protocolAddr, _protocolCall.data, data);
+    }
 
-        uint inputTokenBalance = _protocolCall.inputToken.balanceOf(address(this));
+    function getSupportedProtocols() external view returns (address[] memory) {
+        return supportedProtocols;
+    }
 
-        if (inputTokenBalance > 0)
-            _protocolCall.inputToken.transfer(msg.sender, inputTokenBalance);
-
-        _protocolCall.outputToken.transfer(
-            msg.sender,
-            _protocolCall.outputToken.balanceOf(address(this))
-        );
+    /**
+     * @dev This contract shouldn't hold any tokens, but some dust might get stuck when swapping or adding liquidity
+     */
+    function collectDust(IERC20Upgradeable[] calldata _tokens) external onlyOwner {
+        for (uint i; i < _tokens.length; ++i)
+            _tokens[i].safeTransfer(msg.sender, _tokens[i].balanceOf(address(this)));
     }
 
     function addProtocol(string memory _protocolName, address _protocolAddr) public onlyOwner {
@@ -80,9 +120,5 @@ contract ZapManager is HubOwnable, ICall {
 
         protocolImplementations[_protocolName] = _protocolAddr;
         supportedProtocols.push(_protocolAddr);
-    }
-
-    function getSupportedProtocols() external view returns (address[] memory) {
-        return supportedProtocols;
     }
 }

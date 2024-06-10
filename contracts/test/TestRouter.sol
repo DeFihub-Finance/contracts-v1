@@ -12,9 +12,8 @@ contract TestRouter {
     function getAmountsOut(uint _amount, address[] calldata _path) external pure returns (uint[] memory amountsOut) {
         amountsOut = new uint[](_path.length);
 
-        for (uint i = 0; i < _path.length - 1; i++) {
+        for (uint i; i < _path.length - 1; ++i)
             amountsOut[i] = 0;
-        }
 
         amountsOut[_path.length - 1] = _amount - _amount * 5 / 100;
     }

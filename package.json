@@ -8,7 +8,8 @@
         "compile": "hardhat compile",
         "deploy": "npx hardhat run scripts/deploy-project.ts",
         "testnet:postdeploy": "npx hardhat run scripts/dca/create-pool.ts && npx hardhat run scripts/whitelist-vaults.ts && npx hardhat run scripts/testnet/create-mock-strategy.ts",
-        "dca:deploy-autotask": "webpack && npx hardhat run scripts/dca/autotask/upload-script.ts && rm -rf ./scripts/dca/autotask/build"
+        "dca:deploy-autotask": "webpack && npx hardhat run scripts/dca/autotask/upload-script.ts && rm -rf ./scripts/dca/autotask/build",
+        "sizes": "npx hardhat size-contracts"
     },
     "author": "",
     "license": "ISC",
@@ -45,6 +46,7 @@
         "dotenv": "^16.4.1",
         "ethers": "^6.12.1",
         "hardhat-abi-exporter": "^2.10.1",
+        "hardhat-contract-sizer": "^2.10.0",
         "hardhat-gas-reporter": "^1.0.9",
         "hardhat-vanity": "1.0.5",
         "ofetch": "^1.3.4",

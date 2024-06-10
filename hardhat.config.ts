@@ -10,6 +10,7 @@ import 'hardhat-gas-reporter'
 import 'tsconfig-paths/register'
 import 'solidity-coverage'
 import 'solidity-docgen'
+import 'hardhat-contract-sizer'
 import explorerKeys from './.explorer-keys.json'
 import { HardhatUserConfig } from 'hardhat/config'
 import { ChainIds, chainNameSchema, getNetworkConfig } from '@ryze-blockchain/ethereum'
@@ -29,7 +30,7 @@ const config: HardhatUserConfig = {
                 settings: {
                     optimizer: {
                         enabled: true,
-                        runs: 800,
+                        runs: 1600,
                     },
                 },
             },

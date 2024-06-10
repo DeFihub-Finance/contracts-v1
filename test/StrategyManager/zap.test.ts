@@ -24,6 +24,7 @@ import { PathUniswapV3 } from '@defihub/shared'
 import { BigNumber } from '@ryze-blockchain/ethereum'
 import { Compare } from '@src/Compare'
 import { zapFixture } from './fixtures/zap.fixture'
+import { ErrorDecoder } from '@src/helpers/ErrorDecoder'
 
 describe('StrategyManager#invest (zap)', () => {
     const amount = parseEther('1000')
@@ -118,14 +119,6 @@ describe('StrategyManager#invest (zap)', () => {
             ETH_PRICE,
             ETH_PRICE_BN,
         } = await loadFixture(zapFixture))
-    })
-
-    afterEach(async () => {
-        await Promise.all([
-            stablecoin,
-            wbtc,
-            weth,
-        ].map(async token => expect(await token.balanceOf(zapManager)).to.equal(0)))
     })
 
     describe('zaps into DCA strategy', () => {
@@ -234,6 +227,7 @@ describe('StrategyManager#invest (zap)', () => {
                             USD_PRICE_BN,
                             BTC_PRICE_BN,
                             new BigNumber(0.01),
+                            strategyManager,
                         ),
                     ],
                     vaultSwaps: [],
@@ -269,6 +263,7 @@ describe('StrategyManager#invest (zap)', () => {
                             USD_PRICE_BN,
                             BTC_PRICE_BN,
                             new BigNumber(0.05),
+                            strategyManager,
                         ),
                     ],
                     vaultSwaps: [],
@@ -310,7 +305,7 @@ describe('StrategyManager#invest (zap)', () => {
                 throw new Error('Expected to fail')
             }
             catch (e) {
-                const error = BaseZapHelper.decodeLowLevelCallError(e)
+                const error = ErrorDecoder.decodeLowLevelCallError(e)
 
                 expect(error).to.equal(INSUFFICIENT_OUTPUT_AMOUNT)
             }
@@ -447,7 +442,7 @@ describe('StrategyManager#invest (zap)', () => {
                 throw new Error('Expected to fail')
             }
             catch (e) {
-                const error = BaseZapHelper.decodeLowLevelCallError(e)
+                const error = ErrorDecoder.decodeLowLevelCallError(e)
 
                 expect(error).to.equal(INSUFFICIENT_OUTPUT_AMOUNT)
             }
@@ -628,7 +623,7 @@ describe('StrategyManager#invest (zap)', () => {
                 throw new Error('Expected to fail')
             }
             catch (e) {
-                const error = BaseZapHelper.decodeLowLevelCallError(e)
+                const error = ErrorDecoder.decodeLowLevelCallError(e)
 
                 expect(error).to.equal(INSUFFICIENT_OUTPUT_AMOUNT)
             }
