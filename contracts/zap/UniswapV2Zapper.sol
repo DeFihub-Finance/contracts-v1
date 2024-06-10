@@ -10,6 +10,8 @@ import {Swapper} from "./Swapper.sol";
 contract UniswapV2Zapper is IZapper, Swapper {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
+    // @notice arbitrary number to prevent transferring insignificant amounts of tokens
+    uint private constant MIN_DUST = 100;
     address public immutable treasury;
 
     struct ConstructorParams {
@@ -72,10 +74,10 @@ contract UniswapV2Zapper is IZapper, Swapper {
         uint balanceTokenA = IERC20Upgradeable(zapData.tokenA).balanceOf(address(this));
         uint balanceTokenB = IERC20Upgradeable(zapData.tokenB).balanceOf(address(this));
 
-        if (balanceTokenA > 99)
+        if (balanceTokenA > MIN_DUST)
             tokenA.safeTransfer(treasury, balanceTokenA);
 
-        if (balanceTokenB > 99)
+        if (balanceTokenB > MIN_DUST)
             tokenB.safeTransfer(treasury, balanceTokenB);
 
         emit Zapped(swapRouter, data);
