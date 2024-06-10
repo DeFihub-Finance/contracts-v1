@@ -1,15 +1,12 @@
 import { ZapperFunctionSignature, ZapProtocol } from '@src/helpers'
 import {
-    ICall__factory,
     StrategyManager,
     SubscriptionManager,
     ZapManager,
-    ZapManager__factory,
 } from '@src/typechain'
-import { AbiCoder, AddressLike, ErrorDescription, Signer } from 'ethers'
+import { AbiCoder, AddressLike, Signer } from 'ethers'
 import { SubscriptionSigner, unwrapAddressLike } from '@defihub/shared'
 import { NetworkService } from '@src/NetworkService'
-import { toUtf8String } from 'ethers'
 
 export class BaseZapHelper {
     public constructor(
@@ -76,16 +73,16 @@ export class BaseZapHelper {
         zapperFunctionSignature: ZapperFunctionSignature,
         data: string,
     ) {
-        return ZapManager__factory.createInterface().encodeFunctionData(
-            'callProtocol',
+        return AbiCoder.defaultAbiCoder().encode(
+            ['tuple(string,address,address,string,bytes)'],
             [
-                {
-                    protocolName: protocol,
-                    inputToken: await unwrapAddressLike(inputToken),
-                    outputToken: await unwrapAddressLike(outputToken),
+                [
+                    protocol,
+                    await unwrapAddressLike(inputToken),
+                    await unwrapAddressLike(outputToken),
                     zapperFunctionSignature,
-                    data: data,
-                },
+                    data,
+                ],
             ],
         )
     }

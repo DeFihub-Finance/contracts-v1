@@ -32,7 +32,7 @@ export class ErrorDecoder {
             let parsedError: ErrorDescription | null = null
             let nextData = typedError.data
 
-            while (nextData) {
+            while (nextData && nextData !== '0x') {
                 parsedError = callInterface.parseError(nextData)
 
                 // if error cannot be parsed by the ICall interface, it isn't an instance of LowLevelCallError, therefore we try parsing it with other contract interfaces

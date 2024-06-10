@@ -7,6 +7,7 @@ import {ICall} from  "../interfaces/ICall.sol";
 import {IBeefyVaultV7} from '../interfaces/IBeefyVaultV7.sol';
 import {DollarCostAverage} from '../DollarCostAverage.sol';
 import {VaultManager} from '../VaultManager.sol';
+import {ZapManager} from "../zap/ZapManager.sol";
 
 library InvestLib {
     using SafeERC20Upgradeable for IERC20Upgradeable;
@@ -29,7 +30,7 @@ library InvestLib {
         DcaInvestment[] dcaInvestments;
         IERC20Upgradeable inputToken;
         uint amount;
-        address zapManager;
+        ZapManager zapManager;
         bytes[] swaps;
     }
 
@@ -38,7 +39,7 @@ library InvestLib {
         VaultInvestment[] vaultInvestments;
         IERC20Upgradeable inputToken;
         uint amount;
-        address zapManager;
+        ZapManager zapManager;
         bytes[] swaps;
     }
 
@@ -63,8 +64,7 @@ library InvestLib {
             DcaInvestment memory investment = _params.dcaInvestments[i];
             IERC20Upgradeable poolInputToken = IERC20Upgradeable(_params.dca.getPool(investment.poolId).inputToken);
 
-            uint swapOutput = _zap(
-                _params.zapManager,
+            uint swapOutput = _params.zapManager.zap(
                 _params.swaps[i],
                 _params.inputToken,
                 poolInputToken,
@@ -98,8 +98,7 @@ library InvestLib {
             IBeefyVaultV7 vault = IBeefyVaultV7(investment.vault);
             IERC20Upgradeable vaultWantToken = vault.want();
 
-            uint swapOutput = _zap(
-                _params.zapManager,
+            uint swapOutput = _params.zapManager.zap(
                 _params.swaps[i],
                 _params.inputToken,
                 vaultWantToken,

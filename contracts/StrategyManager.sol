@@ -13,10 +13,9 @@ import {ZapManager} from './zap/ZapManager.sol';
 import {SubscriptionManager} from "./SubscriptionManager.sol";
 import {VaultManager} from "./VaultManager.sol";
 import {DollarCostAverage} from './DollarCostAverage.sol';
-import {UseZap} from "./abstract/UseZap.sol";
 import {InvestLib} from "./libraries/InvestLib.sol";
 
-contract StrategyManager is HubOwnable, UseTreasury, UseZap {
+contract StrategyManager is HubOwnable, UseTreasury, ICall {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     // @notice percentages is a mapping from product id to its percentage
@@ -104,6 +103,7 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
 
     address public investmentLib;
     IERC20Upgradeable public stable;
+    ZapManager public zapManager;
     SubscriptionManager public subscriptionManager;
     DollarCostAverage public dca;
     VaultManager public vaultManager;
@@ -146,7 +146,6 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
 
     function initialize(InitializeParams calldata _initializeParams) external initializer {
         __Ownable_init();
-        __UseZap_init(_initializeParams.zapManager);
 
         setMaxHottestStrategies(_initializeParams.maxHottestStrategies);
         setStrategistPercentage(_initializeParams.strategistPercentage);
@@ -155,6 +154,7 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
 
         transferOwnership(_initializeParams.owner);
 
+        zapManager = _initializeParams.zapManager;
         investmentLib = _initializeParams.investmentLib;
         stable = _initializeParams.stable;
         subscriptionManager = _initializeParams.subscriptionManager;
@@ -221,7 +221,9 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
             ? strategy.creator
             : address(0);
 
-        uint initialBalance = stable.balanceOf(address(this));
+        // max approve is safe since zapManager is a trusted contract
+        if (_params.inputToken.allowance(address(this), address(zapManager)) < _params.inputAmount)
+            _params.inputToken.approve(address(zapManager), type(uint256).max);
 
         PullFundsResult memory pullFundsResult = _pullFunds(
             PullFundsParams({
@@ -234,6 +236,10 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
             })
         );
 
+        // max approve is safe since zapManager is a trusted contract
+        if (stable.allowance(address(this), address(zapManager)) < pullFundsResult.remainingAmount)
+            stable.approve(address(zapManager), type(uint256).max);
+
         uint[] memory dcaPositionIds = abi.decode(
             _callInvestLib(
                 abi.encodeWithSelector(
@@ -243,7 +249,7 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
                         dcaInvestments: _dcaInvestmentsPerStrategy[_params.strategyId],
                         inputToken: stable,
                         amount: pullFundsResult.remainingAmount,
-                        zapManager: address(zapManager),
+                        zapManager: zapManager,
                         swaps: _params.dcaSwaps
                     })
                 )
@@ -260,15 +266,13 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
                         vaultInvestments: _vaultInvestmentsPerStrategy[_params.strategyId],
                         inputToken: stable,
                         amount: pullFundsResult.remainingAmount,
-                        zapManager: address(zapManager),
+                        zapManager: zapManager,
                         swaps: _params.vaultSwaps
                     })
                 )
             ),
             (InvestLib.VaultPosition[])
         );
-
-        _updateDust(stable, initialBalance + pullFundsResult.strategistFee);
 
         uint positionId = _positions[msg.sender].length;
 
@@ -532,7 +536,7 @@ contract StrategyManager is HubOwnable, UseTreasury, UseZap {
         // Convert to stable if input token is not stable and set amount in stable terms
         uint stableAmount = _params.inputToken == stable
             ? _params.inputToken.balanceOf(address(this)) - initialInputTokenBalance
-            : _zap(
+            : zapManager.zap(
                 _params.inputTokenSwap,
                 _params.inputToken,
                 stable,

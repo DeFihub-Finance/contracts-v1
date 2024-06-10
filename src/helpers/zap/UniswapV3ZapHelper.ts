@@ -19,6 +19,7 @@ export class UniswapV3ZapHelper extends BaseZapHelper {
         inputPrice: BigNumber,
         outputPrice: BigNumber,
         slippage: BigNumber,
+        recipient: AddressLike,
     ) {
         const amountWithoutFees = await this.getInvestmentAmountWithoutFee(
             strategyId,
@@ -34,7 +35,7 @@ export class UniswapV3ZapHelper extends BaseZapHelper {
                     tokenIn: await unwrapAddressLike(inputToken),
                     tokenOut: await unwrapAddressLike(outputToken),
                     fee,
-                    recipient: await unwrapAddressLike(this.zapManager),
+                    recipient: await unwrapAddressLike(recipient),
                     deadline: await NetworkService.getDeadline(),
                     amountIn: amountWithoutFees,
                     amountOutMinimum: Slippage.getMinOutput(
@@ -67,6 +68,7 @@ export class UniswapV3ZapHelper extends BaseZapHelper {
         inputPrice: BigNumber,
         outputPrice: BigNumber,
         slippage: BigNumber,
+        recipient: AddressLike,
     ) {
         const amountWithoutFees = await this.getInvestmentAmountWithoutFee(
             strategyId,
@@ -80,7 +82,7 @@ export class UniswapV3ZapHelper extends BaseZapHelper {
             [
                 {
                     path: await path.encodedPath(),
-                    recipient: await unwrapAddressLike(this.zapManager),
+                    recipient: await unwrapAddressLike(recipient),
                     deadline: await NetworkService.getDeadline(),
                     amountIn: amountWithoutFees,
                     amountOutMinimum: Slippage.getMinOutput(

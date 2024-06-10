@@ -39,6 +39,7 @@ export class UniswapV2ZapHelper extends BaseZapHelper {
                 inputPrice,
                 outputPrice,
                 slippage,
+                this.strategyManager,
             ),
         )
     }
@@ -51,6 +52,7 @@ export class UniswapV2ZapHelper extends BaseZapHelper {
         inputPrice: BigNumber,
         outputPrice: BigNumber,
         slippage: BigNumber,
+        recipient: AddressLike,
     ) {
         const swapBytes = UniswapV2Router02__factory.createInterface().encodeFunctionData(
             'swapExactTokensForTokens',
@@ -66,7 +68,7 @@ export class UniswapV2ZapHelper extends BaseZapHelper {
                     await unwrapAddressLike(inputToken),
                     await unwrapAddressLike(outputToken),
                 ],
-                await unwrapAddressLike(this.zapManager),
+                await unwrapAddressLike(recipient),
                 await NetworkService.getDeadline(),
             ],
         )
@@ -102,6 +104,7 @@ export class UniswapV2ZapHelper extends BaseZapHelper {
             priceInput,
             priceA,
             slippage,
+            this.zapManager,
         )
         const swapB = await this.encodeInternalSwapBytes(
             amountPerSwap,
@@ -110,6 +113,7 @@ export class UniswapV2ZapHelper extends BaseZapHelper {
             priceInput,
             priceB,
             slippage,
+            this.zapManager,
         )
         const zapperCall = new AbiCoder().encode(
             ['tuple(uint,address,address,bytes,bytes,uint,uint)'],

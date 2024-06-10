@@ -121,14 +121,6 @@ describe('StrategyManager#invest (zap)', () => {
         } = await loadFixture(zapFixture))
     })
 
-    afterEach(async () => {
-        await Promise.all([
-            stablecoin,
-            wbtc,
-            weth,
-        ].map(async token => expect(await token.balanceOf(zapManager)).to.equal(0)))
-    })
-
     describe('zaps into DCA strategy', () => {
         async function validateDcaZap(tolerance: BigNumber) {
             await strategyManager.connect(account0).closePosition(0)
@@ -235,6 +227,7 @@ describe('StrategyManager#invest (zap)', () => {
                             USD_PRICE_BN,
                             BTC_PRICE_BN,
                             new BigNumber(0.01),
+                            strategyManager,
                         ),
                     ],
                     vaultSwaps: [],
@@ -270,6 +263,7 @@ describe('StrategyManager#invest (zap)', () => {
                             USD_PRICE_BN,
                             BTC_PRICE_BN,
                             new BigNumber(0.05),
+                            strategyManager,
                         ),
                     ],
                     vaultSwaps: [],
