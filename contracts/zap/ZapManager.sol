@@ -50,8 +50,8 @@ contract ZapManager is HubOwnable, ICall {
     /**
      * @notice Performs a zap operation using the specified protocol call data.
      * @param _protocolCallData - Encoded version of ZapManager.ProtocolCall
-     * @param _inputToken - Token to be sold
-     * @param _outputToken - Token to be bought
+     * @param _inputToken The ERC20 token to be sold.
+     * @param _outputToken The ERC20 token to be bought.
      * @param _amount - Amount of input tokens to be sold
      * @return The amount of output tokens bought. If no zap is needed, returns the input token amount.
      */
@@ -62,9 +62,7 @@ contract ZapManager is HubOwnable, ICall {
         uint _amount
     ) external virtual returns (uint) {
         if (_protocolCallData.length > 1 && _inputToken != _outputToken) {
-            // get initial balances
-            uint initialBalanceInputToken = _inputToken.balanceOf(address(this));
-            uint initialBalanceOutputToken = _outputToken.balanceOf(address(this));
+            uint initialBalanceOutputToken = _outputToken.balanceOf(msg.sender);
 
             // pull tokens
             _inputToken.safeTransferFrom(msg.sender, address(this), _amount);
@@ -72,9 +70,7 @@ contract ZapManager is HubOwnable, ICall {
             // make call to external dex
             callProtocol(abi.decode(_protocolCallData, (ProtocolCall)));
 
-            uint amountOut = _outputToken.balanceOf(address(this)) - initialBalanceOutputToken;
-
-            _outputToken.safeTransfer(msg.sender, amountOut);
+            uint amountOut = _outputToken.balanceOf(msg.sender) - initialBalanceOutputToken;
 
             return amountOut;
         }
