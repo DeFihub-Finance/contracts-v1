@@ -85,9 +85,67 @@ library InvestLib {
         uint tokenId;
     }
 
+    struct InvestParams {
+        DollarCostAverage dca;
+        VaultManager vaultManager;
+        LiquidityManager liquidityManager;
+        ZapManager zapManager;
+        IERC20Upgradeable inputToken;
+        uint amount;
+        // dca
+        DcaInvestment[] dcaInvestments;
+        bytes[] dcaSwaps;
+        // vaults
+        VaultInvestment[] vaultInvestments;
+        bytes[] vaultSwaps;
+        // liquidity
+        LiquidityInvestment[] liquidityInvestments;
+        LiquidityZapParams[] liquidityZaps;
+    }
+
+    function invest(
+        InvestParams memory _params // todo AB test with calldata
+    ) public returns (
+        uint[] memory dcaPositionIds,
+        VaultPosition[] memory vaultPositions,
+        LiquidityPosition[] memory liquidityPositions
+    ) {
+        dcaPositionIds = investInDca(
+            DcaInvestmentParams({
+                dca: _params.dca,
+                dcaInvestments: _params.dcaInvestments,
+                inputToken: _params.inputToken,
+                amount: _params.amount,
+                zapManager: _params.zapManager,
+                swaps: _params.dcaSwaps
+            })
+        );
+
+        vaultPositions = investInVaults(
+            VaultInvestmentParams({
+                vaultManager: _params.vaultManager,
+                vaultInvestments: _params.vaultInvestments,
+                inputToken: _params.inputToken,
+                amount: _params.amount,
+                zapManager: _params.zapManager,
+                swaps: _params.vaultSwaps
+            })
+        );
+
+        liquidityPositions = investInLiquidity(
+            InvestLib.LiquidityInvestParams({
+                liquidityManager: _params.liquidityManager,
+                liquidityInvestments: _params.liquidityInvestments,
+                inputToken: _params.inputToken,
+                amount: _params.amount,
+                zaps: _params.liquidityZaps
+            })
+        );
+    }
+
     function investInDca(
         DcaInvestmentParams memory _params
-    ) public returns (uint[] memory) {
+    ) internal returns (uint[] memory) {
         if (_params.dcaInvestments.length == 0)
             return new uint[](0);
 
@@ -121,7 +179,7 @@ library InvestLib {
 
     function investInVaults(
         VaultInvestmentParams memory _params
-    ) public returns (VaultPosition[] memory) {
+    ) internal returns (VaultPosition[] memory) {
         if (_params.vaultInvestments.length == 0)
             return new VaultPosition[](0);
 
@@ -157,7 +215,7 @@ library InvestLib {
 
     function investInLiquidity(
         LiquidityInvestParams memory _params
-    ) public returns (LiquidityPosition[] memory) {
+    ) internal returns (LiquidityPosition[] memory) {
         if (_params.liquidityInvestments.length == 0)
             return new LiquidityPosition[](0);
 
@@ -173,35 +231,5 @@ library InvestLib {
         // TODO track dust and send to treasury
 
         return liquidityPositions;
-    }
-
-    /**
-     * @param _swapOrZap - Encoded version of ZapManager.ProtocolCall
-     * @param _inputToken - Token to be sold
-     * @param _outputToken - Token to be bought
-     * @param _amount - Amount of input tokens to be sold
-     * @return Amount of output tokens bought, if no zap is needed, returns input token amount
-     */
-    function _zap(
-        address _zapManager,
-        bytes memory _swapOrZap,
-        IERC20Upgradeable _inputToken,
-        IERC20Upgradeable _outputToken,
-        uint _amount
-    ) internal returns (uint) {
-        if (_swapOrZap.length > 1 && _inputToken != _outputToken) {
-            _inputToken.safeTransfer(_zapManager, _amount);
-
-            uint initialBalance = _outputToken.balanceOf(address(this));
-
-            (bool success, bytes memory data) = _zapManager.call(_swapOrZap);
-
-            if (!success)
-                revert ICall.LowLevelCallFailed(_zapManager, _swapOrZap, data);
-
-            return _outputToken.balanceOf(address(this)) - initialBalance;
-        }
-
-        return _amount;
     }
 }

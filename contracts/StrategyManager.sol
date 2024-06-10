@@ -260,55 +260,34 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         if (stable.allowance(address(this), address(zapManager)) < pullFundsResult.remainingAmount)
             stable.approve(address(zapManager), type(uint256).max);
 
-        uint[] memory dcaPositionIds = abi.decode(
+        (
+            uint[] memory dcaPositionIds,
+            InvestLib.VaultPosition[] memory vaultPositions,
+            InvestLib.LiquidityPosition[] memory liquidityPositions
+        ) = abi.decode(
             _callInvestLib(
                 abi.encodeWithSelector(
-                    InvestLib.investInDca.selector,
-                    InvestLib.DcaInvestmentParams({
+                    InvestLib.invest.selector,
+                    InvestLib.InvestParams({
                         dca: dca,
-                        dcaInvestments: _dcaInvestmentsPerStrategy[_params.strategyId],
-                        inputToken: stable,
-                        amount: pullFundsResult.remainingAmount,
-                        zapManager: zapManager,
-                        swaps: _params.dcaSwaps
-                    })
-                )
-            ),
-            (uint[])
-        );
-
-        InvestLib.VaultPosition[] memory vaultPositions = abi.decode(
-            _callInvestLib(
-                abi.encodeWithSelector(
-                    InvestLib.investInVaults.selector,
-                    InvestLib.VaultInvestmentParams({
                         vaultManager: vaultManager,
-                        vaultInvestments: _vaultInvestmentsPerStrategy[_params.strategyId],
-                        inputToken: stable,
-                        amount: pullFundsResult.remainingAmount,
-                        zapManager: zapManager,
-                        swaps: _params.vaultSwaps
-                    })
-                )
-            ),
-            (InvestLib.VaultPosition[])
-        );
-
-        // TODO save liquidity positions to storage
-        InvestLib.LiquidityPosition[] memory liquidityPositions = abi.decode(
-            _callInvestLib(
-                abi.encodeWithSelector(
-                    InvestLib.investInLiquidity.selector,
-                    InvestLib.LiquidityInvestParams({
                         liquidityManager: liquidityManager,
-                        liquidityInvestments: _liquidityInvestmentsPerStrategy[_params.strategyId],
+                        zapManager: zapManager,
                         inputToken: stable,
                         amount: pullFundsResult.remainingAmount,
-                        zaps: _params.liquidityZaps
+                        // dca
+                        dcaInvestments: _dcaInvestmentsPerStrategy[_params.strategyId],
+                        dcaSwaps: _params.dcaSwaps,
+                        // vaults
+                        vaultInvestments: _vaultInvestmentsPerStrategy[_params.strategyId],
+                        vaultSwaps : _params.vaultSwaps,
+                        // liquidity
+                        liquidityInvestments : _liquidityInvestmentsPerStrategy[_params.strategyId],
+                        liquidityZaps : _params.liquidityZaps
                     })
                 )
             ),
-            (InvestLib.LiquidityPosition[])
+            (uint[], InvestLib.VaultPosition[], InvestLib.LiquidityPosition[])
         );
 
         uint positionId = _positions[msg.sender].length;
@@ -320,6 +299,9 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
 
         for (uint i; i < vaultPositions.length; ++i)
             _vaultPositionsPerPosition[msg.sender][positionId].push(vaultPositions[i]);
+
+        for (uint i; i < liquidityPositions.length; ++i)
+            _liquidityPositionsPerPosition[msg.sender][positionId].push(liquidityPositions[i]);
 
         emit PositionCreated(
             msg.sender,
