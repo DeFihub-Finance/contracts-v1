@@ -221,8 +221,6 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
             ? strategy.creator
             : address(0);
 
-        uint initialBalance = stable.balanceOf(address(this));
-
         // max approve is safe since zapManager is a trusted contract
         if (_params.inputToken.allowance(address(this), address(zapManager)) < _params.inputAmount)
             _params.inputToken.approve(address(zapManager), type(uint256).max);
