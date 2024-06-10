@@ -7,6 +7,7 @@ import {ICall} from  "../interfaces/ICall.sol";
 import {IBeefyVaultV7} from '../interfaces/IBeefyVaultV7.sol';
 import {DollarCostAverage} from '../DollarCostAverage.sol';
 import {VaultManager} from '../VaultManager.sol';
+import {LiquidityManager} from "../LiquidityManager.sol";
 import {ZapManager} from "../zap/ZapManager.sol";
 
 library InvestLib {
@@ -22,6 +23,16 @@ library InvestLib {
 
     struct VaultInvestment {
         address vault;
+        uint8 percentage;
+    }
+
+    struct LiquidityInvestment {
+        address positionManager;
+        address token0;
+        address token1;
+        uint24 fee;
+        uint16 pricePercentageThresholdBelow;
+        uint16 pricePercentageThresholdAbove;
         uint8 percentage;
     }
 
@@ -43,9 +54,35 @@ library InvestLib {
         bytes[] swaps;
     }
 
+    struct LiquidityZapParams {
+        bytes swapToken0;
+        bytes swapToken1;
+        uint swapAmountToken0;
+        uint swapAmountToken1;
+        int24 tickLower;
+        int24 tickUpper;
+        uint amount0Min;
+        uint amount1Min;
+        bytes zapToken0;
+        bytes zapToken1;
+    }
+
+    struct LiquidityInvestParams {
+        LiquidityManager liquidityManager;
+        LiquidityInvestment[] liquidityInvestments;
+        IERC20Upgradeable inputToken;
+        uint amount;
+        LiquidityZapParams[] zaps;
+    }
+
     struct VaultPosition {
         address vault;
         uint amount;
+    }
+
+    struct LiquidityPosition {
+        address positionManager;
+        uint tokenId;
     }
 
     function investInDca(
@@ -54,7 +91,7 @@ library InvestLib {
         if (_params.dcaInvestments.length == 0)
             return new uint[](0);
 
-        if (_params.swaps.length != _params.dcaInvestments.length)
+        if (_params.dcaInvestments.length != _params.swaps.length)
             revert InvalidParamsLength();
 
         uint[] memory dcaPositionIds = new uint[](_params.dcaInvestments.length);
@@ -88,7 +125,7 @@ library InvestLib {
         if (_params.vaultInvestments.length == 0)
             return new VaultPosition[](0);
 
-        if (_params.swaps.length != _params.vaultInvestments.length)
+        if (_params.vaultInvestments.length != _params.swaps.length)
             revert InvalidParamsLength();
 
         VaultPosition[] memory vaultPositions = new VaultPosition[](_params.vaultInvestments.length);
@@ -116,6 +153,26 @@ library InvestLib {
         }
 
         return vaultPositions;
+    }
+
+    function investInLiquidity(
+        LiquidityInvestParams memory _params
+    ) public returns (LiquidityPosition[] memory) {
+        if (_params.liquidityInvestments.length == 0)
+            return new LiquidityPosition[](0);
+
+        if (_params.liquidityInvestments.length != _params.zaps.length)
+            revert InvalidParamsLength();
+
+        LiquidityPosition[] memory liquidityPositions = new LiquidityPosition[](_params.liquidityInvestments.length);
+
+        for (uint i; i < _params.liquidityInvestments.length; ++i) {
+            // TODO
+        }
+
+        // TODO track dust and send to treasury
+
+        return liquidityPositions;
     }
 
     /**

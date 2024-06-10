@@ -5,17 +5,17 @@ pragma solidity 0.8.26;
 import {IERC20Upgradeable, SafeERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import {INonfungiblePositionManager} from "./interfaces/INonfungiblePositionManager.sol";
 import {HubOwnable} from "./abstract/HubOwnable.sol";
-import {UseZap} from "./abstract/UseZap.sol";
 import {UseFee} from "./abstract/UseFee.sol";
 import {UseTreasury} from "./abstract/UseTreasury.sol";
 import {StrategyManager} from "./StrategyManager.sol";
 import {SubscriptionManager} from "./SubscriptionManager.sol";
 import {ZapManager} from "./zap/ZapManager.sol";
 
-contract LiquidityManager is HubOwnable, UseZap, UseFee {
+contract LiquidityManager is HubOwnable, UseFee {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     address public strategyManager;
+    ZapManager public zapManager;
     // @notice position managers must be whitelisted to prevent scam strategies using fake position managers
     mapping(address => bool) public positionManagerWhitelist;
 
@@ -54,7 +54,6 @@ contract LiquidityManager is HubOwnable, UseZap, UseFee {
 
     function initialize(InitializeParams calldata _params) external initializer {
         __Ownable_init();
-        __UseZap_init(_params.zapManager);
         __UseFee_init(
             _params.treasury,
             _params.subscriptionManager,
@@ -65,6 +64,7 @@ contract LiquidityManager is HubOwnable, UseZap, UseFee {
         transferOwnership(_params.owner);
 
         strategyManager = _params.strategyManager;
+        zapManager = _params.zapManager;
     }
 
     function addLiquidityV3(
@@ -113,29 +113,21 @@ contract LiquidityManager is HubOwnable, UseZap, UseFee {
         if (!positionManagerWhitelist[_params.positionManager])
             revert InvalidPositionManager();
 
-        uint initialBalanceInputToken = _params.inputToken.balanceOf(address(this));
-
-        uint amountToken0 = _zap(
+        uint amountToken0 = zapManager.zap(
             _params.swapToken0,
             _params.inputToken,
             _params.token0,
             _params.swapAmountToken0
         );
-        uint amountToken1 = _zap(
+        uint amountToken1 = zapManager.zap(
             _params.swapToken1,
             _params.inputToken,
             _params.token1,
             _params.swapAmountToken1
         );
 
-        if (_params.inputToken != _params.token0 && _params.inputToken != _params.token1)
-            _updateDust(_params.inputToken, initialBalanceInputToken);
-
         _params.token0.safeIncreaseAllowance(address(_params.positionManager), amountToken0);
         _params.token1.safeIncreaseAllowance(address(_params.positionManager), amountToken1);
-
-        uint initialBalanceToken0 = _params.token0.balanceOf(address(this));
-        uint initialBalanceToken1 = _params.token1.balanceOf(address(this));
 
         (tokenId, liquidity,,) = INonfungiblePositionManager(_params.positionManager).mint(
             INonfungiblePositionManager.MintParams({
@@ -152,9 +144,6 @@ contract LiquidityManager is HubOwnable, UseZap, UseFee {
                 deadline: block.timestamp
             })
         );
-
-        _updateDust(_params.token0, initialBalanceToken0);
-        _updateDust(_params.token1, initialBalanceToken1);
     }
 
     function setPositionManagerWhitelist(

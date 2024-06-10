@@ -19,27 +19,10 @@ import {LiquidityManager} from './LiquidityManager.sol';
 contract StrategyManager is HubOwnable, UseTreasury, ICall {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
-    // TODO move to InvestLib
-    struct LiquidityInvestment {
-        address positionManager;
-        address token0;
-        address token1;
-        uint24 fee;
-        uint16 pricePercentageThresholdBelow;
-        uint16 pricePercentageThresholdAbove;
-        uint8 percentage;
-    }
-
     // @notice percentages is a mapping from product id to its percentage
     struct Strategy {
         address creator;
         mapping(uint8 => uint8) percentages;
-    }
-
-    // TODO move to InvestLib
-    struct LiquidityPosition {
-        address positionManager;
-        uint tokenId;
     }
 
     struct Position {
@@ -64,24 +47,9 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
     struct CreateStrategyParams {
         InvestLib.DcaInvestment[] dcaInvestments;
         InvestLib.VaultInvestment[] vaultInvestments;
-        LiquidityInvestment[] liquidityInvestments;
+        InvestLib.LiquidityInvestment[] liquidityInvestments;
         SubscriptionManager.Permit permit;
         bytes32 metadataHash;
-    }
-
-    // TODO move to investlib
-    struct LiquidityInvestParams {
-        IERC20Upgradeable inputToken;
-        bytes swapToken0;
-        bytes swapToken1;
-        uint swapAmountToken0;
-        uint swapAmountToken1;
-        int24 tickLower;
-        int24 tickUpper;
-        uint amount0Min;
-        uint amount1Min;
-        bytes zapToken0;
-        bytes zapToken1;
     }
 
     /**
@@ -94,7 +62,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         bytes inputTokenSwap;
         bytes[] dcaSwaps;
         bytes[] vaultSwaps;
-        LiquidityInvestParams[] liquidityInvestParams;
+        InvestLib.LiquidityZapParams[] liquidityZaps;
         SubscriptionManager.Permit investorPermit;
         SubscriptionManager.Permit strategistPermit;
     }
@@ -128,7 +96,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
     Strategy[] internal _strategies;
     mapping(uint => InvestLib.DcaInvestment[]) internal _dcaInvestmentsPerStrategy;
     mapping(uint => InvestLib.VaultInvestment[]) internal _vaultInvestmentsPerStrategy;
-    mapping(uint => LiquidityInvestment[]) internal _liquidityInvestmentsPerStrategy;
+    mapping(uint => InvestLib.LiquidityInvestment[]) internal _liquidityInvestmentsPerStrategy;
 
     mapping(address => Position[]) internal _positions;
     // @dev investor => strategy position id => dca position ids
@@ -136,7 +104,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
     // @dev investor => strategy position id => vault positions
     mapping(address => mapping(uint => InvestLib.VaultPosition[])) internal _vaultPositionsPerPosition;
     // @dev investor => strategy position id => liquidity positions
-    mapping(address => mapping(uint => LiquidityPosition[])) internal _liquidityPositionsPerPosition;
+    mapping(address => mapping(uint => InvestLib.LiquidityPosition[])) internal _liquidityPositionsPerPosition;
 
     address public investmentLib;
     IERC20Upgradeable public stable;
@@ -253,7 +221,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         }
 
         for (uint i = 0; i < _params.liquidityInvestments.length; i++) {
-            LiquidityInvestment memory vaultStrategy = _params.liquidityInvestments[i];
+            InvestLib.LiquidityInvestment memory vaultStrategy = _params.liquidityInvestments[i];
 
             if (!liquidityManager.positionManagerWhitelist(vaultStrategy.positionManager))
                 revert InvalidInvestment();
@@ -325,10 +293,22 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
             ),
             (InvestLib.VaultPosition[])
         );
-        // TODO assign liquidity positions
-        LiquidityPosition[] memory liquidityPositions = _investInLiquidity(
-            _params.strategyId,
-            _params.liquidityInvestParams
+
+        // TODO save liquidity positions to storage
+        InvestLib.LiquidityPosition[] memory liquidityPositions = abi.decode(
+            _callInvestLib(
+                abi.encodeWithSelector(
+                    InvestLib.investInLiquidity.selector,
+                    InvestLib.LiquidityInvestParams({
+                        liquidityManager: liquidityManager,
+                        liquidityInvestments: _liquidityInvestmentsPerStrategy[_params.strategyId],
+                        inputToken: stable,
+                        amount: pullFundsResult.remainingAmount,
+                        zaps: _params.liquidityZaps
+                    })
+                )
+            ),
+            (InvestLib.LiquidityPosition[])
         );
 
         uint positionId = _positions[msg.sender].length;
@@ -575,27 +555,6 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
             revert LowLevelCallFailed(address(investmentLib), "", resultData);
 
         return resultData;
-    }
-
-    function _investInLiquidity(
-        uint _strategyId,
-        LiquidityInvestParams[] memory _params
-    ) internal virtual returns (LiquidityPosition[] memory) {
-        LiquidityInvestment[] memory liquidityInvestments = _liquidityInvestmentsPerStrategy[_strategyId];
-
-        if (liquidityInvestments.length == 0)
-            return new LiquidityPosition[](0);
-
-        if (_params.length != liquidityInvestments.length)
-            revert InvalidParamsLength();
-
-        LiquidityPosition[] memory liquidityPositions = new LiquidityPosition[](liquidityInvestments.length);
-
-        for (uint i = 0; i < liquidityInvestments.length; i++) {
-            // TODO
-        }
-
-        return liquidityPositions;
     }
 
     function _pullFunds(
