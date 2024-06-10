@@ -76,7 +76,7 @@ library InvestLib {
             _params.dca.depositUsingStrategy(investment.poolId, investment.swaps, swapOutput);
 
             dcaPositionIds[i] = nextDcaPositionId;
-            nextDcaPositionId++;
+            ++nextDcaPositionId;
         }
 
         return dcaPositionIds;
