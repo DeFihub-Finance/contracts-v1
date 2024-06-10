@@ -276,9 +276,6 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
             (InvestLib.VaultPosition[])
         );
 
-        // TODO move to zap manager
-//        _updateDust(stable, initialBalance + pullFundsResult.strategistFee);
-
         uint positionId = _positions[msg.sender].length;
 
         Position storage position = _positions[msg.sender].push();

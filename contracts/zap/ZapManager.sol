@@ -70,9 +70,7 @@ contract ZapManager is HubOwnable, ICall {
             // make call to external dex
             callProtocol(abi.decode(_protocolCallData, (ProtocolCall)));
 
-            uint amountOut = _outputToken.balanceOf(msg.sender) - initialBalanceOutputToken;
-
-            return amountOut;
+            return _outputToken.balanceOf(msg.sender) - initialBalanceOutputToken;
         }
 
         return _amount;

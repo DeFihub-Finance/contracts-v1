@@ -177,42 +177,33 @@ describe('StrategyManager#invest (zap)', () => {
         })
 
         it('zaps with 1% slippage uni v2', async () => {
-            try {
-                await strategyManager
-                    .connect(account0)
-                    .invest({
-                        strategyId,
-                        inputToken: stablecoin,
-                        inputAmount: amount,
-                        inputTokenSwap: '0x',
-                        dcaSwaps: [
-                            '0x',
-                            await uniswapV2ZapHelper.encodeSwap(
-                                strategyId,
-                                dca,
-                                amount * 50n / 100n,
-                                account0,
-                                stablecoin,
-                                wbtc,
-                                USD_PRICE_BN,
-                                BTC_PRICE_BN,
-                                new BigNumber(0.01),
-                            ),
-                        ],
-                        vaultSwaps: [],
-                        investorPermit: permitAccount0,
-                        strategistPermit: permitAccount0,
-                    })
+            await strategyManager
+                .connect(account0)
+                .invest({
+                    strategyId,
+                    inputToken: stablecoin,
+                    inputAmount: amount,
+                    inputTokenSwap: '0x',
+                    dcaSwaps: [
+                        '0x',
+                        await uniswapV2ZapHelper.encodeSwap(
+                            strategyId,
+                            dca,
+                            amount * 50n / 100n,
+                            account0,
+                            stablecoin,
+                            wbtc,
+                            USD_PRICE_BN,
+                            BTC_PRICE_BN,
+                            new BigNumber(0.01),
+                        ),
+                    ],
+                    vaultSwaps: [],
+                    investorPermit: permitAccount0,
+                    strategistPermit: permitAccount0,
+                })
 
-                await validateDcaZap(new BigNumber(0.01))
-
-                console.log('done')
-            }
-            catch (e) {
-                console.log(ErrorDecoder.decodeLowLevelCallError(e))
-
-                throw e
-            }
+            await validateDcaZap(new BigNumber(0.01))
         })
 
         it('zaps with 1% slippage uni v3 single-hop', async () => {
