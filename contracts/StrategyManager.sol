@@ -38,6 +38,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         SubscriptionManager subscriptionManager;
         DollarCostAverage dca;
         VaultManager vaultManager;
+        LiquidityManager liquidityManager;
         ZapManager zapManager;
         uint8 maxHottestStrategies;
         uint32 strategistPercentage;
@@ -166,6 +167,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         subscriptionManager = _initializeParams.subscriptionManager;
         dca = _initializeParams.dca;
         vaultManager = _initializeParams.vaultManager;
+        liquidityManager = _initializeParams.liquidityManager;
     }
 
     function createStrategy(CreateStrategyParams memory _params) external virtual {
@@ -221,12 +223,15 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         }
 
         for (uint i = 0; i < _params.liquidityInvestments.length; i++) {
-            InvestLib.LiquidityInvestment memory vaultStrategy = _params.liquidityInvestments[i];
+            InvestLib.LiquidityInvestment memory liquidityStrategy = _params.liquidityInvestments[i];
 
-            if (!liquidityManager.positionManagerWhitelist(vaultStrategy.positionManager))
+            if (
+                !liquidityManager.positionManagerWhitelist(liquidityStrategy.positionManager) ||
+                liquidityStrategy.token0 > liquidityStrategy.token1
+            )
                 revert InvalidInvestment();
 
-            _liquidityInvestmentsPerStrategy[strategyId].push(vaultStrategy);
+            _liquidityInvestmentsPerStrategy[strategyId].push(liquidityStrategy);
         }
 
         emit StrategyCreated(msg.sender, strategyId, _params.metadataHash);

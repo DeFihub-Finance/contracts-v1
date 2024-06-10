@@ -20,11 +20,11 @@ contract LiquidityManager is HubOwnable, UseFee {
     mapping(address => bool) public positionManagerWhitelist;
 
     struct InitializeParams {
-        address strategyManager;
-        ZapManager zapManager;
         address owner;
         address treasury;
         address subscriptionManager;
+        address strategyManager;
+        ZapManager zapManager;
         uint32 baseFeeBP;
         uint32 nonSubscriberFeeBP;
     }
@@ -49,7 +49,7 @@ contract LiquidityManager is HubOwnable, UseFee {
     }
 
     error InsufficientFunds(uint requested, uint available);
-    error InvalidPositionManager();
+    error InvalidInvestment();
     error Unauthorized();
 
     function initialize(InitializeParams calldata _params) external initializer {
@@ -110,8 +110,11 @@ contract LiquidityManager is HubOwnable, UseFee {
         uint tokenId,
         uint128 liquidity
     ) {
-        if (!positionManagerWhitelist[_params.positionManager])
-            revert InvalidPositionManager();
+        if (
+            !positionManagerWhitelist[_params.positionManager] ||
+            _params.token0 > _params.token1
+        )
+            revert InvalidInvestment();
 
         uint amountToken0 = zapManager.zap(
             _params.swapToken0,
