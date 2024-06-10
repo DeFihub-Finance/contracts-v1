@@ -69,7 +69,7 @@ contract ZapManager is HubOwnable, ICall {
         IERC20Upgradeable _outputToken,
         uint _amount
     ) external virtual returns (uint) {
-        if (_protocolCallData.length > 1 && _inputToken != _outputToken) {
+        if (_protocolCallData.length > 1) {
             uint initialBalanceOutputToken = _outputToken.balanceOf(msg.sender);
 
             // pull tokens
