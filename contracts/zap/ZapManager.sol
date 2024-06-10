@@ -69,19 +69,18 @@ contract ZapManager is HubOwnable, ICall {
         IERC20Upgradeable _outputToken,
         uint _amount
     ) external virtual returns (uint) {
-        if (_protocolCallData.length > 1) {
-            uint initialBalanceOutputToken = _outputToken.balanceOf(msg.sender);
+        if (_protocolCallData.length == 0)
+            return _amount;
 
-            // pull tokens
-            _inputToken.safeTransferFrom(msg.sender, address(this), _amount);
+        uint initialBalanceOutputToken = _outputToken.balanceOf(msg.sender);
 
-            // make call to external dex
-            callProtocol(abi.decode(_protocolCallData, (ProtocolCall)));
+        // pull tokens
+        _inputToken.safeTransferFrom(msg.sender, address(this), _amount);
 
-            return _outputToken.balanceOf(msg.sender) - initialBalanceOutputToken;
-        }
+        // make call to external dex
+        callProtocol(abi.decode(_protocolCallData, (ProtocolCall)));
 
-        return _amount;
+        return _outputToken.balanceOf(msg.sender) - initialBalanceOutputToken;
     }
 
     function callProtocol(ProtocolCall memory _protocolCall) internal {
