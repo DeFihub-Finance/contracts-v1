@@ -19,9 +19,17 @@ contract ZapManager is HubOwnable, ICall {
     }
 
     /**
-     * @dev data bytes are the encoded versions of the bytes argument received by "zap()" or "swap()" functions of the zappers
-     * @dev if "data" is a swap transaction, you must set the recipient of the swap transaction output with your address (or the contract address where you will be using the tokens), otherwise tokens will not be sent to you
-     * @dev if "data" is a liquidity provision transaction, you must set the recipient of both swap transactions as THIS CONTRACT's address, otherwise it won't have enough funds to add liquidity, then it will automatically forward the LP tokens to the recipient
+     * @dev Encapsulates data required to perform a protocol-specific zap or swap operation.
+     * @param protocolName The name of the protocol to call.
+     * @param inputToken The ERC20 token to be used as input.
+     * @param outputToken The ERC20 token to be received as output.
+     * @param zapperFunctionSignature The function signature of the zapper's function to call.
+     * @param data The encoded function signature and data to pass to the zapper function.
+     *             If `data` represents a swap transaction, the recipient must be set to the address
+     *             that will use the output tokens (typically the sender's address).
+     *             If `data` represents a liquidity provision transaction, the recipient for the swap
+     *             must be this contract's address (LiquidityManager) to ensure sufficient funds are available for liquidity provision.
+     *             The minted LP tokens will then be forwarded to the intended recipient.
      */
     struct ProtocolCall {
         string protocolName;
