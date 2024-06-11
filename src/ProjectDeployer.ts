@@ -1,4 +1,4 @@
-import { sendLocalDeploymentTransaction } from '@src/helpers'
+import { sendLocalTransaction, sendLocalDeploymentTransaction } from '@src/helpers'
 import { ethers } from 'hardhat'
 import {
     ProjectDeployer__factory,
@@ -25,7 +25,6 @@ import {
     LiquidityManager__factory,
 } from '@src/typechain'
 import { ZeroHash, ZeroAddress, Signer, AddressLike } from 'ethers'
-import { sendLocalTransaction } from '@src/helpers/transaction'
 
 export class ProjectDeployer {
     private hashCount = 0
@@ -184,12 +183,14 @@ export class ProjectDeployer {
             dca,
             vaultManager,
             zapManager,
+            liquidityManager,
         ] = (await Promise.all([
             projectDeployer.strategyManager(),
             projectDeployer.subscriptionManager(),
             projectDeployer.dca(),
             projectDeployer.vaultManager(),
             projectDeployer.zapManager(),
+            projectDeployer.liquidityManager(),
         ])).map(({ proxy }) => proxy)
 
         return {
@@ -199,6 +200,7 @@ export class ProjectDeployer {
             dca: DollarCostAverage__factory.connect(dca, owner),
             vaultManager: VaultManager__factory.connect(vaultManager, owner),
             zapManager: ZapManager__factory.connect(zapManager, owner),
+            liquidityManager: LiquidityManager__factory.connect(liquidityManager, owner),
 
             // EOA with contract roles
             deployer,
