@@ -45,8 +45,6 @@ contract LiquidityManager is HubOwnable, UseFee, UseDust, OnlyStrategyManager {
         int24 tickUpper;
         uint amount0Min;
         uint amount1Min;
-        bytes zapToken0;
-        bytes zapToken1;
     }
 
     error InsufficientFunds(uint requested, uint available);

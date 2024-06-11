@@ -5,6 +5,7 @@ pragma solidity 0.8.26;
 import {IERC20Upgradeable, SafeERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import {ICall} from  "../interfaces/ICall.sol";
 import {IBeefyVaultV7} from '../interfaces/IBeefyVaultV7.sol';
+import {INonfungiblePositionManager} from '../interfaces/INonfungiblePositionManager.sol';
 import {DollarCostAverage} from '../DollarCostAverage.sol';
 import {VaultManager} from '../VaultManager.sol';
 import {LiquidityManager} from "../LiquidityManager.sol";
@@ -63,8 +64,6 @@ library InvestLib {
         int24 tickUpper;
         uint amount0Min;
         uint amount1Min;
-        bytes zapToken0;
-        bytes zapToken1;
     }
 
     struct LiquidityInvestParams {
@@ -84,6 +83,7 @@ library InvestLib {
     struct LiquidityPosition {
         address positionManager;
         uint tokenId;
+        uint128 liquidity;
     }
 
     struct InvestParams {
@@ -247,9 +247,7 @@ library InvestLib {
                     tickLower: zap.tickLower,
                     tickUpper: zap.tickUpper,
                     amount0Min: zap.amount0Min,
-                    amount1Min: zap.amount1Min,
-                    zapToken0: zap.zapToken0,
-                    zapToken1: zap.zapToken1
+                    amount1Min: zap.amount1Min
                 })
             );
         }
@@ -265,65 +263,69 @@ library InvestLib {
         uint[] dcaPositions;
         // vaults
         VaultPosition[] vaultPositions;
+        // liquidity
+        LiquidityPosition[] liquidityPositions;
     }
 
     function closePosition(ClosePositionParams memory _params) public returns (
         uint[][] memory dcaWithdrawnAmounts,
-        uint[] memory vaultWithdrawnAmounts
+        uint[] memory vaultWithdrawnAmounts,
+        uint[][] memory liquidityWithdrawnAmounts
     ) {
         return (
             _closeDcaPositions(_params.dca, _params.dcaPositions),
-            _closeVaultPositions(_params.vaultPositions)
+            _closeVaultPositions(_params.vaultPositions),
+            _closeLiquidityPositions(_params.liquidityPositions)
         );
     }
 
     function _closeDcaPositions(
-        DollarCostAverage dca,
-        uint[] memory dcaPositions
+        DollarCostAverage _dca,
+        uint[] memory _positions
     ) internal returns (uint[][] memory) {
-        uint[][] memory dcaWithdrawnAmounts = new uint[][](dcaPositions.length);
+        uint[][] memory withdrawnAmounts = new uint[][](_positions.length);
 
-        for (uint i; i < dcaPositions.length; ++i) {
-            DollarCostAverage.PositionInfo memory dcaPosition = dca.getPosition(
+        for (uint i; i < _positions.length; ++i) {
+            DollarCostAverage.PositionInfo memory dcaPosition = _dca.getPosition(
                 address(this),
-                dcaPositions[i]
+                _positions[i]
             );
-            DollarCostAverage.PoolInfo memory poolInfo = dca.getPool(dcaPosition.poolId);
+            DollarCostAverage.PoolInfo memory poolInfo = _dca.getPool(dcaPosition.poolId);
             IERC20Upgradeable inputToken = IERC20Upgradeable(poolInfo.inputToken);
             IERC20Upgradeable outputToken = IERC20Upgradeable(poolInfo.outputToken);
             uint initialInputTokenBalance = inputToken.balanceOf(address(this));
             uint initialOutputTokenBalance = outputToken.balanceOf(address(this));
 
-            dca.withdrawAll(dcaPositions[i]);
+            _dca.withdrawAll(_positions[i]);
 
             uint inputTokenAmount = inputToken.balanceOf(address(this)) - initialInputTokenBalance;
             uint outputTokenAmount = outputToken.balanceOf(address(this)) - initialOutputTokenBalance;
 
             if (inputTokenAmount > 0 || outputTokenAmount > 0) {
-                dcaWithdrawnAmounts[i] = new uint[](2);
+                withdrawnAmounts[i] = new uint[](2);
 
                 if (inputTokenAmount > 0) {
-                    dcaWithdrawnAmounts[i][0] = inputTokenAmount;
+                    withdrawnAmounts[i][0] = inputTokenAmount;
                     inputToken.safeTransfer(msg.sender, inputTokenAmount);
                 }
 
                 if (outputTokenAmount > 0) {
-                    dcaWithdrawnAmounts[i][1] = outputTokenAmount;
+                    withdrawnAmounts[i][1] = outputTokenAmount;
                     outputToken.safeTransfer(msg.sender, outputTokenAmount);
                 }
             }
         }
 
-        return dcaWithdrawnAmounts;
+        return withdrawnAmounts;
     }
 
     function _closeVaultPositions(
-        VaultPosition[] memory _vaultPositions
+        VaultPosition[] memory _positions
     ) internal returns (uint[] memory) {
-        uint[] memory vaultsWithdrawnAmounts = new uint[](_vaultPositions.length);
+        uint[] memory withdrawnAmounts = new uint[](_positions.length);
 
-        for (uint i; i < _vaultPositions.length; ++i) {
-            VaultPosition memory vaultPosition = _vaultPositions[i];
+        for (uint i; i < _positions.length; ++i) {
+            VaultPosition memory vaultPosition = _positions[i];
             IBeefyVaultV7 vault = IBeefyVaultV7(vaultPosition.vault);
 
             uint initialBalance = vault.want().balanceOf(address(this));
@@ -333,11 +335,33 @@ library InvestLib {
             uint withdrawnAmount = vault.want().balanceOf(address(this)) - initialBalance;
 
             if (withdrawnAmount > 0) {
-                vaultsWithdrawnAmounts[i] = withdrawnAmount;
+                withdrawnAmounts[i] = withdrawnAmount;
                 vault.want().safeTransfer(msg.sender, withdrawnAmount);
             }
         }
 
-        return vaultsWithdrawnAmounts;
+        return withdrawnAmounts;
+    }
+
+    function _closeLiquidityPositions(
+        LiquidityPosition[] memory _positions
+    ) internal returns (uint[][] memory) {
+        uint[][] memory withdrawnAmounts = new uint[][](_positions.length);
+
+        for (uint i; i < _positions.length; ++i) {
+            LiquidityPosition memory position = _positions[i];
+
+            INonfungiblePositionManager(position.positionManager).decreaseLiquidity(
+                INonfungiblePositionManager.DecreaseLiquidityParams({
+                    tokenId: position.tokenId,
+                    liquidity: position.liquidity,
+                    amount0Min: 0, // TODO min outputs
+                    amount1Min: 0, // TODO min outputs
+                    deadline: block.timestamp
+                })
+            );
+        }
+
+        return withdrawnAmounts;
     }
 }

@@ -133,7 +133,14 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         uint[] dcaPositionIds,
         InvestLib.VaultPosition[] vaultPositions
     );
-    event PositionClosed(address owner, uint strategyId, uint positionId, uint[][] dcaWithdrawnAmounts, uint[] vaultWithdrawnAmount);
+    event PositionClosed(
+        address owner,
+        uint strategyId,
+        uint positionId,
+        uint[][] dcaWithdrawnAmounts,
+        uint[] vaultWithdrawnAmount,
+        uint[][] liquidityWithdrawnAmounts
+    );
     event PositionCollected(address owner, uint strategyId, uint positionId, uint[] dcaWithdrawnAmounts);
     event CollectedStrategistRewards(address strategist, uint amount);
     event StrategistPercentageUpdated(uint32 discountPercentage);
@@ -323,26 +330,29 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
 
     function closePosition(uint _positionId) external virtual {
         Position storage position = _positions[msg.sender][_positionId];
-        uint[] memory dcaPositions = _dcaPositionsPerPosition[msg.sender][_positionId];
-        InvestLib.VaultPosition[] memory vaultPositions = _vaultPositionsPerPosition[msg.sender][_positionId];
 
         if (position.closed)
             revert PositionAlreadyClosed();
 
         position.closed = true;
 
-        (uint[][] memory dcaWithdrawnAmounts, uint[] memory vaultWithdrawnAmounts) = abi.decode(
+        (
+            uint[][] memory dcaWithdrawnAmounts,
+            uint[] memory vaultWithdrawnAmounts,
+            uint[][] memory liquidityWithdrawnAmounts
+        ) = abi.decode(
             _callInvestLib(
                 abi.encodeWithSelector(
                     InvestLib.closePosition.selector,
                     InvestLib.ClosePositionParams({
                         dca: dca,
-                        dcaPositions: dcaPositions,
-                        vaultPositions: vaultPositions
+                        dcaPositions: _dcaPositionsPerPosition[msg.sender][_positionId],
+                        vaultPositions: _vaultPositionsPerPosition[msg.sender][_positionId],
+                        liquidityPositions: _liquidityPositionsPerPosition[msg.sender][_positionId]
                     })
                 )
             ),
-            (uint[][], uint[])
+            (uint[][], uint[], uint[][])
         );
 
         emit PositionClosed(
@@ -350,7 +360,8 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
             position.strategyId,
             _positionId,
             dcaWithdrawnAmounts,
-            vaultWithdrawnAmounts
+            vaultWithdrawnAmounts,
+            liquidityWithdrawnAmounts
         );
     }
 
