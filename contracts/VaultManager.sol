@@ -5,10 +5,11 @@ pragma solidity 0.8.26;
 import {IERC20Upgradeable, SafeERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import {IBeefyVaultV7} from "./interfaces/IBeefyVaultV7.sol";
 import {HubOwnable} from "./abstract/HubOwnable.sol";
+import {OnlyStrategyManager} from "./abstract/OnlyStrategyManager.sol";
 import {UseFee} from "./abstract/UseFee.sol";
 import {SubscriptionManager} from "./SubscriptionManager.sol";
 
-contract VaultManager is HubOwnable, UseFee {
+contract VaultManager is HubOwnable, UseFee, OnlyStrategyManager {
     using SafeERC20Upgradeable for IERC20Upgradeable;
     using SafeERC20Upgradeable for IBeefyVaultV7;
 
@@ -24,12 +25,9 @@ contract VaultManager is HubOwnable, UseFee {
     mapping(address => bool) public whitelistedVaults;
     address[] public _vaultArray;
 
-    address public strategyManager;
-
     event Deposit(address vault, address user, uint amount);
     event VaultWhitelisted(address vault, bool whitelisted);
 
-    error Unauthorized();
     error VaultNotWhitelisted();
 
     function initialize(InitializeParams calldata _initializeParams) public initializer {
@@ -40,9 +38,9 @@ contract VaultManager is HubOwnable, UseFee {
             _initializeParams.baseFeeBP,
             _initializeParams.nonSubscriberFeeBP
         );
+        __OnlyStrategyManager_init(_initializeParams.strategyManager);
 
         transferOwnership(_initializeParams.owner);
-        strategyManager = _initializeParams.strategyManager;
     }
 
     function deposit(
@@ -62,10 +60,10 @@ contract VaultManager is HubOwnable, UseFee {
         _deposit(_vault, _amount - depositFee);
     }
 
-    function depositUsingStrategy(address _vault, uint _amount) external virtual {
-        if (msg.sender != strategyManager)
-            revert Unauthorized();
-
+    function depositUsingStrategy(
+        address _vault,
+        uint _amount
+    ) external virtual onlyStrategyManager {
         _deposit(_vault, _amount);
     }
 
