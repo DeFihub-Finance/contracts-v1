@@ -104,7 +104,7 @@ library InvestLib {
     }
 
     function invest(
-        InvestParams memory _params // todo AB test with calldata
+        InvestParams memory _params
     ) public returns (
         uint[] memory dcaPositionIds,
         VaultPosition[] memory vaultPositions,
