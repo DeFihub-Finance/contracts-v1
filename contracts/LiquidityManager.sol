@@ -35,12 +35,12 @@ contract LiquidityManager is HubOwnable, UseFee, UseDust, OnlyStrategyManager {
         IERC20Upgradeable inputToken;
         IERC20Upgradeable token0;
         IERC20Upgradeable token1;
+        uint24 fee;
+        uint depositAmountInputToken;
         bytes swapToken0;
         bytes swapToken1;
-        uint depositAmountInputToken;
         uint swapAmountToken0;
         uint swapAmountToken1;
-        uint24 fee;
         int24 tickLower;
         int24 tickUpper;
         uint amount0Min;
@@ -52,6 +52,7 @@ contract LiquidityManager is HubOwnable, UseFee, UseDust, OnlyStrategyManager {
     error InsufficientFunds(uint requested, uint available);
     error InvalidInvestment();
 
+    // TODO test gas consumption of all functions using calldata vs memory
     function initialize(InitializeParams calldata _params) external initializer {
         __Ownable_init();
         __UseFee_init(
@@ -126,6 +127,7 @@ contract LiquidityManager is HubOwnable, UseFee, UseDust, OnlyStrategyManager {
             _params.swapAmountToken1
         );
 
+        // TODO test gas savings with infinite approval if safe
         _params.token0.safeIncreaseAllowance(address(_params.positionManager), amountToken0);
         _params.token1.safeIncreaseAllowance(address(_params.positionManager), amountToken1);
 

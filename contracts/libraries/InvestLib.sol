@@ -28,8 +28,8 @@ library InvestLib {
 
     struct LiquidityInvestment {
         address positionManager;
-        address token0;
-        address token1;
+        IERC20Upgradeable token0;
+        IERC20Upgradeable token1;
         uint24 fee;
         uint16 pricePercentageThresholdBelow;
         uint16 pricePercentageThresholdAbove;
@@ -68,6 +68,7 @@ library InvestLib {
     }
 
     struct LiquidityInvestParams {
+        address treasury;
         LiquidityManager liquidityManager;
         LiquidityInvestment[] liquidityInvestments;
         IERC20Upgradeable inputToken;
@@ -86,6 +87,7 @@ library InvestLib {
     }
 
     struct InvestParams {
+        address treasury;
         DollarCostAverage dca;
         VaultManager vaultManager;
         LiquidityManager liquidityManager;
@@ -134,6 +136,7 @@ library InvestLib {
 
         liquidityPositions = investInLiquidity(
             LiquidityInvestParams({
+                treasury: _params.treasury,
                 liquidityManager: _params.liquidityManager,
                 liquidityInvestments: _params.liquidityInvestments,
                 inputToken: _params.inputToken,
@@ -225,10 +228,33 @@ library InvestLib {
         LiquidityPosition[] memory liquidityPositions = new LiquidityPosition[](_params.liquidityInvestments.length);
 
         for (uint i; i < _params.liquidityInvestments.length; ++i) {
-            // TODO
+            // todo test gas cost without creating the variables and accessing the index everytime
+            LiquidityInvestment memory investment = _params.liquidityInvestments[i];
+            LiquidityZapParams memory zap = _params.zaps[i];
+
+            _params.liquidityManager.addLiquidityV3UsingStrategy(
+                LiquidityManager.AddLiquidityV3Params({
+                    positionManager: investment.positionManager,
+                    inputToken: _params.inputToken,
+                    token0: investment.token0,
+                    token1: investment.token1,
+                    fee: investment.fee,
+                    depositAmountInputToken: _params.amount * investment.percentage / 100,
+                    swapToken0: zap.swapToken0,
+                    swapToken1: zap.swapToken1,
+                    swapAmountToken0: zap.swapAmountToken0,
+                    swapAmountToken1: zap.swapAmountToken1,
+                    tickLower: zap.tickLower,
+                    tickUpper: zap.tickUpper,
+                    amount0Min: zap.amount0Min,
+                    amount1Min: zap.amount1Min,
+                    zapToken0: zap.zapToken0,
+                    zapToken1: zap.zapToken1
+                })
+            );
         }
 
-        // TODO track dust and send to treasury
+        _params.liquidityManager.sendDust(_params.inputToken, _params.treasury);
 
         return liquidityPositions;
     }
