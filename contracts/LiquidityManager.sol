@@ -5,16 +5,17 @@ pragma solidity 0.8.26;
 import {IERC20Upgradeable, SafeERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import {INonfungiblePositionManager} from "./interfaces/INonfungiblePositionManager.sol";
 import {HubOwnable} from "./abstract/HubOwnable.sol";
+import {OnlyStrategyManager} from "./abstract/OnlyStrategyManager.sol";
 import {UseFee} from "./abstract/UseFee.sol";
 import {UseTreasury} from "./abstract/UseTreasury.sol";
+import {UseDust} from "./abstract/UseDust.sol";
 import {StrategyManager} from "./StrategyManager.sol";
 import {SubscriptionManager} from "./SubscriptionManager.sol";
 import {ZapManager} from "./zap/ZapManager.sol";
 
-contract LiquidityManager is HubOwnable, UseFee {
+contract LiquidityManager is HubOwnable, UseFee, UseDust, OnlyStrategyManager {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
-    address public strategyManager;
     ZapManager public zapManager;
     // @notice position managers must be whitelisted to prevent scam strategies using fake position managers
     mapping(address => bool) public positionManagerWhitelist;
@@ -50,7 +51,6 @@ contract LiquidityManager is HubOwnable, UseFee {
 
     error InsufficientFunds(uint requested, uint available);
     error InvalidInvestment();
-    error Unauthorized();
 
     function initialize(InitializeParams calldata _params) external initializer {
         __Ownable_init();
@@ -60,10 +60,10 @@ contract LiquidityManager is HubOwnable, UseFee {
             _params.baseFeeBP,
             _params.nonSubscriberFeeBP
         );
+        __OnlyStrategyManager_init(_params.strategyManager);
 
         transferOwnership(_params.owner);
 
-        strategyManager = _params.strategyManager;
         zapManager = _params.zapManager;
     }
 
@@ -94,13 +94,10 @@ contract LiquidityManager is HubOwnable, UseFee {
 
     function addLiquidityV3UsingStrategy(
         AddLiquidityV3Params calldata _params
-    ) external virtual returns (
+    ) external virtual onlyStrategyManager returns (
         uint tokenId,
         uint128 liquidity
     ) {
-        if (msg.sender != strategyManager)
-            revert Unauthorized();
-
         return _addLiquidityV3(_params);
     }
 
@@ -154,5 +151,9 @@ contract LiquidityManager is HubOwnable, UseFee {
         bool _whitelisted
     ) external virtual onlyOwner {
         positionManagerWhitelist[_positionManager] = _whitelisted;
+    }
+
+    function sendDust(IERC20Upgradeable _token, address _to) external virtual onlyStrategyManager {
+        _sendDust(_token, _to);
     }
 }
