@@ -12,6 +12,7 @@ import { NetworkService } from '@src/NetworkService'
 import { ContractFees } from '@src/ContractFees'
 import { createStrategyFixture } from './fixtures/create-strategy.fixture'
 import { ErrorDecoder } from '@src/helpers/ErrorDecoder'
+import { InvestLib } from '@src/typechain/artifacts/contracts/StrategyManager'
 
 // EFFECTS
 // => when user is subscribed
@@ -50,11 +51,11 @@ describe('StrategyManager#invest', () => {
     let subscriptionSignature: SubscriptionSignature
     let deadline: number
     let investments: {
-        dcaInvestments: StrategyManager.DcaInvestmentStruct[],
-        vaultInvestments: StrategyManager.VaultInvestmentStruct[],
+        dcaInvestments: InvestLib.DcaInvestmentStruct[],
+        vaultInvestments: InvestLib.VaultInvestmentStruct[],
     }
-    let dcaStrategyPositions: StrategyManager.DcaInvestmentStruct[]
-    let vaultStrategyPosition: StrategyManager.VaultInvestmentStruct[]
+    let dcaStrategyPositions: InvestLib.DcaInvestmentStruct[]
+    let vaultStrategyPosition: InvestLib.VaultInvestmentStruct[]
 
     const strategyId = 0
     const amountToInvest = parseEther('10')
@@ -88,6 +89,7 @@ describe('StrategyManager#invest', () => {
             inputTokenSwap: '0x',
             dcaSwaps: _dcaSwaps,
             vaultSwaps: _vaultSwaps,
+            liquidityZaps: [],
             investorPermit: await subscriptionSignature
                 .signSubscriptionPermit(await account.getAddress(), _deadlineInvestor),
             strategistPermit: await subscriptionSignature

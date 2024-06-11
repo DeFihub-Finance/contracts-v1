@@ -5,6 +5,7 @@ import { SubscriptionSignature } from '@src/SubscriptionSignature'
 import { NetworkService } from '@src/NetworkService'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import { baseStrategyManagerFixture } from './fixtures/base.fixture'
+import { InvestLib } from '@src/typechain/artifacts/contracts/StrategyManager'
 
 // EFFECTS
 // => creates new strategy
@@ -21,8 +22,8 @@ describe('StrategyManager#createStrategy', () => {
     let account0: Signer
     let account1: Signer
     let strategyManager: StrategyManager
-    let dcaStrategyPositions: StrategyManager.DcaInvestmentStruct[]
-    let vaultStrategyPosition: StrategyManager.VaultInvestmentStruct[]
+    let dcaStrategyPositions: InvestLib.DcaInvestmentStruct[]
+    let vaultStrategyPosition: InvestLib.VaultInvestmentStruct[]
     let subscriptionSignature: SubscriptionSignature
     let deadline: number
     const nameBioHash = keccak256(new TextEncoder().encode('Name' + 'Bio'))
@@ -47,6 +48,7 @@ describe('StrategyManager#createStrategy', () => {
             tx = strategyManager.connect(account0).createStrategy({
                 dcaInvestments: dcaStrategyPositions,
                 vaultInvestments: vaultStrategyPosition,
+                liquidityInvestments: [],
                 permit: await subscriptionSignature.signSubscriptionPermit(
                     await account0.getAddress(),
                     await NetworkService.getBlockTimestamp() + 10_000,
@@ -90,6 +92,7 @@ describe('StrategyManager#createStrategy', () => {
             await strategyManager.connect(account0).createStrategy({
                 dcaInvestments: dcaStrategyPositions,
                 vaultInvestments: vaultStrategyPosition,
+                liquidityInvestments: [],
                 permit: await subscriptionSignature.signSubscriptionPermit(
                     await account0.getAddress(),
                     deadline,
@@ -106,6 +109,7 @@ describe('StrategyManager#createStrategy', () => {
             const tx = strategyManager.connect(account1).createStrategy({
                 dcaInvestments: dcaStrategyPositions,
                 vaultInvestments: vaultStrategyPosition,
+                liquidityInvestments: [],
                 permit: await subscriptionSignature.signSubscriptionPermit(
                     await account1.getAddress(),
                     deadline,
@@ -117,7 +121,7 @@ describe('StrategyManager#createStrategy', () => {
         })
 
         it('if strategy uses more than 20 dca investments', async () => {
-            const investments: StrategyManager.DcaInvestmentStruct[] = new Array(21)
+            const investments: InvestLib.DcaInvestmentStruct[] = new Array(21)
                 .map(() => ({
                     // @dev percentage doesn't matter here, the investmentCount check happens before
                     percentage: 0,
@@ -128,6 +132,7 @@ describe('StrategyManager#createStrategy', () => {
             const tx = strategyManager.connect(account0).createStrategy({
                 dcaInvestments: investments,
                 vaultInvestments: [],
+                liquidityInvestments: [],
                 permit: await subscriptionSignature.signSubscriptionPermit(
                     await account0.getAddress(),
                     deadline,
@@ -139,7 +144,7 @@ describe('StrategyManager#createStrategy', () => {
         })
 
         it('if strategy uses more than 20 vault investments', async () => {
-            const investments: StrategyManager.VaultInvestmentStruct[] = new Array(21)
+            const investments: InvestLib.VaultInvestmentStruct[] = new Array(21)
                 .map(() => ({
                     // @dev percentage doesn't matter here, the investmentCount check happens before
                     percentage: 0,
@@ -149,6 +154,7 @@ describe('StrategyManager#createStrategy', () => {
             const tx = strategyManager.connect(account0).createStrategy({
                 dcaInvestments: [],
                 vaultInvestments: investments,
+                liquidityInvestments: [],
                 permit: await subscriptionSignature.signSubscriptionPermit(
                     await account0.getAddress(),
                     deadline,
@@ -160,14 +166,14 @@ describe('StrategyManager#createStrategy', () => {
         })
 
         it('if strategy uses more than 20 investments total', async () => {
-            const vaultInvestments: StrategyManager.VaultInvestmentStruct[] = new Array(10)
+            const vaultInvestments: InvestLib.VaultInvestmentStruct[] = new Array(10)
                 .map(() => ({
                     // @dev percentage doesn't matter here, the investmentCount check happens before
                     percentage: 0,
                     vault: '',
                 }))
 
-            const dcaInvestments: StrategyManager.DcaInvestmentStruct[] = new Array(21)
+            const dcaInvestments: InvestLib.DcaInvestmentStruct[] = new Array(21)
                 .map(() => ({
                     // @dev percentage doesn't matter here, the investmentCount check happens before
                     percentage: 0,
@@ -178,6 +184,7 @@ describe('StrategyManager#createStrategy', () => {
             const tx = strategyManager.connect(account0).createStrategy({
                 dcaInvestments,
                 vaultInvestments,
+                liquidityInvestments: [],
                 permit: await subscriptionSignature.signSubscriptionPermit(
                     await account0.getAddress(),
                     deadline,
@@ -192,6 +199,7 @@ describe('StrategyManager#createStrategy', () => {
             const tx0 = strategyManager.connect(account0).createStrategy({
                 dcaInvestments: [],
                 vaultInvestments: [],
+                liquidityInvestments: [],
                 permit: await subscriptionSignature.signSubscriptionPermit(
                     await account0.getAddress(),
                     deadline,
@@ -203,6 +211,7 @@ describe('StrategyManager#createStrategy', () => {
                 // 122%
                 dcaInvestments: [...dcaStrategyPositions, ...dcaStrategyPositions],
                 vaultInvestments: [],
+                liquidityInvestments: [],
                 permit: await subscriptionSignature.signSubscriptionPermit(
                     await account0.getAddress(),
                     deadline,

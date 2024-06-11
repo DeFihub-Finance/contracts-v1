@@ -1,7 +1,6 @@
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import {
     UniswapV2,
-    BaseZapHelper,
     UniswapV2ZapHelper,
     UniswapV3ZapHelper,
 } from '@src/helpers'
@@ -168,6 +167,7 @@ describe('StrategyManager#invest (zap)', () => {
                     },
                 ],
                 vaultInvestments: [],
+                liquidityInvestments: [],
                 permit: permitAccount0,
                 metadataHash: ZeroHash,
             })
@@ -199,6 +199,7 @@ describe('StrategyManager#invest (zap)', () => {
                         ),
                     ],
                     vaultSwaps: [],
+                    liquidityZaps: [],
                     investorPermit: permitAccount0,
                     strategistPermit: permitAccount0,
                 })
@@ -231,6 +232,7 @@ describe('StrategyManager#invest (zap)', () => {
                         ),
                     ],
                     vaultSwaps: [],
+                    liquidityZaps: [],
                     investorPermit: permitAccount0,
                     strategistPermit: permitAccount0,
                 })
@@ -267,6 +269,7 @@ describe('StrategyManager#invest (zap)', () => {
                         ),
                     ],
                     vaultSwaps: [],
+                    liquidityZaps: [],
                     investorPermit: permitAccount0,
                     strategistPermit: permitAccount0,
                 })
@@ -298,6 +301,7 @@ describe('StrategyManager#invest (zap)', () => {
                             ),
                         ],
                         vaultSwaps: [],
+                        liquidityZaps: [],
                         investorPermit: permitAccount0,
                         strategistPermit: permitAccount0,
                     })
@@ -330,6 +334,7 @@ describe('StrategyManager#invest (zap)', () => {
                         percentage: 50n,
                     },
                 ],
+                liquidityInvestments: [],
                 permit: permitAccount0,
                 metadataHash: ZeroHash,
             })
@@ -375,6 +380,7 @@ describe('StrategyManager#invest (zap)', () => {
                             factoryUniV2,
                         ),
                     ],
+                    liquidityZaps: [],
                     investorPermit: permitAccount0,
                     strategistPermit: permitAccount0,
                 })
@@ -435,6 +441,7 @@ describe('StrategyManager#invest (zap)', () => {
                                 factoryUniV2,
                             ),
                         ],
+                        liquidityZaps: [],
                         investorPermit: permitAccount0,
                         strategistPermit: permitAccount0,
                     })
@@ -480,6 +487,7 @@ describe('StrategyManager#invest (zap)', () => {
                         percentage: 25n,
                     },
                 ],
+                liquidityInvestments: [],
                 permit: permitAccount0,
                 metadataHash: ZeroHash,
             })
@@ -537,6 +545,7 @@ describe('StrategyManager#invest (zap)', () => {
                             factoryUniV2,
                         ),
                     ],
+                    liquidityZaps: [],
                     investorPermit: permitAccount0,
                     strategistPermit: permitAccount0,
                 })
@@ -616,6 +625,7 @@ describe('StrategyManager#invest (zap)', () => {
                                 factoryUniV2,
                             ),
                         ],
+                        liquidityZaps: [],
                         investorPermit: permitAccount0,
                         strategistPermit: permitAccount0,
                     })
@@ -701,6 +711,7 @@ describe('StrategyManager#invest (zap)', () => {
                             factoryUniV2,
                         ),
                     ],
+                    liquidityZaps: [],
                     investorPermit: permitAccount0,
                     strategistPermit: permitAccount0,
                 })

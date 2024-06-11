@@ -133,7 +133,7 @@ library InvestLib {
         );
 
         liquidityPositions = investInLiquidity(
-            InvestLib.LiquidityInvestParams({
+            LiquidityInvestParams({
                 liquidityManager: _params.liquidityManager,
                 liquidityInvestments: _params.liquidityInvestments,
                 inputToken: _params.inputToken,
@@ -297,7 +297,7 @@ library InvestLib {
         uint[] memory vaultsWithdrawnAmounts = new uint[](_vaultPositions.length);
 
         for (uint i; i < _vaultPositions.length; ++i) {
-            InvestLib.VaultPosition memory vaultPosition = _vaultPositions[i];
+            VaultPosition memory vaultPosition = _vaultPositions[i];
             IBeefyVaultV7 vault = IBeefyVaultV7(vaultPosition.vault);
 
             uint initialBalance = vault.want().balanceOf(address(this));
