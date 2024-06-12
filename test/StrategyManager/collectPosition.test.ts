@@ -53,7 +53,7 @@ describe('StrategyManager#collectPosition', () => {
             it('then emit PositionCollected event', async () => {
                 const outputTokenBalances = await Promise.all(
                     (await dca.getPositions(strategyManager))
-                        .map(async (_, id) => (await dca.getPositionBalances(strategyManager, id)).outputTokenBalance)
+                        .map(async (_, id) => (await dca.getPositionBalances(strategyManager, id)).outputTokenBalance),
                 )
 
                 await expect(strategyManager.connect(account1).collectPosition(positionToCollect))
@@ -63,6 +63,7 @@ describe('StrategyManager#collectPosition', () => {
                         strategyIdToCollect,
                         positionToCollect,
                         outputTokenBalances,
+                        [],
                     )
             })
         })

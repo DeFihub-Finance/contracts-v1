@@ -141,7 +141,13 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         uint[] vaultWithdrawnAmount,
         uint[][] liquidityWithdrawnAmounts
     );
-    event PositionCollected(address owner, uint strategyId, uint positionId, uint[] dcaWithdrawnAmounts);
+    event PositionCollected(
+        address owner,
+        uint strategyId,
+        uint positionId,
+        uint[] dcaWithdrawnAmounts,
+        uint[][] liquidityWithdrawnAmounts
+    );
     event CollectedStrategistRewards(address strategist, uint amount);
     event StrategistPercentageUpdated(uint32 discountPercentage);
     event HotStrategistPercentageUpdated(uint32 discountPercentage);
@@ -375,37 +381,33 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
             revert InvalidPositionId(msg.sender, _positionId);
 
         Position storage position = _positions[msg.sender][_positionId];
-        uint[] memory dcaPositions = _dcaPositionsPerPosition[msg.sender][_positionId];
 
         if (position.closed)
             revert PositionAlreadyClosed();
 
-        uint[] memory dcaWithdrawnAmounts = new uint[](dcaPositions.length);
-
-        for (uint i; i < dcaPositions.length; ++i) {
-            DollarCostAverage.PositionInfo memory dcaPosition = dca.getPosition(
-                address(this),
-                dcaPositions[i]
-            );
-            DollarCostAverage.PoolInfo memory poolInfo = dca.getPool(dcaPosition.poolId);
-            IERC20Upgradeable outputToken = IERC20Upgradeable(poolInfo.outputToken);
-            uint initialOutputTokenBalance = outputToken.balanceOf(address(this));
-
-            dca.withdrawSwapped(dcaPositions[i]);
-
-            uint outputTokenAmount = outputToken.balanceOf(address(this)) - initialOutputTokenBalance;
-
-            if (outputTokenAmount > 0) {
-                dcaWithdrawnAmounts[i] = outputTokenAmount;
-                outputToken.safeTransfer(msg.sender, outputTokenAmount);
-            }
-        }
+        (
+            uint[] memory dcaWithdrawnAmounts,
+            uint[][] memory liquidityWithdrawnAmounts
+        ) = abi.decode(
+            _callInvestLib(
+                abi.encodeWithSelector(
+                    InvestLib.collectPosition.selector,
+                    InvestLib.CollectPositionParams({
+                        dca: dca,
+                        dcaPositions: _dcaPositionsPerPosition[msg.sender][_positionId],
+                        liquidityPositions: _liquidityPositionsPerPosition[msg.sender][_positionId]
+                    })
+                )
+            ),
+            (uint[], uint[][])
+        );
 
         emit PositionCollected(
             msg.sender,
             position.strategyId,
             _positionId,
-            dcaWithdrawnAmounts
+            dcaWithdrawnAmounts,
+            liquidityWithdrawnAmounts
         );
     }
 

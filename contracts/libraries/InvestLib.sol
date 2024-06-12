@@ -372,4 +372,74 @@ library InvestLib {
 
         return withdrawnAmounts;
     }
+
+    struct CollectPositionParams {
+        // dca
+        DollarCostAverage dca;
+        uint[] dcaPositions;
+        // liquidity
+        LiquidityPosition[] liquidityPositions;
+    }
+
+    function collectPosition(
+        CollectPositionParams memory _params
+    ) external returns (
+        uint[] memory dcaWithdrawnAmounts,
+        uint[][] memory liquidityWithdrawnAmounts
+    ) {
+        return (
+            _collectPositionsDca(_params.dca, _params.dcaPositions),
+            _collectPositionsLiquidity(_params.liquidityPositions)
+        );
+    }
+
+    function _collectPositionsDca(
+        DollarCostAverage _dca,
+        uint[] memory _positions
+    ) internal returns (uint[] memory) {
+        uint[] memory withdrawnAmounts = new uint[](_positions.length);
+
+        for (uint i; i < _positions.length; ++i) {
+            DollarCostAverage.PositionInfo memory dcaPosition = _dca.getPosition(address(this), _positions[i]); // TODO test if cheaper storing only the poolId
+            DollarCostAverage.PoolInfo memory poolInfo = _dca.getPool(dcaPosition.poolId);
+            IERC20Upgradeable outputToken = IERC20Upgradeable(poolInfo.outputToken);
+            uint initialOutputTokenBalance = outputToken.balanceOf(address(this));
+
+            _dca.withdrawSwapped(_positions[i]);
+
+            uint outputTokenAmount = outputToken.balanceOf(address(this)) - initialOutputTokenBalance;
+
+            if (outputTokenAmount > 0) {
+                withdrawnAmounts[i] = outputTokenAmount;
+                outputToken.safeTransfer(msg.sender, outputTokenAmount);
+            }
+        }
+
+        return withdrawnAmounts;
+    }
+
+    function _collectPositionsLiquidity(
+        LiquidityPosition[] memory _positions
+    ) internal returns (uint[][] memory) {
+        uint[][] memory withdrawnAmounts = new uint[][](_positions.length);
+
+        for (uint i; i < _positions.length; ++i) {
+            LiquidityPosition memory position = _positions[i];
+            INonfungiblePositionManager positionManager = INonfungiblePositionManager(position.positionManager);
+
+            (uint256 amount0, uint256 amount1) = positionManager.collect(
+                INonfungiblePositionManager.CollectParams({
+                    tokenId: position.tokenId,
+                    recipient: msg.sender,
+                    amount0Max: type(uint128).max,
+                    amount1Max: type(uint128).max
+                })
+            );
+
+            withdrawnAmounts[i][0] = amount0;
+            withdrawnAmounts[i][1] = amount1;
+        }
+
+        return withdrawnAmounts;
+    }
 }
