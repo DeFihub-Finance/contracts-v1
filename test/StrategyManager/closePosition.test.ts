@@ -101,7 +101,7 @@ describe('StrategyManager#closePosition', () => {
                 const strategyTokens = new Set(Object.keys(strategyTokenBalancesBefore))
                 const userTokenBalancesBefore = await snapshotTokenBalances(strategyTokens, account1Address)
 
-                await strategyManager.connect(account1).closePosition(strategyPositionId)
+                await strategyManager.connect(account1).closePosition(strategyPositionId, [])
 
                 const userTokenBalancesAfter = await snapshotTokenBalances(strategyTokens, account1Address)
 
@@ -113,14 +113,14 @@ describe('StrategyManager#closePosition', () => {
             })
 
             it('Then the contract emits a PositionClosed event', async () => {
-                await expect(strategyManager.connect(account1).closePosition(strategyPositionId))
+                await expect(strategyManager.connect(account1).closePosition(strategyPositionId, []))
                     .to.emit(strategyManager, 'PositionClosed')
             })
 
             it('Then position should be marked as closed', async () => {
                 const account1Address = await account1.getAddress()
 
-                await strategyManager.connect(account1).closePosition(strategyPositionId)
+                await strategyManager.connect(account1).closePosition(strategyPositionId, [])
 
                 const { closed } = await strategyManager.getPosition(
                     account1Address,
@@ -134,12 +134,12 @@ describe('StrategyManager#closePosition', () => {
 
     describe('Given a closed position', () => {
         beforeEach(async () => {
-            await strategyManager.connect(account1).closePosition(strategyPositionId)
+            await strategyManager.connect(account1).closePosition(strategyPositionId, [])
         })
 
         describe('When the owner of position calls closePosition', () => {
             it('Then the contract reverts with PositionAlreadyClosed', async () => {
-                await expect(strategyManager.connect(account1).closePosition(strategyPositionId))
+                await expect(strategyManager.connect(account1).closePosition(strategyPositionId, []))
                     .to.be.revertedWithCustomError(strategyManager, 'PositionAlreadyClosed')
             })
         })

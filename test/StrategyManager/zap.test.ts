@@ -122,7 +122,7 @@ describe('StrategyManager#invest (zap)', () => {
 
     describe('zaps into DCA strategy', () => {
         async function validateDcaZap(tolerance: BigNumber) {
-            await strategyManager.connect(account0).closePosition(0)
+            await strategyManager.connect(account0).closePosition(0, [])
 
             Compare.almostEqualPercentage({
                 target: amount * 50n / 100n,
@@ -385,7 +385,7 @@ describe('StrategyManager#invest (zap)', () => {
                     strategistPermit: permitAccount0,
                 })
 
-            await strategyManager.connect(account0).closePosition(0)
+            await strategyManager.connect(account0).closePosition(0, [])
 
             Compare.almostEqualPercentage({
                 target: amount * 50n / 100n / BTC_PRICE,
@@ -550,7 +550,7 @@ describe('StrategyManager#invest (zap)', () => {
                     strategistPermit: permitAccount0,
                 })
 
-            await strategyManager.connect(account0).closePosition(0)
+            await strategyManager.connect(account0).closePosition(0, [])
 
             Compare.almostEqualPercentage({
                 target: amount * 25n / 100n,
@@ -716,7 +716,7 @@ describe('StrategyManager#invest (zap)', () => {
                     strategistPermit: permitAccount0,
                 })
 
-            await strategyManager.connect(account0).closePosition(0)
+            await strategyManager.connect(account0).closePosition(0, [])
 
             // 1/4 investments have stable as input token
             Compare.almostEqualPercentage({

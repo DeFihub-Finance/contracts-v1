@@ -2,7 +2,7 @@ import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import { LiquidityManagerFixture } from './liquidity-manager.fixture'
 import { LiquidityManager, TestERC20 } from '@src/typechain'
 
-describe.only('LiquidityManager#invest', () => {
+describe('LiquidityManager#invest', () => {
     // tokens
     let stablecoin: TestERC20
     let weth: TestERC20
