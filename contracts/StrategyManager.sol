@@ -328,7 +328,11 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         );
     }
 
-    function closePosition(uint _positionId) external virtual {
+    // TODO compare gas cost with calldata
+    function closePosition(
+        uint _positionId,
+        InvestLib.LiquidityMinOutputs[] memory _liquidityMinOutputs
+    ) external virtual {
         Position storage position = _positions[msg.sender][_positionId];
 
         if (position.closed)
@@ -348,7 +352,8 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
                         dca: dca,
                         dcaPositions: _dcaPositionsPerPosition[msg.sender][_positionId],
                         vaultPositions: _vaultPositionsPerPosition[msg.sender][_positionId],
-                        liquidityPositions: _liquidityPositionsPerPosition[msg.sender][_positionId]
+                        liquidityPositions: _liquidityPositionsPerPosition[msg.sender][_positionId],
+                        liquidityMinOutputs: _liquidityMinOutputs
                     })
                 )
             ),

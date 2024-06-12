@@ -257,6 +257,11 @@ library InvestLib {
         return liquidityPositions;
     }
 
+    struct LiquidityMinOutputs {
+        uint minOutputToken0;
+        uint minOutputToken1;
+    }
+
     struct ClosePositionParams {
         // dca
         DollarCostAverage dca;
@@ -265,6 +270,7 @@ library InvestLib {
         VaultPosition[] vaultPositions;
         // liquidity
         LiquidityPosition[] liquidityPositions;
+        LiquidityMinOutputs[] liquidityMinOutputs;
     }
 
     function closePosition(ClosePositionParams memory _params) public returns (
@@ -275,7 +281,7 @@ library InvestLib {
         return (
             _closeDcaPositions(_params.dca, _params.dcaPositions),
             _closeVaultPositions(_params.vaultPositions),
-            _closeLiquidityPositions(_params.liquidityPositions)
+            _closeLiquidityPositions(_params.liquidityPositions, _params.liquidityMinOutputs)
         );
     }
 
@@ -344,19 +350,21 @@ library InvestLib {
     }
 
     function _closeLiquidityPositions(
-        LiquidityPosition[] memory _positions
+        LiquidityPosition[] memory _positions,
+        LiquidityMinOutputs[] memory _minOutputs
     ) internal returns (uint[][] memory) {
         uint[][] memory withdrawnAmounts = new uint[][](_positions.length);
 
         for (uint i; i < _positions.length; ++i) {
             LiquidityPosition memory position = _positions[i];
+            LiquidityMinOutputs memory minOutput = _minOutputs[i];
 
             INonfungiblePositionManager(position.positionManager).decreaseLiquidity(
                 INonfungiblePositionManager.DecreaseLiquidityParams({
                     tokenId: position.tokenId,
                     liquidity: position.liquidity,
-                    amount0Min: 0, // TODO min outputs
-                    amount1Min: 0, // TODO min outputs
+                    amount0Min: minOutput.minOutputToken0,
+                    amount1Min: minOutput.minOutputToken0,
                     deadline: block.timestamp
                 })
             );
