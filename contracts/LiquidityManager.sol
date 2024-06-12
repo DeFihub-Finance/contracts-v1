@@ -73,8 +73,6 @@ contract LiquidityManager is HubOwnable, UseFee, UseDust, OnlyStrategyManager {
         uint tokenId,
         uint128 liquidity
     ) {
-        _params.inputToken.safeTransferFrom(msg.sender, address(this), _params.depositAmountInputToken);
-
         uint depositFee = _collectProtocolFees(
             address(_params.inputToken),
             _params.depositAmountInputToken,
@@ -84,6 +82,8 @@ contract LiquidityManager is HubOwnable, UseFee, UseDust, OnlyStrategyManager {
 
         uint requested = _params.swapAmountToken0 + _params.swapAmountToken1;
         uint available = _params.depositAmountInputToken - depositFee;
+
+        _params.inputToken.safeTransferFrom(msg.sender, address(this), available);
 
         if (requested > available)
             revert InsufficientFunds(requested, available);
