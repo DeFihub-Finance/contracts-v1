@@ -8,11 +8,12 @@ import {IERC20Upgradeable, SafeERC20Upgradeable} from "@openzeppelin/contracts-u
 import {MathHelpers} from "./helpers/MathHelpers.sol";
 import {TokenHelpers} from "./helpers/TokenHelpers.sol";
 import {HubOwnable} from "./abstract/HubOwnable.sol";
+import {OnlyStrategyManager} from "./abstract/OnlyStrategyManager.sol";
 import {UseFee} from "./abstract/UseFee.sol";
 import {SubscriptionManager} from "./SubscriptionManager.sol";
 import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 
-contract DollarCostAverage is HubOwnable, UseFee, ReentrancyGuardUpgradeable {
+contract DollarCostAverage is HubOwnable, UseFee, OnlyStrategyManager, ReentrancyGuardUpgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     struct PositionInfo {
@@ -20,7 +21,7 @@ contract DollarCostAverage is HubOwnable, UseFee, ReentrancyGuardUpgradeable {
         uint16 swaps;
         uint16 finalSwap;
         uint16 lastUpdateSwap;
-        // @dev Uses uint208 to fill the remaning of the slot
+        // @dev Uses uint208 to fill the remaining of the slot
         uint208 poolId;
 
         // @dev Single slot
@@ -73,7 +74,6 @@ contract DollarCostAverage is HubOwnable, UseFee, ReentrancyGuardUpgradeable {
 
     PoolInfo[] internal poolInfo;
     address public swapper;
-    address public strategyManager;
 
     error InvalidPoolId();
     error InvalidDepositAmount();
@@ -84,7 +84,6 @@ contract DollarCostAverage is HubOwnable, UseFee, ReentrancyGuardUpgradeable {
     error InvalidPoolPath();
     error InvalidPoolInterval();
     error CallerIsNotSwapper();
-    error Unauthorized();
 
     event PoolCreated(uint208 poolId, address inputToken, address outputToken, address router, bytes path, uint interval);
     event PositionCreated(address user, uint208 poolId, uint positionId, uint swaps, uint amountPerSwap, uint finalSwap);
@@ -107,11 +106,11 @@ contract DollarCostAverage is HubOwnable, UseFee, ReentrancyGuardUpgradeable {
             _initializeParams.baseFeeBP,
             _initializeParams.nonSubscriberFeeBP
         );
+        __OnlyStrategyManager_init(_initializeParams.strategyManager);
 
         transferOwnership(_initializeParams.owner);
 
         swapper = _initializeParams.swapper;
-        strategyManager = _initializeParams.strategyManager;
     }
 
     function createPool(
@@ -173,10 +172,11 @@ contract DollarCostAverage is HubOwnable, UseFee, ReentrancyGuardUpgradeable {
         _deposit(_poolId, _swaps, _amount - depositFee);
     }
 
-    function depositUsingStrategy(uint208 _poolId, uint16 _swaps, uint _amount) external virtual {
-        if (msg.sender != strategyManager)
-            revert Unauthorized();
-
+    function depositUsingStrategy(
+        uint208 _poolId,
+        uint16 _swaps,
+        uint _amount
+    ) external virtual onlyStrategyManager {
         _deposit(_poolId, _swaps, _amount);
     }
 
