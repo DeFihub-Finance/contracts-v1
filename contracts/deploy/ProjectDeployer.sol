@@ -80,7 +80,7 @@ contract ProjectDeployer is GenericDeployer {
         _vaultManagerParams.strategyManager = strategyManager.proxy;
         VaultManager(vaultManager.proxy).initialize(_vaultManagerParams);
 
-        _strategyManagerParam.subscriptionManager = SubscriptionManager(subscriptionManager.proxy);
+        _liquidityManagerParams.subscriptionManager = subscriptionManager.proxy;
         _liquidityManagerParams.strategyManager = strategyManager.proxy;
         _liquidityManagerParams.zapManager = ZapManager(zapManager.proxy);
         LiquidityManager(liquidityManager.proxy).initialize(_liquidityManagerParams);
