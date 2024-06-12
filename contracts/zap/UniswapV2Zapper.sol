@@ -6,12 +6,11 @@ import {IERC20Upgradeable, SafeERC20Upgradeable} from "@openzeppelin/contracts-u
 import {IUniswapV2Router02} from "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import {IZapper} from "./IZapper.sol";
 import {Swapper} from "./Swapper.sol";
+import {UseDust} from "../abstract/UseDust.sol";
 
-contract UniswapV2Zapper is IZapper, Swapper {
+contract UniswapV2Zapper is IZapper, Swapper, UseDust {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
-    // @notice arbitrary number to prevent transferring insignificant amounts of tokens
-    uint private constant MIN_DUST = 100;
     address public immutable treasury;
 
     struct ConstructorParams {
@@ -71,14 +70,8 @@ contract UniswapV2Zapper is IZapper, Swapper {
             block.timestamp
         );
 
-        uint balanceTokenA = IERC20Upgradeable(zapData.tokenA).balanceOf(address(this));
-        uint balanceTokenB = IERC20Upgradeable(zapData.tokenB).balanceOf(address(this));
-
-        if (balanceTokenA > MIN_DUST)
-            tokenA.safeTransfer(treasury, balanceTokenA);
-
-        if (balanceTokenB > MIN_DUST)
-            tokenB.safeTransfer(treasury, balanceTokenB);
+        _sendDust(tokenA, treasury);
+        _sendDust(tokenB, treasury);
 
         emit Zapped(swapRouter, data);
     }
