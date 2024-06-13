@@ -1,6 +1,5 @@
 import { BigNumber } from '@ryze-blockchain/ethereum'
-import { Slippage, unwrapAddressLike, Zapper, ZapperFunctionSignatures } from '@defihub/shared'
-import { ZapProtocols } from './types'
+import { Slippage, unwrapAddressLike, Zapper, ZapperFunctionSignatures, ZapProtocols } from '@defihub/shared'
 import { NetworkService } from '@src/NetworkService'
 import { UniswapV2Factory, UniswapV2Router02__factory, ZapManager } from '@src/typechain'
 import { AbiCoder, AddressLike } from 'ethers'

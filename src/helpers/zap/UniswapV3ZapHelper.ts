@@ -1,5 +1,4 @@
-import { unwrapAddressLike, PathUniswapV3, Slippage, Zapper } from '@defihub/shared'
-import { ZapProtocols } from './types'
+import { unwrapAddressLike, PathUniswapV3, Slippage, Zapper, ZapProtocols } from '@defihub/shared'
 import { NetworkService } from '@src/NetworkService'
 import { AddressLike, BigNumberish } from 'ethers'
 import { BigNumber } from '@ryze-blockchain/ethereum'
