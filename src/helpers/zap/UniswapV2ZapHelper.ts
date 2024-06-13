@@ -1,40 +1,40 @@
-import { BigNumber } from '@ryze-blockchain/ethereum'
-import { unwrapAddressLike } from '@defihub/shared'
-import { BaseZapHelper } from './BaseZapHelper'
+import { BigNumber, ChainIds } from '@ryze-blockchain/ethereum'
+import { ERC20Priced, Slippage, unwrapAddressLike, Zapper, ZapperFunctionSignatures } from '@defihub/shared'
 import { ZapProtocols } from './types'
 import { NetworkService } from '@src/NetworkService'
-import { UniswapV2Factory, UniswapV2Router02__factory } from '@src/typechain'
-import { AbiCoder, AddressLike } from 'ethers'
-import { Slippage } from '@src/helpers'
+import { UniswapV2Factory, UniswapV2Router02__factory, ZapManager } from '@src/typechain'
+import { AbiCoder, AddressLike, ZeroAddress } from 'ethers'
 
-export class UniswapV2ZapHelper extends BaseZapHelper {
+function mockToken(price: BigNumber, decimals: number): ERC20Priced {
+    return {
+        chainId: ChainIds.ETH,
+        address: ZeroAddress,
+        name: '',
+        symbol: '',
+        image: '',
+        price,
+        decimals,
+    }
+}
+
+export class UniswapV2ZapHelper {
     // encodes swap and wraps into a zap manager call
     public async encodeSwap(
-        strategyId: bigint,
-        product: AddressLike,
         amount: bigint,
-        investor: AddressLike,
         inputToken: AddressLike,
         outputToken: AddressLike,
         inputPrice: BigNumber,
         outputPrice: BigNumber,
         slippage: BigNumber,
-        recipient: AddressLike, // TODO update params where is being used
+        recipient: AddressLike,
     ) {
-        const amountWithoutFee = await this.getInvestmentAmountWithoutFee(
-            strategyId,
-            product,
-            amount,
-            investor,
-        )
-
-        return BaseZapHelper.callProtocol(
+        return Zapper.encodeProtocolCall(
             ZapProtocols.UniswapV2,
             inputToken,
             outputToken,
-            'swap(bytes)',
+            ZapperFunctionSignatures.SWAP,
             await this.encodeInternalSwapBytes(
-                amountWithoutFee,
+                amount,
                 inputToken,
                 outputToken,
                 inputPrice,
@@ -61,8 +61,8 @@ export class UniswapV2ZapHelper extends BaseZapHelper {
                 amount,
                 Slippage.getMinOutput(
                     amount,
-                    inputPrice,
-                    outputPrice,
+                    mockToken(inputPrice, 18),
+                    mockToken(outputPrice, 18),
                     slippage,
                 ),
                 [
@@ -74,14 +74,11 @@ export class UniswapV2ZapHelper extends BaseZapHelper {
             ],
         )
 
-        return BaseZapHelper.encodeSwap(inputToken, amount, swapBytes)
+        return Zapper.encodeSwap(inputToken, amount, swapBytes)
     }
 
     public async encodeZap(
-        strategyId: bigint,
-        product: AddressLike,
         amount: bigint,
-        investor: AddressLike,
         inputToken: AddressLike,
         tokenA: AddressLike,
         tokenB: AddressLike,
@@ -89,15 +86,10 @@ export class UniswapV2ZapHelper extends BaseZapHelper {
         priceA: BigNumber,
         priceB: BigNumber,
         slippage: BigNumber,
+        zapManager: ZapManager,
         uniswapFactory: UniswapV2Factory,
     ) {
-        const realAmount = await this.getInvestmentAmountWithoutFee(
-            strategyId,
-            product,
-            amount,
-            investor,
-        )
-        const amountPerSwap = realAmount / 2n
+        const amountPerSwap = amount / 2n
         const swapA = await this.encodeInternalSwapBytes(
             amountPerSwap,
             inputToken,
@@ -105,7 +97,7 @@ export class UniswapV2ZapHelper extends BaseZapHelper {
             priceInput,
             priceA,
             slippage,
-            this.zapManager,
+            zapManager,
         )
         const swapB = await this.encodeInternalSwapBytes(
             amountPerSwap,
@@ -114,28 +106,29 @@ export class UniswapV2ZapHelper extends BaseZapHelper {
             priceInput,
             priceB,
             slippage,
-            this.zapManager,
+            zapManager,
         )
         const zapperCall = new AbiCoder().encode(
+            // UniswapV2Zapper.ZapData
             ['tuple(uint,address,address,bytes,bytes,uint,uint)'],
             [
                 [
-                    realAmount,
+                    amount,
                     await unwrapAddressLike(tokenA),
                     await unwrapAddressLike(tokenB),
                     swapA,
                     swapB,
-                    Slippage.getMinOutput(amountPerSwap, priceInput, priceA, slippage),
-                    Slippage.getMinOutput(amountPerSwap, priceInput, priceB, slippage),
+                    Slippage.getMinOutput(amountPerSwap, mockToken(priceInput, 18), mockToken(priceA, 18), slippage),
+                    Slippage.getMinOutput(amountPerSwap, mockToken(priceInput, 18), mockToken(priceB, 18), slippage),
                 ],
             ],
         )
 
-        return BaseZapHelper.callProtocol(
+        return Zapper.encodeProtocolCall(
             ZapProtocols.UniswapV2,
             inputToken,
             await uniswapFactory.getPair(tokenA, tokenB),
-            'zap(bytes)',
+            ZapperFunctionSignatures.ZAP,
             zapperCall,
         )
     }
