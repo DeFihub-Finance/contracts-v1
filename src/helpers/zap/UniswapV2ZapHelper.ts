@@ -1,21 +1,10 @@
-import { BigNumber, ChainIds } from '@ryze-blockchain/ethereum'
-import { ERC20Priced, Slippage, unwrapAddressLike, Zapper, ZapperFunctionSignatures } from '@defihub/shared'
+import { BigNumber } from '@ryze-blockchain/ethereum'
+import { Slippage, unwrapAddressLike, Zapper, ZapperFunctionSignatures } from '@defihub/shared'
 import { ZapProtocols } from './types'
 import { NetworkService } from '@src/NetworkService'
 import { UniswapV2Factory, UniswapV2Router02__factory, ZapManager } from '@src/typechain'
-import { AbiCoder, AddressLike, ZeroAddress } from 'ethers'
-
-function mockToken(price: BigNumber, decimals: number): ERC20Priced {
-    return {
-        chainId: ChainIds.ETH,
-        address: ZeroAddress,
-        name: '',
-        symbol: '',
-        image: '',
-        price,
-        decimals,
-    }
-}
+import { AbiCoder, AddressLike } from 'ethers'
+import { mockToken } from '@src/helpers/mock-token'
 
 export class UniswapV2ZapHelper {
     // encodes swap and wraps into a zap manager call

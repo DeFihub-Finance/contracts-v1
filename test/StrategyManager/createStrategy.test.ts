@@ -6,7 +6,6 @@ import { SubscriptionSignature } from '@src/SubscriptionSignature'
 import { NetworkService } from '@src/NetworkService'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import { baseStrategyManagerFixture } from './fixtures/base.fixture'
-import { InvestLib } from '@src/typechain/artifacts/contracts/StrategyManager'
 
 // EFFECTS
 // => creates new strategy

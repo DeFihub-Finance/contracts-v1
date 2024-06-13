@@ -152,6 +152,8 @@ describe('StrategyManager#invest (zap)', () => {
             expect(await stablecoin.balanceOf(strategyManager)).to.equal(strategistFee)
         }
 
+        let amountPerInvestmentMinusFees: bigint
+
         beforeEach(async () => {
             await strategyManager.connect(account0).createStrategy({
                 dcaInvestments: [
@@ -174,11 +176,19 @@ describe('StrategyManager#invest (zap)', () => {
 
             await stablecoin.connect(account0).mint(account0, amount)
             await stablecoin.connect(account0).approve(strategyManager, amount)
+
+            amountPerInvestmentMinusFees = await Fees.deductStrategyFee(
+                strategyManager,
+                strategyId,
+                dca,
+                amount * 50n / 100n,
+                account0,
+                permitAccount0,
+                hre.ethers.provider,
+            )
         })
 
         it('zaps with 1% slippage uni v2', async () => {
-            const amountPerInvestment = amount * 50n / 100n
-
             await strategyManager
                 .connect(account0)
                 .invest({
@@ -189,15 +199,7 @@ describe('StrategyManager#invest (zap)', () => {
                     dcaSwaps: [
                         '0x',
                         await uniswapV2ZapHelper.encodeSwap(
-                            await Fees.deductStrategyFee(
-                                strategyManager,
-                                strategyId,
-                                dca,
-                                amountPerInvestment,
-                                account0,
-                                permitAccount0,
-                                hre.ethers.provider,
-                            ),
+                            amountPerInvestmentMinusFees,
                             stablecoin,
                             wbtc,
                             USD_PRICE_BN,
@@ -226,10 +228,7 @@ describe('StrategyManager#invest (zap)', () => {
                     dcaSwaps: [
                         '0x',
                         await uniswapV3ZapHelper.encodeExactInputSingle(
-                            strategyId,
-                            dca,
-                            amount * 50n / 100n,
-                            account0,
+                            amountPerInvestmentMinusFees,
                             stablecoin,
                             wbtc,
                             3000,
@@ -259,10 +258,7 @@ describe('StrategyManager#invest (zap)', () => {
                     dcaSwaps: [
                         '0x',
                         await uniswapV3ZapHelper.encodeExactInput(
-                            strategyId,
-                            dca,
-                            amount * 50n / 100n,
-                            zapManager,
+                            amountPerInvestmentMinusFees,
                             new PathUniswapV3(
                                 stablecoin,
                                 [
