@@ -19,6 +19,7 @@ export class UniswapV2ZapHelper extends BaseZapHelper {
         inputPrice: BigNumber,
         outputPrice: BigNumber,
         slippage: BigNumber,
+        recipient: AddressLike, // TODO update params where is being used
     ) {
         const amountWithoutFee = await this.getInvestmentAmountWithoutFee(
             strategyId,
@@ -39,7 +40,7 @@ export class UniswapV2ZapHelper extends BaseZapHelper {
                 inputPrice,
                 outputPrice,
                 slippage,
-                this.strategyManager,
+                recipient,
             ),
         )
     }
