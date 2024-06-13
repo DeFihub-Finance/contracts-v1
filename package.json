@@ -32,7 +32,7 @@
     },
     "dependencies": {
         "@chainlink/contracts": "^0.8.0",
-        "@defihub/shared": "^2.1.2",
+        "@defihub/shared": "^2.1.4",
         "@nomicfoundation/hardhat-toolbox": "^3.0.0",
         "@openzeppelin/contracts": "4.9.6",
         "@openzeppelin/contracts-upgradeable": "4.9.6",
