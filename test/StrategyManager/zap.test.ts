@@ -23,7 +23,7 @@ import { PathUniswapV3 } from '@defihub/shared'
 import { BigNumber } from '@ryze-blockchain/ethereum'
 import { Compare } from '@src/Compare'
 import { zapFixture } from './fixtures/zap.fixture'
-import { decodeLowLevelCallError } from '@src/helpers/decode-call-error'
+import { decodeLowLevelCallError } from '@src/helpers'
 
 describe('StrategyManager#invest (zap)', () => {
     const amount = parseEther('1000')

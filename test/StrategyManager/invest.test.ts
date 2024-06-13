@@ -11,7 +11,7 @@ import { SubscriptionSignature } from '@src/SubscriptionSignature'
 import { NetworkService } from '@src/NetworkService'
 import { ContractFees } from '@src/ContractFees'
 import { createStrategyFixture } from './fixtures/create-strategy.fixture'
-import { decodeLowLevelCallError } from '@src/helpers/decode-call-error'
+import { decodeLowLevelCallError } from '@src/helpers'
 
 // EFFECTS
 // => when user is subscribed
