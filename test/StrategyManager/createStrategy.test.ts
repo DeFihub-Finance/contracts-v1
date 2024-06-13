@@ -1,6 +1,7 @@
 import { expect } from 'chai'
 import { Signer, keccak256, ContractTransactionResponse } from 'ethers'
 import { StrategyManager } from '@src/typechain'
+import { InvestLib } from '@src/typechain/artifacts/contracts/StrategyManager'
 import { SubscriptionSignature } from '@src/SubscriptionSignature'
 import { NetworkService } from '@src/NetworkService'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
