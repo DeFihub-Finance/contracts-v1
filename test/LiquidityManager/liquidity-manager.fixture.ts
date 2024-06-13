@@ -151,7 +151,7 @@ export async function LiquidityManagerFixture() {
         stablecoin,
         wbtc,
         routerUniV3,
-        await new PathUniswapV3(stablecoin, [{ token: wbtc, fee : 3000 }]).encodedPath(),
+        await new PathUniswapV3(stablecoin, [{ token: wbtc, fee: 3000 }]).encodedPath(),
         60 * 60 * 24, // 24h
     )
 
@@ -161,12 +161,14 @@ export async function LiquidityManagerFixture() {
         wbtc,
         weth,
         routerUniV3,
-        await new PathUniswapV3(wbtc, [{ token: weth, fee : 3000 }]).encodedPath(),
+        await new PathUniswapV3(wbtc, [{ token: weth, fee: 3000 }]).encodedPath(),
         60 * 60 * 24, // 24h
     )
 
     const strategyId = await strategyManager.getStrategiesLength()
     const initialTreasuryBalance = await stablecoin.balanceOf(treasury)
+
+    await liquidityManager.setPositionManagerWhitelist(positionManagerUniV3, true)
 
     return {
         // accounts
