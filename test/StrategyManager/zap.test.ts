@@ -1,7 +1,6 @@
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import {
     UniswapV2,
-    BaseZapHelper,
     UniswapV2ZapHelper,
     UniswapV3ZapHelper,
 } from '@src/helpers'
@@ -24,7 +23,7 @@ import { PathUniswapV3 } from '@defihub/shared'
 import { BigNumber } from '@ryze-blockchain/ethereum'
 import { Compare } from '@src/Compare'
 import { zapFixture } from './fixtures/zap.fixture'
-import { ErrorDecoder } from '@src/helpers/ErrorDecoder'
+import { decodeLowLevelCallError } from '@src/helpers'
 
 describe('StrategyManager#invest (zap)', () => {
     const amount = parseEther('1000')
@@ -305,7 +304,7 @@ describe('StrategyManager#invest (zap)', () => {
                 throw new Error('Expected to fail')
             }
             catch (e) {
-                const error = ErrorDecoder.decodeLowLevelCallError(e)
+                const error = decodeLowLevelCallError(e)
 
                 expect(error).to.equal(INSUFFICIENT_OUTPUT_AMOUNT)
             }
@@ -442,7 +441,7 @@ describe('StrategyManager#invest (zap)', () => {
                 throw new Error('Expected to fail')
             }
             catch (e) {
-                const error = ErrorDecoder.decodeLowLevelCallError(e)
+                const error = decodeLowLevelCallError(e)
 
                 expect(error).to.equal(INSUFFICIENT_OUTPUT_AMOUNT)
             }
@@ -623,7 +622,7 @@ describe('StrategyManager#invest (zap)', () => {
                 throw new Error('Expected to fail')
             }
             catch (e) {
-                const error = ErrorDecoder.decodeLowLevelCallError(e)
+                const error = decodeLowLevelCallError(e)
 
                 expect(error).to.equal(INSUFFICIENT_OUTPUT_AMOUNT)
             }

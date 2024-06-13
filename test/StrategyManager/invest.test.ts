@@ -11,7 +11,7 @@ import { SubscriptionSignature } from '@src/SubscriptionSignature'
 import { NetworkService } from '@src/NetworkService'
 import { ContractFees } from '@src/ContractFees'
 import { createStrategyFixture } from './fixtures/create-strategy.fixture'
-import { ErrorDecoder } from '@src/helpers/ErrorDecoder'
+import { decodeLowLevelCallError } from '@src/helpers'
 
 // EFFECTS
 // => when user is subscribed
@@ -367,7 +367,7 @@ describe('StrategyManager#invest', () => {
                 await invest(account2, { _vaultSwaps: [] })
             }
             catch (e) {
-                const decodedError = ErrorDecoder.decodeLowLevelCallError(e)
+                const decodedError = decodeLowLevelCallError(e)
 
                 if (!(decodedError instanceof ErrorDescription))
                     throw new Error('Error decoding custom error')
@@ -381,7 +381,7 @@ describe('StrategyManager#invest', () => {
                 await invest(account2, { _dcaSwaps: [] })
             }
             catch (e) {
-                const decodedError = ErrorDecoder.decodeLowLevelCallError(e)
+                const decodedError = decodeLowLevelCallError(e)
 
                 if (!(decodedError instanceof ErrorDescription))
                     throw new Error('Error decoding custom error')
