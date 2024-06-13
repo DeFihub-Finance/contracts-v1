@@ -112,6 +112,11 @@ contract LiquidityManager is HubOwnable, UseFee, UseDust, OnlyStrategyManager {
         )
             revert InvalidInvestment();
 
+        _params.inputToken.safeIncreaseAllowance(
+            address(zapManager),
+            _params.swapAmountToken0 + _params.swapAmountToken1
+        );
+
         uint amountToken0 = zapManager.zap(
             _params.swapToken0,
             _params.inputToken,
