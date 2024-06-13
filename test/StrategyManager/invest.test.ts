@@ -7,6 +7,7 @@ import {
     TestERC20,
     TestVault,
 } from '@src/typechain'
+import { InvestLib } from '@src/typechain/artifacts/contracts/StrategyManager'
 import { SubscriptionSignature } from '@src/SubscriptionSignature'
 import { NetworkService } from '@src/NetworkService'
 import { ContractFees } from '@src/ContractFees'
@@ -50,11 +51,11 @@ describe('StrategyManager#invest', () => {
     let subscriptionSignature: SubscriptionSignature
     let deadline: number
     let investments: {
-        dcaInvestments: StrategyManager.DcaInvestmentStruct[],
-        vaultInvestments: StrategyManager.VaultInvestmentStruct[],
+        dcaInvestments: InvestLib.DcaInvestmentStruct[],
+        vaultInvestments: InvestLib.VaultInvestmentStruct[],
     }
-    let dcaStrategyPositions: StrategyManager.DcaInvestmentStruct[]
-    let vaultStrategyPosition: StrategyManager.VaultInvestmentStruct[]
+    let dcaStrategyPositions: InvestLib.DcaInvestmentStruct[]
+    let vaultStrategyPosition: InvestLib.VaultInvestmentStruct[]
 
     const strategyId = 0
     const amountToInvest = parseEther('10')

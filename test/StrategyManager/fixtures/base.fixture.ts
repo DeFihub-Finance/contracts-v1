@@ -2,13 +2,13 @@ import { PathUniswapV3 } from '@defihub/shared'
 import { ethers } from 'hardhat'
 import { ProjectDeployer } from '@src/ProjectDeployer'
 import {
-    StrategyManager,
     TestERC20__factory,
     UniswapV3Factory,
     UniswapV3Pool__factory,
     NonFungiblePositionManager,
     TestERC20,
 } from '@src/typechain'
+import { InvestLib } from '@src/typechain/artifacts/contracts/StrategyManager'
 import { NetworkService } from '@src/NetworkService'
 import { SubscriptionSignature } from '@src/SubscriptionSignature'
 import { deployVaultFixture } from '../../VaultManager/fixtures/deploy-vault.fixture'
@@ -112,11 +112,11 @@ export const baseStrategyManagerFixture = async () => {
     ////////////////////////////////////////////////////////
     // Creating strategies to be used to create strategy //
     ///////////////////////////////////////////////////////
-    const dcaStrategyPositions: StrategyManager.DcaInvestmentStruct[] = [
+    const dcaStrategyPositions: InvestLib.DcaInvestmentStruct[] = [
         { poolId: 0, swaps: 10, percentage: 33 },
         { poolId: 1, swaps: 10, percentage: 33 },
     ]
-    const vaultStrategyPosition: StrategyManager.VaultInvestmentStruct[] = [
+    const vaultStrategyPosition: InvestLib.VaultInvestmentStruct[] = [
         {
             vault: await vault.getAddress(),
             percentage: 34,
