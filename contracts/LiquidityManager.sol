@@ -50,7 +50,6 @@ contract LiquidityManager is HubOwnable, UseFee, UseDust, OnlyStrategyManager {
     error InsufficientFunds(uint requested, uint available);
     error InvalidInvestment();
 
-    // TODO test gas consumption of all functions using calldata vs memory
     function initialize(InitializeParams calldata _params) external initializer {
         __Ownable_init();
         __UseFee_init(
