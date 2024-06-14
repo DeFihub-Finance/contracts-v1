@@ -131,7 +131,8 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         uint inputTokenAmount,
         uint stableAmountAfterFees,
         uint[] dcaPositionIds,
-        InvestLib.VaultPosition[] vaultPositions
+        InvestLib.VaultPosition[] vaultPositions,
+        InvestLib.LiquidityPosition[] liquidityPositions
     );
     event PositionClosed(
         address owner,
@@ -330,7 +331,8 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
             _params.inputAmount,
             pullFundsResult.remainingAmount,
             dcaPositionIds,
-            vaultPositions
+            vaultPositions,
+            liquidityPositions
         );
     }
 

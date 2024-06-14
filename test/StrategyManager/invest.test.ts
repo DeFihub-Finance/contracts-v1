@@ -359,6 +359,7 @@ describe('StrategyManager#invest', () => {
                             ),
                         ],
                     ],
+                    [],
                 )
         })
     })
