@@ -112,7 +112,7 @@ library InvestLib {
         VaultPosition[] memory vaultPositions,
         LiquidityPosition[] memory liquidityPositions
     ) {
-        dcaPositionIds = investInDca(
+        dcaPositionIds = _investInDca(
             DcaInvestmentParams({
                 dca: _params.dca,
                 dcaInvestments: _params.dcaInvestments,
@@ -123,7 +123,7 @@ library InvestLib {
             })
         );
 
-        vaultPositions = investInVaults(
+        vaultPositions = _investInVaults(
             VaultInvestmentParams({
                 vaultManager: _params.vaultManager,
                 vaultInvestments: _params.vaultInvestments,
@@ -134,7 +134,7 @@ library InvestLib {
             })
         );
 
-        liquidityPositions = investInLiquidity(
+        liquidityPositions = _investInLiquidity(
             LiquidityInvestParams({
                 treasury: _params.treasury,
                 liquidityManager: _params.liquidityManager,
@@ -146,7 +146,7 @@ library InvestLib {
         );
     }
 
-    function investInDca(
+    function _investInDca(
         DcaInvestmentParams memory _params
     ) private returns (uint[] memory) {
         if (_params.dcaInvestments.length == 0)
@@ -180,7 +180,7 @@ library InvestLib {
         return dcaPositionIds;
     }
 
-    function investInVaults(
+    function _investInVaults(
         VaultInvestmentParams memory _params
     ) private returns (VaultPosition[] memory) {
         if (_params.vaultInvestments.length == 0)
@@ -216,7 +216,7 @@ library InvestLib {
         return vaultPositions;
     }
 
-    function investInLiquidity(
+    function _investInLiquidity(
         LiquidityInvestParams memory _params
     ) private returns (LiquidityPosition[] memory) {
         if (_params.liquidityInvestments.length == 0)
