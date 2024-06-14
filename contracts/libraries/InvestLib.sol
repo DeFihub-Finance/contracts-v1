@@ -228,7 +228,6 @@ library InvestLib {
         LiquidityPosition[] memory liquidityPositions = new LiquidityPosition[](_params.liquidityInvestments.length);
 
         for (uint i; i < _params.liquidityInvestments.length; ++i) {
-            // todo test gas cost without creating the variables and accessing the index everytime
             LiquidityInvestment memory investment = _params.liquidityInvestments[i];
             LiquidityZapParams memory zap = _params.zaps[i];
 
@@ -292,17 +291,16 @@ library InvestLib {
         uint[][] memory withdrawnAmounts = new uint[][](_positions.length);
 
         for (uint i; i < _positions.length; ++i) {
-            DollarCostAverage.PositionInfo memory dcaPosition = _dca.getPosition(
-                address(this),
-                _positions[i]
+            uint positionId = _positions[i];
+            DollarCostAverage.PoolInfo memory poolInfo = _dca.getPool(
+                _dca.getPosition(address(this), positionId).poolId
             );
-            DollarCostAverage.PoolInfo memory poolInfo = _dca.getPool(dcaPosition.poolId);
             IERC20Upgradeable inputToken = IERC20Upgradeable(poolInfo.inputToken);
             IERC20Upgradeable outputToken = IERC20Upgradeable(poolInfo.outputToken);
             uint initialInputTokenBalance = inputToken.balanceOf(address(this));
             uint initialOutputTokenBalance = outputToken.balanceOf(address(this));
 
-            _dca.withdrawAll(_positions[i]);
+            _dca.withdrawAll(positionId);
 
             uint inputTokenAmount = inputToken.balanceOf(address(this)) - initialInputTokenBalance;
             uint outputTokenAmount = outputToken.balanceOf(address(this)) - initialOutputTokenBalance;
@@ -400,12 +398,12 @@ library InvestLib {
         uint[] memory withdrawnAmounts = new uint[](_positions.length);
 
         for (uint i; i < _positions.length; ++i) {
-            DollarCostAverage.PositionInfo memory dcaPosition = _dca.getPosition(address(this), _positions[i]); // TODO test if cheaper storing only the poolId
-            DollarCostAverage.PoolInfo memory poolInfo = _dca.getPool(dcaPosition.poolId);
+            uint positionId = _positions[i];
+            DollarCostAverage.PoolInfo memory poolInfo = _dca.getPool(_dca.getPosition(address(this), positionId).poolId);
             IERC20Upgradeable outputToken = IERC20Upgradeable(poolInfo.outputToken);
             uint initialOutputTokenBalance = outputToken.balanceOf(address(this));
 
-            _dca.withdrawSwapped(_positions[i]);
+            _dca.withdrawSwapped(positionId);
 
             uint outputTokenAmount = outputToken.balanceOf(address(this)) - initialOutputTokenBalance;
 
