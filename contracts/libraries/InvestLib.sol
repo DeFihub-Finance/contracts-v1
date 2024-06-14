@@ -107,7 +107,7 @@ library InvestLib {
 
     function invest(
         InvestParams memory _params
-    ) public returns (
+    ) external returns (
         uint[] memory dcaPositionIds,
         VaultPosition[] memory vaultPositions,
         LiquidityPosition[] memory liquidityPositions
@@ -148,7 +148,7 @@ library InvestLib {
 
     function investInDca(
         DcaInvestmentParams memory _params
-    ) internal returns (uint[] memory) {
+    ) private returns (uint[] memory) {
         if (_params.dcaInvestments.length == 0)
             return new uint[](0);
 
@@ -182,7 +182,7 @@ library InvestLib {
 
     function investInVaults(
         VaultInvestmentParams memory _params
-    ) internal returns (VaultPosition[] memory) {
+    ) private returns (VaultPosition[] memory) {
         if (_params.vaultInvestments.length == 0)
             return new VaultPosition[](0);
 
@@ -218,7 +218,7 @@ library InvestLib {
 
     function investInLiquidity(
         LiquidityInvestParams memory _params
-    ) internal returns (LiquidityPosition[] memory) {
+    ) private returns (LiquidityPosition[] memory) {
         if (_params.liquidityInvestments.length == 0)
             return new LiquidityPosition[](0);
 
@@ -273,7 +273,7 @@ library InvestLib {
         LiquidityMinOutputs[] liquidityMinOutputs;
     }
 
-    function closePosition(ClosePositionParams memory _params) public returns (
+    function closePosition(ClosePositionParams memory _params) external returns (
         uint[][] memory dcaWithdrawnAmounts,
         uint[] memory vaultWithdrawnAmounts,
         uint[][] memory liquidityWithdrawnAmounts
@@ -288,7 +288,7 @@ library InvestLib {
     function _closeDcaPositions(
         DollarCostAverage _dca,
         uint[] memory _positions
-    ) internal returns (uint[][] memory) {
+    ) private returns (uint[][] memory) {
         uint[][] memory withdrawnAmounts = new uint[][](_positions.length);
 
         for (uint i; i < _positions.length; ++i) {
@@ -327,7 +327,7 @@ library InvestLib {
 
     function _closeVaultPositions(
         VaultPosition[] memory _positions
-    ) internal returns (uint[] memory) {
+    ) private returns (uint[] memory) {
         uint[] memory withdrawnAmounts = new uint[](_positions.length);
 
         for (uint i; i < _positions.length; ++i) {
@@ -352,7 +352,7 @@ library InvestLib {
     function _closeLiquidityPositions(
         LiquidityPosition[] memory _positions,
         LiquidityMinOutputs[] memory _minOutputs
-    ) internal returns (uint[][] memory) {
+    ) private returns (uint[][] memory) {
         uint[][] memory withdrawnAmounts = new uint[][](_positions.length);
 
         for (uint i; i < _positions.length; ++i) {
@@ -396,7 +396,7 @@ library InvestLib {
     function _collectPositionsDca(
         DollarCostAverage _dca,
         uint[] memory _positions
-    ) internal returns (uint[] memory) {
+    ) private returns (uint[] memory) {
         uint[] memory withdrawnAmounts = new uint[](_positions.length);
 
         for (uint i; i < _positions.length; ++i) {
@@ -420,7 +420,7 @@ library InvestLib {
 
     function _collectPositionsLiquidity(
         LiquidityPosition[] memory _positions
-    ) internal returns (uint[][] memory) {
+    ) private returns (uint[][] memory) {
         uint[][] memory withdrawnAmounts = new uint[][](_positions.length);
 
         for (uint i; i < _positions.length; ++i) {

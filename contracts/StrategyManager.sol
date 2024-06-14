@@ -334,10 +334,9 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         );
     }
 
-    // TODO compare gas cost with calldata
     function closePosition(
         uint _positionId,
-        InvestLib.LiquidityMinOutputs[] memory _liquidityMinOutputs
+        InvestLib.LiquidityMinOutputs[] calldata _liquidityMinOutputs
     ) external virtual {
         Position storage position = _positions[msg.sender][_positionId];
 
