@@ -206,40 +206,116 @@ describe.only('LiquidityManager#invest', () => {
                 permitAccount0,
             )
     })
-            .connect(account0)
-            .createStrategy({
-                dcaInvestments: [
-                    {
-                        poolId: stableBtcPoolId,
-                        swaps: 10,
-                        percentage: 50n,
-                    },
-                    {
-                        poolId: btcEthPoolId,
-                        swaps: 10,
-                        percentage: 50n,
-                    },
-                ],
-                vaultInvestments: [],
-                liquidityInvestments: [],
-                permit: permitAccount0,
-                metadataHash: ZeroHash,
-            })
 
-        // TODO test with v3 encode swap in the same tx
-        // TODO refactor to use encode without strategyId after migrating error decoder and zapper helpers
-        const encodedSwap = await uniswapV2ZapHelper.encodeSwap(
-            strategyId,
-            liquidityManager,
-            halfAmount,
-            account0,
-            stablecoin,
-            wbtc,
-            USD_PRICE_BN,
-            BTC_PRICE_BN,
-            SLIPPAGE_BN,
-            liquidityManager,
-        )
+    it('should add liquidity using different token0 and token1 amount proportions', async () => {
+        await stablecoin.connect(account0).mint(account0, amount)
+        await stablecoin.connect(account0).approve(liquidityManager, amount)
+
+        const stableAmount1 = await deductFees(amount * 40n / 100n) // Swap for WBTC
+        const stableAmount2 = await deductFees(amount * 60n / 100n)
+
+        const [
+            { tick },
+            tickSpacing,
+            { token0, token1 },
+            encodedSwap,
+        ] = await Promise.all([
+            stableBtcLpUniV3.slot0(),
+            stableBtcLpUniV3.tickSpacing(),
+            sortTokens(stablecoin, wbtc),
+            getEncodedSwap(stableAmount1, wbtc, BTC_PRICE_BN),
+        ])
+
+        const stableIsToken0 = await isSameToken(stablecoin, token0)
+
+        const wbtcAmountMin = getMinOutput(stableAmount1, BTC_PRICE_BN)
+        const stableAmountMin = getMinOutput(stableAmount2, USD_PRICE_BN)
+
+        await liquidityManager
+            .connect(account0)
+            .addLiquidityV3(
+                {
+                    positionManager: positionManagerUniV3,
+                    inputToken: stablecoin,
+                    depositAmountInputToken: amount,
+
+                    fee: 3_000,
+
+                    token0,
+                    token1,
+
+                    swapToken0: stableIsToken0 ? '0x' : encodedSwap,
+                    swapToken1: stableIsToken0 ? encodedSwap : '0x',
+
+                    swapAmountToken0: stableIsToken0 ? stableAmount2 : stableAmount1,
+                    swapAmountToken1: stableIsToken0 ? stableAmount1 : stableAmount2,
+
+                    // TODO calculate tick dinamically using price
+                    tickLower: getNearestUsableTick(tick - (tick / 10n), tickSpacing),
+                    tickUpper: getNearestUsableTick(tick + (tick / 10n), tickSpacing),
+
+                    amount0Min: stableIsToken0 ? stableAmountMin : wbtcAmountMin,
+                    amount1Min: stableIsToken0 ? wbtcAmountMin : stableAmountMin,
+                },
+                permitAccount0,
+            )
+    })
+
+    it('should add liquidity using uniswap v2 and v3 swap in the same transaction', async () => {
+        const halfAmount = amount * 50n / 100n
+        const halfAmountWithDeductedFees = await deductFees(halfAmount)
+
+        await stablecoin.connect(account0).mint(account0, amount)
+        await stablecoin.connect(account0).approve(liquidityManager, amount)
+
+        const [
+            { tick },
+            tickSpacing,
+            { token0, token1 },
+            wbtcEncodedSwap,
+            wethEncodedSwap,
+        ] = await Promise.all([
+            btcEthLpUniV3.slot0(),
+            btcEthLpUniV3.tickSpacing(),
+            sortTokens(wbtc, weth),
+            getEncodedSwap(halfAmountWithDeductedFees, wbtc, BTC_PRICE_BN),
+            getEncodedSwap(halfAmountWithDeductedFees, weth, ETH_PRICE_BN, 'uniswapV3'),
+        ])
+
+        const wbtcIsToken0 = await isSameToken(wbtc, token0)
+
+        const wbtcAmountMin = getMinOutput(halfAmountWithDeductedFees, BTC_PRICE_BN)
+        const wethAmountMin = getMinOutput(halfAmountWithDeductedFees, ETH_PRICE_BN)
+
+        await liquidityManager
+            .connect(account0)
+            .addLiquidityV3(
+                {
+                    positionManager: positionManagerUniV3,
+                    inputToken: stablecoin,
+                    depositAmountInputToken: amount,
+
+                    fee: 3_000,
+
+                    token0,
+                    token1,
+
+                    swapToken0: wbtcIsToken0 ? wbtcEncodedSwap : wethEncodedSwap,
+                    swapToken1: wbtcIsToken0 ? wethEncodedSwap : wbtcEncodedSwap,
+
+                    swapAmountToken0: halfAmountWithDeductedFees,
+                    swapAmountToken1: halfAmountWithDeductedFees,
+
+                    // TODO calculate tick dinamically using price
+                    tickLower: getNearestUsableTick(tick - (tick / 10n), tickSpacing),
+                    tickUpper: getNearestUsableTick(tick + (tick / 10n), tickSpacing),
+
+                    amount0Min: wbtcIsToken0 ? wbtcAmountMin : wethAmountMin,
+                    amount1Min: wbtcIsToken0 ? wethAmountMin : wbtcAmountMin,
+                },
+                permitAccount0,
+            )
+    })
 
         await stablecoin.connect(account0).mint(account0, amount)
         await stablecoin.connect(account0).approve(liquidityManager, amount)
