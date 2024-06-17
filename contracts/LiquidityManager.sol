@@ -30,7 +30,7 @@ contract LiquidityManager is HubOwnable, UseFee, UseDust, OnlyStrategyManager {
         uint32 nonSubscriberFeeBP;
     }
 
-    struct AddLiquidityV3Params {
+    struct InvestUniswapV3Params {
         address positionManager;
         IERC20Upgradeable inputToken;
         IERC20Upgradeable token0;
@@ -65,8 +65,8 @@ contract LiquidityManager is HubOwnable, UseFee, UseDust, OnlyStrategyManager {
         zapManager = _params.zapManager;
     }
 
-    function addLiquidityV3(
-        AddLiquidityV3Params calldata _params,
+    function investUniswapV3(
+        InvestUniswapV3Params calldata _params,
         SubscriptionManager.Permit calldata _subscriptionPermit
     ) external virtual returns (
         uint tokenId,
@@ -87,20 +87,20 @@ contract LiquidityManager is HubOwnable, UseFee, UseDust, OnlyStrategyManager {
         if (requested > available)
             revert InsufficientFunds(requested, available);
 
-        return _addLiquidityV3(_params);
+        return _investUniswapV3(_params);
     }
 
-    function addLiquidityV3UsingStrategy(
-        AddLiquidityV3Params calldata _params
+    function investUniswapV3UsingStrategy(
+        InvestUniswapV3Params calldata _params
     ) external virtual onlyStrategyManager returns (
         uint tokenId,
         uint128 liquidity
     ) {
-        return _addLiquidityV3(_params);
+        return _investUniswapV3(_params);
     }
 
-    function _addLiquidityV3(
-        AddLiquidityV3Params calldata _params
+    function _investUniswapV3(
+        InvestUniswapV3Params calldata _params
     ) internal virtual returns (
         uint tokenId,
         uint128 liquidity

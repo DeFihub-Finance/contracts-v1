@@ -72,6 +72,7 @@ library InvestLib {
         LiquidityInvestment[] liquidityInvestments;
         IERC20Upgradeable inputToken;
         uint amount;
+        uint8 liquidityTotalPercentage;
         LiquidityZapParams[] zaps;
     }
 
@@ -103,6 +104,7 @@ library InvestLib {
         // liquidity
         LiquidityInvestment[] liquidityInvestments;
         LiquidityZapParams[] liquidityZaps;
+        uint8 liquidityTotalPercentage;
     }
 
     function invest(
@@ -141,6 +143,7 @@ library InvestLib {
                 liquidityInvestments: _params.liquidityInvestments,
                 inputToken: _params.inputToken,
                 amount: _params.amount,
+                liquidityTotalPercentage: _params.liquidityTotalPercentage,
                 zaps: _params.liquidityZaps
             })
         );
@@ -227,18 +230,23 @@ library InvestLib {
 
         LiquidityPosition[] memory liquidityPositions = new LiquidityPosition[](_params.liquidityInvestments.length);
 
+        _params.inputToken.safeTransfer(
+            address(_params.liquidityManager),
+            _params.liquidityTotalPercentage * _params.amount / 100
+        );
+
         for (uint i; i < _params.liquidityInvestments.length; ++i) {
             LiquidityInvestment memory investment = _params.liquidityInvestments[i];
             LiquidityZapParams memory zap = _params.zaps[i];
 
-            _params.liquidityManager.addLiquidityV3UsingStrategy(
-                LiquidityManager.AddLiquidityV3Params({
+            _params.liquidityManager.investUniswapV3UsingStrategy(
+                LiquidityManager.InvestUniswapV3Params({
                     positionManager: investment.positionManager,
                     inputToken: _params.inputToken,
+                    depositAmountInputToken: _params.amount * investment.percentage / 100,
                     token0: investment.token0,
                     token1: investment.token1,
                     fee: investment.fee,
-                    depositAmountInputToken: _params.amount * investment.percentage / 100,
                     swapToken0: zap.swapToken0,
                     swapToken1: zap.swapToken1,
                     swapAmountToken0: zap.swapAmountToken0,

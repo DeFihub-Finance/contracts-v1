@@ -303,7 +303,8 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
                         vaultSwaps: _params.vaultSwaps,
                     // liquidity
                         liquidityInvestments: _liquidityInvestmentsPerStrategy[_params.strategyId],
-                        liquidityZaps: _params.liquidityZaps
+                        liquidityZaps: _params.liquidityZaps,
+                        liquidityTotalPercentage: strategy.percentages[PRODUCT_LIQUIDITY]
                     })
                 )
             ),
