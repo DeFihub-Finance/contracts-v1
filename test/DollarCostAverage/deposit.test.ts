@@ -193,7 +193,7 @@ describe('DCA#deposit', () => {
                 fakePermit,
             )
 
-            await expect(tx).to.be.revertedWithCustomError(dca, 'InvalidDepositAmount')
+            await expect(tx).to.be.revertedWithCustomError(dca, 'InvalidAmount')
         })
 
         it('if swaps is zero', async () => {

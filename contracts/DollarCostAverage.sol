@@ -76,7 +76,7 @@ contract DollarCostAverage is HubOwnable, UseFee, OnlyStrategyManager, Reentranc
     address public swapper;
 
     error InvalidPoolId();
-    error InvalidDepositAmount();
+    error InvalidAmount();
     error InvalidNumberOfSwaps();
     error TooEarlyToSwap(uint timeRemaining);
     error NoTokensToSwap();
@@ -162,14 +162,14 @@ contract DollarCostAverage is HubOwnable, UseFee, OnlyStrategyManager, Reentranc
 
         PoolInfo memory pool = poolInfo[_poolId];
 
-        uint depositFee = _collectProtocolFees(
+        uint fee = _collectProtocolFees(
             pool.inputToken,
             _amount,
             abi.encode(_poolId),
             _subscriptionPermit
         );
 
-        _invest(_poolId, _swaps, _amount - depositFee);
+        _invest(_poolId, _swaps, _amount - fee);
     }
 
     function investUsingStrategy(
@@ -185,7 +185,7 @@ contract DollarCostAverage is HubOwnable, UseFee, OnlyStrategyManager, Reentranc
             revert InvalidPoolId();
 
         if (_amount == 0)
-            revert InvalidDepositAmount();
+            revert InvalidAmount();
 
         if (_swaps == 0)
             revert InvalidNumberOfSwaps();

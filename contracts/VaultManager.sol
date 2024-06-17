@@ -25,7 +25,7 @@ contract VaultManager is HubOwnable, UseFee, OnlyStrategyManager {
     mapping(address => bool) public whitelistedVaults;
     address[] public _vaultArray;
 
-    event Deposit(address vault, address user, uint amount);
+    event PositionCreated(address vault, address user, uint amount);
     event VaultWhitelisted(address vault, bool whitelisted);
 
     error VaultNotWhitelisted();
@@ -50,14 +50,14 @@ contract VaultManager is HubOwnable, UseFee, OnlyStrategyManager {
     ) external {
         IERC20Upgradeable want = IBeefyVaultV7(_vault).want();
 
-        uint depositFee = _collectProtocolFees(
+        uint fee = _collectProtocolFees(
             address(want),
             _amount,
             abi.encode(_vault),
             _permit
         );
 
-        _invest(_vault, _amount - depositFee);
+        _invest(_vault, _amount - fee);
     }
 
     function investUsingStrategy(
@@ -84,7 +84,7 @@ contract VaultManager is HubOwnable, UseFee, OnlyStrategyManager {
         vault.deposit(depositAmount);
         vault.safeTransfer(msg.sender, vault.balanceOf(address(this)));
 
-        emit Deposit(_vault, msg.sender, depositAmount);
+        emit PositionCreated(_vault, msg.sender, depositAmount);
     }
 
     function setVaultWhitelistStatus(address _vault, bool _whitelisted) external virtual onlyOwner {
