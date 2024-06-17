@@ -153,12 +153,12 @@ describe.only('LiquidityManager#invest', () => {
             uniswapV2ZapHelper,
             uniswapV3ZapHelper,
         } = await loadFixture(LiquidityManagerFixture))
+
+        await stablecoin.connect(account0).mint(account0, amount)
+        await stablecoin.connect(account0).approve(liquidityManager, amount)
     })
 
     it('should add liquidity using 50/50 token0 and token1 amount proportion', async () => {
-        await stablecoin.connect(account0).mint(account0, amount)
-        await stablecoin.connect(account0).approve(liquidityManager, amount)
-
         const halfAmount = amount * 50n / 100n
         const halfAmountWithDeductedFees = await deductFees(halfAmount)
 
@@ -210,9 +210,6 @@ describe.only('LiquidityManager#invest', () => {
     })
 
     it('should add liquidity using different token0 and token1 amount proportions', async () => {
-        await stablecoin.connect(account0).mint(account0, amount)
-        await stablecoin.connect(account0).approve(liquidityManager, amount)
-
         const stableAmount1 = await deductFees(amount * 40n / 100n) // Swap for WBTC
         const stableAmount2 = await deductFees(amount * 60n / 100n)
 
@@ -267,9 +264,6 @@ describe.only('LiquidityManager#invest', () => {
         const halfAmount = amount * 50n / 100n
         const halfAmountWithDeductedFees = await deductFees(halfAmount)
 
-        await stablecoin.connect(account0).mint(account0, amount)
-        await stablecoin.connect(account0).approve(liquidityManager, amount)
-
         const [
             { tick },
             tickSpacing,
@@ -320,9 +314,6 @@ describe.only('LiquidityManager#invest', () => {
     })
 
     it('fails if swap amount is greater than deposit amount', async () => {
-        await stablecoin.connect(account0).mint(account0, amount)
-        await stablecoin.connect(account0).approve(liquidityManager, amount)
-
         try {
             await liquidityManager
                 .connect(account0)
@@ -363,9 +354,6 @@ describe.only('LiquidityManager#invest', () => {
     })
 
     it('fails if position manager is not whitelisted', async () => {
-        await stablecoin.connect(account0).mint(account0, amount)
-        await stablecoin.connect(account0).approve(liquidityManager, amount)
-
         try {
             await liquidityManager
                 .connect(account0)
@@ -406,9 +394,6 @@ describe.only('LiquidityManager#invest', () => {
     })
 
     it('fails if token0 address is greater than token1 address', async () => {
-        await stablecoin.connect(account0).mint(account0, amount)
-        await stablecoin.connect(account0).approve(liquidityManager, amount)
-
         const { token0, token1 } = await sortTokens(stablecoin, wbtc)
 
         try {
