@@ -4,7 +4,7 @@ import { BigNumber } from '@ryze-blockchain/ethereum'
 import { UniswapV2, UniswapV2ZapHelper, UniswapV3, UniswapV3ZapHelper } from '@src/helpers'
 import { NetworkService } from '@src/NetworkService'
 import { ProjectDeployer } from '@src/ProjectDeployer'
-import { TestERC20__factory, UniswapV2Pair__factory } from '@src/typechain'
+import { TestERC20__factory, UniswapV2Pair__factory, UniswapV3Pool__factory } from '@src/typechain'
 import { parseEther } from 'ethers'
 import hre from 'hardhat'
 
@@ -145,6 +145,16 @@ export async function LiquidityManagerFixture() {
         account0,
     )
 
+    const stableBtcLpUniV3 = UniswapV3Pool__factory.connect(
+        await factoryUniV3.getPool(stablecoin, wbtc, 3000),
+        account0,
+    )
+
+    const btcEthLpUniV3 = UniswapV3Pool__factory.connect(
+        await factoryUniV3.getPool(weth, wbtc, 3000),
+        account0,
+    )
+
     const stableBtcPoolId = await dca.getPoolsLength()
 
     await dca.createPool(
@@ -204,6 +214,8 @@ export async function LiquidityManagerFixture() {
         initialTreasuryBalance,
         permitAccount0,
         btcEthLpUniV2,
+        stableBtcLpUniV3,
+        btcEthLpUniV3,
 
         // helpers
         uniswapV2ZapHelper,
