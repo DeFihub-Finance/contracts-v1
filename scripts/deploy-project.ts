@@ -1,4 +1,4 @@
-import {  ZeroAddress } from 'ethers'
+import { ZeroAddress } from 'ethers'
 import hre, { ethers } from 'hardhat'
 import { CommandBuilder, Salt } from 'hardhat-vanity'
 import {
@@ -11,6 +11,8 @@ import {
     ZapManager__factory,
     UniswapV2Zapper__factory,
     UniswapV3Zapper__factory,
+    InvestLib__factory,
+    LiquidityManager,
 } from '@src/typechain'
 import {
     getDeploymentInfo,
@@ -20,6 +22,7 @@ import {
     sendTransaction,
     verify,
     findAddressOrFail,
+    getImplementationSalt,
 } from '@src/helpers'
 
 const TREASURY_ADDR: string | undefined = '0xb7f74ba999134fbb75285173856a808732d8c888' // wallet 61
@@ -42,12 +45,18 @@ async function deployProject() {
         await projectDeployer.getAddress(),
     )
 
+    const investLibSalt = await getImplementationSalt(saltBuilder, 'InvestLib')
     const subscriptionDeploymentInfo = await getDeploymentInfo(saltBuilder, 'SubscriptionManager')
     const strategyDeploymentInfo = await getDeploymentInfo(saltBuilder, 'StrategyManager')
     const dcaDeploymentInfo = await getDeploymentInfo(saltBuilder, 'DollarCostAverage')
     const vaultDeploymentInfo = await getDeploymentInfo(saltBuilder, 'VaultManager')
     const zapManagerInfo = await getDeploymentInfo(saltBuilder, 'ZapManager')
 
+    await sendTransaction(
+        await projectDeployer.deployInvestLib
+            .populateTransaction(InvestLib__factory.bytecode, investLibSalt),
+        deployer,
+    )
     await sendTransaction(
         await projectDeployer.deploySubscriptionManager
             .populateTransaction(subscriptionDeploymentInfo),
@@ -86,9 +95,11 @@ async function deployProject() {
         owner: safe,
         treasury: TREASURY_ADDR || safe,
         stable: await stable.getAddress(),
+        investLib: await projectDeployer.investLib(),
         subscriptionManager: ZeroAddress,
         dca: ZeroAddress,
         vaultManager: ZeroAddress,
+        liquidityManager: ZeroAddress,
         zapManager: ZeroAddress,
         strategistPercentage: 30n,
         hotStrategistPercentage: 50n,
@@ -105,7 +116,7 @@ async function deployProject() {
         nonSubscriberFeeBP: 30n,
     }
 
-    const vaultManagerInit: VaultManager.InitializeParamsStruct = {
+    const vaultManagerInitParams: VaultManager.InitializeParamsStruct = {
         owner: safe,
         treasury: TREASURY_ADDR || safe,
         strategyManager: ZeroAddress,
@@ -114,7 +125,17 @@ async function deployProject() {
         nonSubscriberFeeBP: 30n,
     }
 
-    const zapManagerInit: ZapManager.InitializeParamsStruct = {
+    const liquidityManagerInitParams: LiquidityManager.InitializeParamsStruct = {
+        owner: safe,
+        treasury: TREASURY_ADDR || safe,
+        subscriptionManager: ZeroAddress,
+        strategyManager: ZeroAddress,
+        zapManager: ZeroAddress,
+        baseFeeBP: 30n,
+        nonSubscriberFeeBP: 30n,
+    }
+
+    const zapManagerInitParams: ZapManager.InitializeParamsStruct = {
         owner: safe,
         uniswapV2ZapperConstructor: {
             treasury: TREASURY_ADDR || safe,
@@ -131,8 +152,9 @@ async function deployProject() {
             subscriptionManagerInitParams,
             strategyManagerInitParams,
             dcaInitParams,
-            vaultManagerInit,
-            zapManagerInit,
+            vaultManagerInitParams,
+            liquidityManagerInitParams,
+            zapManagerInitParams,
         ),
         deployer,
     )

@@ -61,7 +61,7 @@ export class ProjectDeployer {
             positionManagerUniV3,
             quoterUniV3,
         } = await this.deployUniV3(deployer, weth)
-        const investmentLib = await new InvestLib__factory(deployer).deploy()
+        const investLib = await new InvestLib__factory(deployer).deploy()
 
         const subscriptionManagerDeployParams = this.getDeploymentInfo(SubscriptionManager__factory)
         const strategyManagerDeployParams = this.getDeploymentInfo(StrategyManager__factory)
@@ -112,7 +112,7 @@ export class ProjectDeployer {
         const strategyManagerInitParams: StrategyManager.InitializeParamsStruct = {
             owner,
             treasury,
-            investmentLib,
+            investLib,
             stable: this.strategyDepositToken,
             subscriptionManager: ZeroAddress,
             dca: ZeroAddress,

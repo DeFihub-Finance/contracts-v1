@@ -33,7 +33,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
     struct InitializeParams {
         address owner;
         address treasury;
-        address investmentLib;
+        address investLib;
         IERC20Upgradeable stable;
         SubscriptionManager subscriptionManager;
         DollarCostAverage dca;
@@ -107,7 +107,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
     // @dev investor => strategy position id => liquidity positions
     mapping(address => mapping(uint => InvestLib.LiquidityPosition[])) internal _liquidityPositionsPerPosition;
 
-    address public investmentLib;
+    address public investLib;
     IERC20Upgradeable public stable;
     ZapManager public zapManager;
     SubscriptionManager public subscriptionManager;
@@ -176,7 +176,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         transferOwnership(_initializeParams.owner);
 
         zapManager = _initializeParams.zapManager;
-        investmentLib = _initializeParams.investmentLib;
+        investLib = _initializeParams.investLib;
         stable = _initializeParams.stable;
         subscriptionManager = _initializeParams.subscriptionManager;
         dca = _initializeParams.dca;
@@ -524,10 +524,10 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
     ) internal returns (
         bytes memory
     ) {
-        (bool success, bytes memory resultData) = investmentLib.delegatecall(_callData);
+        (bool success, bytes memory resultData) = investLib.delegatecall(_callData);
 
         if (!success)
-            revert LowLevelCallFailed(address(investmentLib), "", resultData);
+            revert LowLevelCallFailed(address(investLib), "", resultData);
 
         return resultData;
     }
