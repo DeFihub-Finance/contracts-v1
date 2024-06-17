@@ -181,7 +181,7 @@ describe.only('LiquidityManager#invest', () => {
 
         await liquidityManager
             .connect(account0)
-            .addLiquidityV3(
+            .investUniswapV3(
                 {
                     positionManager: positionManagerUniV3,
                     inputToken: stablecoin,
@@ -235,7 +235,7 @@ describe.only('LiquidityManager#invest', () => {
 
         await liquidityManager
             .connect(account0)
-            .addLiquidityV3(
+            .investUniswapV3(
                 {
                     positionManager: positionManagerUniV3,
                     inputToken: stablecoin,
@@ -291,7 +291,7 @@ describe.only('LiquidityManager#invest', () => {
 
         await liquidityManager
             .connect(account0)
-            .addLiquidityV3(
+            .investUniswapV3(
                 {
                     positionManager: positionManagerUniV3,
                     inputToken: stablecoin,
@@ -326,7 +326,7 @@ describe.only('LiquidityManager#invest', () => {
         try {
             await liquidityManager
                 .connect(account0)
-                .addLiquidityV3(
+                .investUniswapV3(
                     {
                         positionManager: ZeroAddress,
                         inputToken: stablecoin,
@@ -369,7 +369,7 @@ describe.only('LiquidityManager#invest', () => {
         try {
             await liquidityManager
                 .connect(account0)
-                .addLiquidityV3(
+                .investUniswapV3(
                     {
                         positionManager: ZeroAddress,
                         inputToken: stablecoin,
@@ -414,7 +414,7 @@ describe.only('LiquidityManager#invest', () => {
         try {
             await liquidityManager
                 .connect(account0)
-                .addLiquidityV3(
+                .investUniswapV3(
                     {
                         positionManager: positionManagerUniV3,
                         inputToken: stablecoin,
