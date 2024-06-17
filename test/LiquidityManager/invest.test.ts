@@ -1,3 +1,5 @@
+import hre from 'hardhat'
+import { expect } from 'chai'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import { Fees, Slippage, unwrapAddressLike } from '@defihub/shared'
 import { LiquidityManagerFixture } from './liquidity-manager.fixture'
@@ -11,7 +13,7 @@ import {
 import { UniswapV2ZapHelper, UniswapV3ZapHelper } from '@src/helpers'
 import { AddressLike, ErrorDescription, Signer, ZeroAddress, parseEther } from 'ethers'
 import { BigNumber } from '@ryze-blockchain/ethereum'
-import { ErrorDecoder } from '@src/helpers/ErrorDecoder'
+import { decodeLowLevelCallError } from '@src/helpers/decode-call-error'
 
 describe.only('LiquidityManager#invest', () => {
     const amount = parseEther('1000')
@@ -317,12 +319,97 @@ describe.only('LiquidityManager#invest', () => {
             )
     })
 
+    it('fails if swap amount is greater than deposit amount', async () => {
         await stablecoin.connect(account0).mint(account0, amount)
         await stablecoin.connect(account0).approve(liquidityManager, amount)
 
-        const initialPosition = await positionManagerUniV3.positions(1n)
-        const stableIsToken0 = await stablecoin.getAddress() === initialPosition.token0
-        const halfAmountWithDeductedFees = halfAmount - parseEther('1.5')
+        try {
+            await liquidityManager
+                .connect(account0)
+                .addLiquidityV3(
+                    {
+                        positionManager: ZeroAddress,
+                        inputToken: stablecoin,
+                        depositAmountInputToken: amount,
+
+                        fee: 0,
+
+                        token0: ZeroAddress,
+                        token1: ZeroAddress,
+
+                        swapToken0: '0x',
+                        swapToken1: '0x',
+
+                        swapAmountToken0: amount,
+                        swapAmountToken1: amount,
+
+                        tickLower: 0,
+                        tickUpper: 0,
+
+                        amount0Min: 0,
+                        amount1Min: 0,
+                    },
+                    permitAccount0,
+                )
+        }
+        catch (e) {
+            const error = decodeLowLevelCallError(e)
+
+            if (!(error instanceof ErrorDescription))
+                throw new Error('Error decoding custom error')
+
+            expect(error.name).to.equal('InsufficientFunds')
+        }
+    })
+
+    it('fails if position manager is not whitelisted', async () => {
+        await stablecoin.connect(account0).mint(account0, amount)
+        await stablecoin.connect(account0).approve(liquidityManager, amount)
+
+        try {
+            await liquidityManager
+                .connect(account0)
+                .addLiquidityV3(
+                    {
+                        positionManager: ZeroAddress,
+                        inputToken: stablecoin,
+                        depositAmountInputToken: amount,
+
+                        fee: 0,
+
+                        token0: ZeroAddress,
+                        token1: ZeroAddress,
+
+                        swapToken0: '0x',
+                        swapToken1: '0x',
+
+                        swapAmountToken0: 0,
+                        swapAmountToken1: 0,
+
+                        tickLower: 0,
+                        tickUpper: 0,
+
+                        amount0Min: 0,
+                        amount1Min: 0,
+                    },
+                    permitAccount0,
+                )
+        }
+        catch (e) {
+            const error = decodeLowLevelCallError(e)
+
+            if (!(error instanceof ErrorDescription))
+                throw new Error('Error decoding custom error')
+
+            expect(error.name).to.equal('InvalidInvestment')
+        }
+    })
+
+    it('fails if token0 address is greater than token1 address', async () => {
+        await stablecoin.connect(account0).mint(account0, amount)
+        await stablecoin.connect(account0).approve(liquidityManager, amount)
+
+        const { token0, token1 } = await sortTokens(stablecoin, wbtc)
 
         try {
             await liquidityManager
@@ -333,43 +420,33 @@ describe.only('LiquidityManager#invest', () => {
                         inputToken: stablecoin,
                         depositAmountInputToken: amount,
 
-                        fee: initialPosition.fee,
+                        fee: 0,
 
-                        // TODO not use token addresses from position
-                        token0: initialPosition.token0,
-                        token1: initialPosition.token1,
+                        token0: token1,
+                        token1: token0,
 
-                        swapToken0: stableIsToken0 ? '0x' : encodedSwap,
-                        swapToken1: stableIsToken0 ? encodedSwap : '0x',
+                        swapToken0: '0x',
+                        swapToken1: '0x',
 
-                        // TODO test with different proportions
-                        swapAmountToken0: halfAmountWithDeductedFees,
-                        swapAmountToken1: halfAmountWithDeductedFees,
+                        swapAmountToken0: 0,
+                        swapAmountToken1: 0,
 
-                        // TODO calculate tick dinamically using price
-                        tickLower: initialPosition.tickLower,
-                        tickUpper: initialPosition.tickUpper,
+                        tickLower: 0,
+                        tickUpper: 0,
 
-                        amount0Min: stableIsToken0
-                            ? Slippage.deductSlippage(halfAmount, SLIPPAGE_BN)
-                            : Slippage.deductSlippage(
-                                BigInt(new BigNumber(halfAmount.toString()).div(BTC_PRICE_BN).toFixed(0)),
-                                SLIPPAGE_BN.times(2),
-                            ),
-                        amount1Min: stableIsToken0
-                            ? Slippage.deductSlippage(
-                                BigInt(new BigNumber(halfAmount.toString()).div(BTC_PRICE_BN).toFixed(0)),
-                                SLIPPAGE_BN.times(2),
-                            )
-                            : Slippage.deductSlippage(halfAmount, SLIPPAGE_BN),
+                        amount0Min: 0,
+                        amount1Min: 0,
                     },
                     permitAccount0,
                 )
         }
-        catch (error) {
-            console.log(ErrorDecoder.decodeLowLevelCallError(error))
+        catch (e) {
+            const error = decodeLowLevelCallError(e)
 
-            throw error
+            if (!(error instanceof ErrorDescription))
+                throw new Error('Error decoding custom error')
+
+            expect(error.name).to.equal('InvalidInvestment')
         }
     })
 })
