@@ -43,7 +43,7 @@ contract VaultManager is HubOwnable, UseFee, OnlyStrategyManager {
         transferOwnership(_initializeParams.owner);
     }
 
-    function deposit(
+    function invest(
         address _vault,
         uint _amount,
         SubscriptionManager.Permit calldata _permit
@@ -57,17 +57,17 @@ contract VaultManager is HubOwnable, UseFee, OnlyStrategyManager {
             _permit
         );
 
-        _deposit(_vault, _amount - depositFee);
+        _invest(_vault, _amount - depositFee);
     }
 
-    function depositUsingStrategy(
+    function investUsingStrategy(
         address _vault,
         uint _amount
     ) external virtual onlyStrategyManager {
-        _deposit(_vault, _amount);
+        _invest(_vault, _amount);
     }
 
-    function _deposit(address _vault, uint _amount) internal virtual {
+    function _invest(address _vault, uint _amount) internal virtual {
         if (!whitelistedVaults[_vault])
             revert VaultNotWhitelisted();
 

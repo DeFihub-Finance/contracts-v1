@@ -171,7 +171,7 @@ library InvestLib {
 
             poolInputToken.safeIncreaseAllowance(address(_params.dca), swapOutput);
 
-            _params.dca.depositUsingStrategy(investment.poolId, investment.swaps, swapOutput);
+            _params.dca.investUsingStrategy(investment.poolId, investment.swaps, swapOutput);
 
             dcaPositionIds[i] = nextDcaPositionId;
             ++nextDcaPositionId;
@@ -206,7 +206,7 @@ library InvestLib {
             vaultWantToken.safeIncreaseAllowance(address(_params.vaultManager), swapOutput);
 
             uint initialBalance = vault.balanceOf(address(this));
-            _params.vaultManager.depositUsingStrategy(investment.vault, swapOutput);
+            _params.vaultManager.investUsingStrategy(investment.vault, swapOutput);
             vaultPositions[i] = VaultPosition(
                 investment.vault,
                 vault.balanceOf(address(this)) - initialBalance

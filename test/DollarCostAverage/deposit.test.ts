@@ -51,7 +51,7 @@ describe('DCA#deposit', () => {
 
     describe('EFFECT', () => {
         it('deposit and create new position', async () => {
-            await dca.connect(account0).deposit(
+            await dca.connect(account0).invest(
                 positionParams.poolId,
                 positionParams.swaps,
                 positionParams.depositAmount,
@@ -73,7 +73,7 @@ describe('DCA#deposit', () => {
         it('transfer deposit fee to treasury for non-subscriber', async () => {
             const treasuryBalanceBefore = await tokenIn.balanceOf(await treasury.getAddress())
 
-            await dca.connect(account0).deposit(
+            await dca.connect(account0).invest(
                 positionParams.poolId,
                 positionParams.swaps,
                 positionParams.depositAmount,
@@ -95,7 +95,7 @@ describe('DCA#deposit', () => {
 
             const treasuryBalanceBefore = await tokenIn.balanceOf(await treasury.getAddress())
 
-            await dca.connect(account0).deposit(
+            await dca.connect(account0).invest(
                 positionParams.poolId,
                 positionParams.swaps,
                 positionParams.depositAmount,
@@ -112,7 +112,7 @@ describe('DCA#deposit', () => {
             const amountPerSwap = ContractFees.discountNonSubscriberFee(positionParams.depositAmount) / positionParams.swaps
             const pool = await dca.getPool(positionParams.poolId)
 
-            const tx = dca.connect(account0).deposit(
+            const tx = dca.connect(account0).invest(
                 positionParams.poolId,
                 positionParams.swaps,
                 positionParams.depositAmount,
@@ -134,7 +134,7 @@ describe('DCA#deposit', () => {
             const balanceBefore = await dca.tokenBalance(pool.inputToken)
             const treasuryBalanceBefore = await tokenIn.balanceOf(await treasury.getAddress())
 
-            await dca.connect(account0).deposit(
+            await dca.connect(account0).invest(
                 positionParams.poolId,
                 positionParams.swaps,
                 positionParams.depositAmount,
@@ -158,7 +158,7 @@ describe('DCA#deposit', () => {
             const nextSwapAmount = async () => (await dca.getPool(positionParams.poolId)).nextSwapAmount
             const nextSwapAmountBefore = await nextSwapAmount()
 
-            await dca.connect(account0).deposit(
+            await dca.connect(account0).invest(
                 positionParams.poolId,
                 positionParams.swaps,
                 positionParams.depositAmount,
@@ -175,7 +175,7 @@ describe('DCA#deposit', () => {
 
     describe('REVERTS', () => {
         it('if poolId >= number of pools', async () => {
-            const tx = dca.connect(account0).deposit(
+            const tx = dca.connect(account0).invest(
                 31,
                 positionParams.swaps,
                 positionParams.depositAmount,
@@ -186,7 +186,7 @@ describe('DCA#deposit', () => {
         })
 
         it('if amount is zero', async () => {
-            const tx = dca.connect(account0).deposit(
+            const tx = dca.connect(account0).invest(
                 positionParams.poolId,
                 positionParams.swaps,
                 0n,
@@ -197,7 +197,7 @@ describe('DCA#deposit', () => {
         })
 
         it('if swaps is zero', async () => {
-            const tx = dca.connect(account0).deposit(
+            const tx = dca.connect(account0).invest(
                 positionParams.poolId,
                 0,
                 positionParams.depositAmount,

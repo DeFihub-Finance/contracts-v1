@@ -6,16 +6,16 @@ import { NetworkService } from '@src/NetworkService'
 import { baseVaultManagerFixture } from './fixtures/base.fixture'
 
 // given a strategy contract
-//      when depositUsingStrategy is called
+//      when investUsingStrategy is called
 //          then vault tokens are transferred to strategy manger NOT discounting the base fee
 //          then deposit fees are NOT sent to the treasury
 //          then want tokens are deducted from strategyManager
 //          then Deposit event is emitted
 //          then Fee event is NOT emitted
 // given a non-strategy account
-//      when depositUsingStrategy is called
+//      when investUsingStrategy is called
 //          then transaction reverts with Unauthorized
-describe('VaultManager#depositUsingStrategy', () => {
+describe('VaultManager#investUsingStrategy', () => {
     let account0: Signer
     let treasury: Signer
     let vaultManager: VaultManager
@@ -45,11 +45,11 @@ describe('VaultManager#depositUsingStrategy', () => {
                 .approve(await vaultManager.getAddress(), amountToDeposit)
         })
 
-        describe('when depositUsingStrategy is called', () => {
+        describe('when investUsingStrategy is called', () => {
             it('then vault tokens are transferred to strategy manger NOT discounting the base fee', async () => {
                 await vaultManager
                     .connect(strategyManagerSigner)
-                    .depositUsingStrategy(
+                    .investUsingStrategy(
                         await vault.getAddress(),
                         amountToDeposit,
                     )
@@ -66,7 +66,7 @@ describe('VaultManager#depositUsingStrategy', () => {
 
                 await vaultManager
                     .connect(strategyManagerSigner)
-                    .depositUsingStrategy(
+                    .investUsingStrategy(
                         await vault.getAddress(),
                         amountToDeposit,
                     )
@@ -85,7 +85,7 @@ describe('VaultManager#depositUsingStrategy', () => {
 
                 await vaultManager
                     .connect(strategyManagerSigner)
-                    .depositUsingStrategy(
+                    .investUsingStrategy(
                         await vault.getAddress(),
                         amountToDeposit,
                     )
@@ -102,7 +102,7 @@ describe('VaultManager#depositUsingStrategy', () => {
                 await expect(
                     vaultManager
                         .connect(strategyManagerSigner)
-                        .depositUsingStrategy(
+                        .investUsingStrategy(
                             await vault.getAddress(),
                             amountToDeposit,
                         ),
@@ -119,7 +119,7 @@ describe('VaultManager#depositUsingStrategy', () => {
                 await expect(
                     vaultManager
                         .connect(strategyManagerSigner)
-                        .depositUsingStrategy(
+                        .investUsingStrategy(
                             await vault.getAddress(),
                             amountToDeposit,
                         ),
@@ -129,12 +129,12 @@ describe('VaultManager#depositUsingStrategy', () => {
     })
 
     describe('given a non-strategy account', () => {
-        describe('when depositUsingStrategy is called', () => {
+        describe('when investUsingStrategy is called', () => {
             it('then transaction reverts with Unauthorized', async () => {
                 await expect(
                     vaultManager
                         .connect(account0)
-                        .depositUsingStrategy(
+                        .investUsingStrategy(
                             await vault.getAddress(),
                             amountToDeposit,
                         ),

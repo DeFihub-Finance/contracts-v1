@@ -151,7 +151,7 @@ contract DollarCostAverage is HubOwnable, UseFee, OnlyStrategyManager, Reentranc
         emit PoolCreated(poolId, _inputToken, _outputToken, _router, _path, _interval);
     }
 
-    function deposit(
+    function invest(
         uint208 _poolId,
         uint16 _swaps,
         uint _amount,
@@ -169,18 +169,18 @@ contract DollarCostAverage is HubOwnable, UseFee, OnlyStrategyManager, Reentranc
             _subscriptionPermit
         );
 
-        _deposit(_poolId, _swaps, _amount - depositFee);
+        _invest(_poolId, _swaps, _amount - depositFee);
     }
 
-    function depositUsingStrategy(
+    function investUsingStrategy(
         uint208 _poolId,
         uint16 _swaps,
         uint _amount
     ) external virtual onlyStrategyManager {
-        _deposit(_poolId, _swaps, _amount);
+        _invest(_poolId, _swaps, _amount);
     }
 
-    function _deposit(uint208 _poolId, uint16 _swaps, uint _amount) internal virtual {
+    function _invest(uint208 _poolId, uint16 _swaps, uint _amount) internal virtual {
         if (_poolId >= poolInfo.length)
             revert InvalidPoolId();
 
