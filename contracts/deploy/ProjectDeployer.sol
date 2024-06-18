@@ -77,27 +77,15 @@ contract ProjectDeployer is GenericDeployer {
         LiquidityManager.InitializeParams memory _liquidityManagerParams,
         ZapManager.InitializeParams memory _zapManagerParams
     ) external onlyOwner {
-        SubscriptionManager(subscriptionManager.proxy).initialize(_subscriptionManagerParams);
-
-        _strategyManagerParam.subscriptionManager = SubscriptionManager(subscriptionManager.proxy);
-        _strategyManagerParam.dca = DollarCostAverage(dca.proxy);
-        _strategyManagerParam.vaultManager = VaultManager(vaultManager.proxy);
-        _strategyManagerParam.zapManager = ZapManager(zapManager.proxy);
         StrategyManager(strategyManager.proxy).initialize(_strategyManagerParam);
 
-        _dcaParams.subscriptionManager = subscriptionManager.proxy;
-        _dcaParams.strategyManager = strategyManager.proxy;
+        // Products
         DollarCostAverage(dca.proxy).initialize(_dcaParams);
-
-        _vaultManagerParams.subscriptionManager = subscriptionManager.proxy;
-        _vaultManagerParams.strategyManager = strategyManager.proxy;
         VaultManager(vaultManager.proxy).initialize(_vaultManagerParams);
-
-        _liquidityManagerParams.subscriptionManager = subscriptionManager.proxy;
-        _liquidityManagerParams.strategyManager = strategyManager.proxy;
-        _liquidityManagerParams.zapManager = ZapManager(zapManager.proxy);
         LiquidityManager(liquidityManager.proxy).initialize(_liquidityManagerParams);
 
+        // Helpers
+        SubscriptionManager(subscriptionManager.proxy).initialize(_subscriptionManagerParams);
         ZapManager(zapManager.proxy).initialize(_zapManagerParams);
     }
 }
