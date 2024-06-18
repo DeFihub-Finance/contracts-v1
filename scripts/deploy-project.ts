@@ -23,7 +23,7 @@ import {
 } from '@src/helpers'
 
 const TREASURY_ADDR: string | undefined = '0xb7f74ba999134fbb75285173856a808732d8c888' // wallet 61
-const DCA_SWAPPER_ADDR: string | undefined = '0xa9ce4e7429931418d15cb2d8561372e62247b4cb' // defender relay
+const DCA_SWAPPER_ADDR: string | undefined = '0xa9ce4e7429931418d15cb2d8561372e62247b4cb' // TODO update with backend addr defender relay
 const SUBSCRIPTION_SIGNER_ADDR: string | undefined = '0x78dbb65d53566d27b5117532bd9aec6ae95e8db9' // mm signer
 const COMMAND_BUILDER_OPTIONS = { skip: '1' }
 
