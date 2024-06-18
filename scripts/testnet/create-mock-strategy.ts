@@ -33,7 +33,7 @@ async function createMockStrategy() {
     for (const strategy of mockStrategies) {
         try {
             if (commitMetadataToBackend) {
-                await ofetch('http://localhost:3333/strategies/metadata', {
+                await ofetch(process.env.DEFIHUB_API + '/strategies/metadata', {
                     method: 'POST',
                     body: {
                         name: strategy.name,
@@ -43,12 +43,13 @@ async function createMockStrategy() {
             }
 
             await sendTransaction(
-                await strategyManager.createStrategy.populateTransaction(
-                    strategy.dcaInvestments,
-                    strategy.vaultInvestments,
-                    signature,
-                    toKeccak256([strategy.name, strategy.bio]),
-                ),
+                await strategyManager.createStrategy.populateTransaction({
+                    dcaInvestments: strategy.dcaInvestments,
+                    vaultInvestments: strategy.vaultInvestments,
+                    liquidityInvestments: [],
+                    permit: signature,
+                    metadataHash: toKeccak256([strategy.name, strategy.bio]),
+                }),
                 deployer,
             )
         }
@@ -57,6 +58,8 @@ async function createMockStrategy() {
                 'error sending transaction:',
                 strategyManager.interface.parseError((e as { data: string }).data),
             )
+
+            throw e
         }
     }
 }
