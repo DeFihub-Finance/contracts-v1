@@ -101,6 +101,22 @@ export class ProjectDeployer {
             deployer,
         )
 
+        const [
+            strategyManager,
+            subscriptionManager,
+            dca,
+            vaultManager,
+            zapManager,
+            liquidityManager,
+        ] = (await Promise.all([
+            projectDeployer.strategyManager(),
+            projectDeployer.subscriptionManager(),
+            projectDeployer.dca(),
+            projectDeployer.vaultManager(),
+            projectDeployer.zapManager(),
+            projectDeployer.liquidityManager(),
+        ])).map(({ proxy }) => proxy)
+
         const subscriptionManagerInitParams: SubscriptionManager.InitializeParamsStruct = {
             owner: owner.address,
             treasury: treasury.address,
@@ -114,11 +130,11 @@ export class ProjectDeployer {
             treasury,
             investLib,
             stable: this.strategyDepositToken,
-            subscriptionManager: ZeroAddress,
-            dca: ZeroAddress,
-            vaultManager: ZeroAddress,
-            liquidityManager: ZeroAddress,
-            zapManager: ZeroAddress,
+            subscriptionManager,
+            dca,
+            vaultManager,
+            liquidityManager,
+            zapManager,
             maxHottestStrategies: 10n,
             strategistPercentage: 20n,
             hotStrategistPercentage: 40n,
@@ -128,8 +144,8 @@ export class ProjectDeployer {
             owner: owner.address,
             treasury: treasury.address,
             swapper: swapper.address,
-            strategyManager: ZeroAddress,
-            subscriptionManager: ZeroAddress,
+            strategyManager,
+            subscriptionManager,
             baseFeeBP: 70n,
             nonSubscriberFeeBP: 30n,
         }
@@ -137,8 +153,8 @@ export class ProjectDeployer {
         const vaultManagerInit: VaultManager.InitializeParamsStruct = {
             owner: owner.address,
             treasury: treasury.address,
-            strategyManager: ZeroAddress,
-            subscriptionManager: ZeroAddress,
+            strategyManager,
+            subscriptionManager,
             baseFeeBP: 70n,
             nonSubscriberFeeBP: 30n,
         }
@@ -146,9 +162,9 @@ export class ProjectDeployer {
         const liquidityManagerInit: LiquidityManager.InitializeParamsStruct = {
             owner: owner.address,
             treasury: treasury.address,
-            subscriptionManager: ZeroAddress,
-            strategyManager: ZeroAddress,
-            zapManager: ZeroAddress,
+            strategyManager,
+            subscriptionManager,
+            zapManager,
             baseFeeBP: 30n,
             nonSubscriberFeeBP: 30n,
         }
@@ -176,22 +192,6 @@ export class ProjectDeployer {
             ),
             deployer,
         )
-
-        const [
-            strategyManager,
-            subscriptionManager,
-            dca,
-            vaultManager,
-            zapManager,
-            liquidityManager,
-        ] = (await Promise.all([
-            projectDeployer.strategyManager(),
-            projectDeployer.subscriptionManager(),
-            projectDeployer.dca(),
-            projectDeployer.vaultManager(),
-            projectDeployer.zapManager(),
-            projectDeployer.liquidityManager(),
-        ])).map(({ proxy }) => proxy)
 
         return {
             // Contracts
