@@ -32,8 +32,8 @@ library InvestLib {
         IERC20Upgradeable token0;
         IERC20Upgradeable token1;
         uint24 fee;
-        uint16 pricePercentageThresholdBelow;
-        uint16 pricePercentageThresholdAbove;
+        uint16 lowerPricePercentage;
+        uint16 upperPricePercentage;
         uint8 percentage;
     }
 
