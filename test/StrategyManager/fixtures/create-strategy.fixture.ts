@@ -10,7 +10,7 @@ export const createStrategyFixture = async () => {
         account0,
         account1,
         account2,
-        token,
+        stablecoin,
         anotherToken,
         strategyManager,
         dcaStrategyPositions,
@@ -26,10 +26,10 @@ export const createStrategyFixture = async () => {
     // Approve StrategyManager to spend tokens //
     /////////////////////////////////////////////
     await Promise.all([
-        token.mint(await account1.getAddress(), parseEther('1000')),
-        token.connect(account1).approve(await strategyManager.getAddress(), parseEther('1000')),
-        token.mint(await account2.getAddress(), parseEther('1000')),
-        token.connect(account2).approve(await strategyManager.getAddress(), parseEther('1000')),
+        stablecoin.mint(await account1.getAddress(), parseEther('1000')),
+        stablecoin.connect(account1).approve(await strategyManager.getAddress(), parseEther('1000')),
+        stablecoin.mint(await account2.getAddress(), parseEther('1000')),
+        stablecoin.connect(account2).approve(await strategyManager.getAddress(), parseEther('1000')),
         anotherToken.connect(account1).mint(await account1.getAddress(), parseEther('1000')),
         anotherToken.connect(account1).approve(await strategyManager.getAddress(), parseEther('1000')),
     ])
@@ -52,7 +52,7 @@ export const createStrategyFixture = async () => {
     // Create strategy for swap and deposit test//
     //////////////////////////////////////////////
     await strategyManager.connect(account0).createStrategy({
-        dcaInvestments: [{ poolId: 2, swaps: 10, percentage: 66 }],
+        dcaInvestments: [{ poolId: 1, swaps: 10, percentage: 66 }],
         vaultInvestments: vaultStrategyPosition,
         liquidityInvestments: [], // todo
         permit: await subscriptionSignature.signSubscriptionPermit(
@@ -66,7 +66,7 @@ export const createStrategyFixture = async () => {
         account0,
         account1,
         account2,
-        token,
+        stablecoin,
         anotherToken,
         strategyManager,
         dcaStrategyPositions,

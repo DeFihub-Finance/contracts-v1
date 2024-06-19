@@ -122,7 +122,7 @@ async function deployProject() {
         owner: safe,
         treasury: TREASURY_ADDR || safe,
         stable: await stable.getAddress(),
-        investLib: investLib,
+        investLib,
         subscriptionManager: subscriptionManager.proxy,
         dca: dca.proxy,
         vaultManager: vaultManager.proxy,

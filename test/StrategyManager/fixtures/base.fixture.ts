@@ -18,7 +18,6 @@ import { UniswapV3 } from '@src/helpers'
 export const baseStrategyManagerFixture = async () => {
     const [deployer] = await ethers.getSigners()
     const stablecoin = await new TestERC20__factory(deployer).deploy()
-    const token = stablecoin // alias
     const anotherToken = await new TestERC20__factory(deployer).deploy()
 
     /////////////////////////////////////
@@ -45,20 +44,17 @@ export const baseStrategyManagerFixture = async () => {
     /////////////////////////////////////
     // Initialize investment contrats //
     ////////////////////////////////////
-    const vault = await deployVaultFixture(await token.getAddress())
+    const vault = await deployVaultFixture(await stablecoin.getAddress())
 
     await vaultManager.setVaultWhitelistStatus(await vault.getAddress(), true)
 
-    const TOKEN_IN = await token.getAddress()
-    const TOKEN_OUT = await weth.getAddress()
-
-    const path = new PathUniswapV3(TOKEN_IN, [{ token: TOKEN_OUT, fee: 3000 }])
+    const path = new PathUniswapV3(stablecoin, [{ token: weth, fee: 3000 }])
 
     await bootstrapDcaPoolLiquidity(
         deployer,
         factoryUniV3,
         positionManagerUniV3,
-        token,
+        stablecoin,
         weth,
         1,
         3000n,
@@ -68,28 +64,29 @@ export const baseStrategyManagerFixture = async () => {
 
     await Promise.all([
         dca.createPool(
-            TOKEN_IN,
-            TOKEN_OUT,
+            stablecoin,
+            weth,
             routerAddress,
             await path.encodedPath(),
             60 * 60 * 24, // 24 hours in seconds
         ),
-
+        // dca.createPool(
+        //     weth,
+        //     stablecoin,
+        //     routerAddress,
+        //     await new PathUniswapV3(
+        //         weth,
+        //         [{ token: stablecoin, fee: 3000 }],
+        //     ).encodedPath(),
+        //     60 * 60 * 24, // 24 hours in seconds
+        // ),
         dca.createPool(
-            TOKEN_IN,
-            TOKEN_OUT,
-            routerAddress,
-            await path.encodedPath(),
-            60 * 60 * 24, // 24 hours in seconds
-        ),
-
-        dca.createPool(
-            await anotherToken.getAddress(),
-            TOKEN_OUT,
+            anotherToken,
+            weth,
             routerAddress,
             await new PathUniswapV3(
-                await anotherToken.getAddress(),
-                [{ token: TOKEN_OUT, fee: 3000 }],
+                anotherToken,
+                [{ token: weth, fee: 3000 }],
             ).encodedPath(),
             60 * 60 * 24, // 24 hours in seconds
         ),
@@ -101,8 +98,8 @@ export const baseStrategyManagerFixture = async () => {
     const yearlySubscriptionPrice = subscriptionMonthlyPrice * 12n
 
     await Promise.all([
-        token.mint(account0, yearlySubscriptionPrice),
-        token.connect(account0).approve(subscriptionManager, yearlySubscriptionPrice),
+        stablecoin.mint(account0, yearlySubscriptionPrice),
+        stablecoin.connect(account0).approve(subscriptionManager, yearlySubscriptionPrice),
         anotherToken.mint(account0, yearlySubscriptionPrice),
         anotherToken.connect(account0).approve(subscriptionManager, yearlySubscriptionPrice),
     ])
@@ -126,8 +123,6 @@ export const baseStrategyManagerFixture = async () => {
     return {
         account0,
         dca,
-        token,
-        anotherToken,
         vault,
         subscriptionManager,
         strategyManager,
@@ -141,8 +136,9 @@ export const baseStrategyManagerFixture = async () => {
             subscriptionManager,
             subscriptionSigner,
         ),
-        weth,
         stablecoin,
+        weth,
+        anotherToken,
         routerUniV3,
         positionManagerUniV3,
         factoryUniV3,

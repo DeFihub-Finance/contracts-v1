@@ -71,10 +71,16 @@ contract DollarCostAverage is HubOwnable, UseFee, OnlyStrategyManager, Reentranc
     mapping(uint208 => mapping(uint16 => uint)) internal endingPositionDeduction;
     // @dev poolId => swap number => accumulated ratio
     mapping(uint208 => mapping(uint16 => uint)) internal accruedSwapQuoteByPool;
+    /*
+     * @dev tracks existing pools to prevent duplicate pool creation
+     * @dev input => output => interval => bool
+     */
+    mapping(address => mapping(address => mapping(uint => bool))) internal _existingPools;
 
     PoolInfo[] internal poolInfo;
     address public swapper;
 
+    error DuplicatePool();
     error InvalidPoolId();
     error InvalidAmount();
     error InvalidNumberOfSwaps();
@@ -134,6 +140,11 @@ contract DollarCostAverage is HubOwnable, UseFee, OnlyStrategyManager, Reentranc
             _router == address(0)
         )
             revert InvalidZeroAddress();
+
+        if (_existingPools[_inputToken][_outputToken][_interval])
+            revert DuplicatePool();
+
+        _existingPools[_inputToken][_outputToken][_interval] = true;
 
         uint208 poolId = uint208(poolInfo.length);
 
