@@ -33,8 +33,8 @@ import { UniswapV3 } from '@src/helpers'
 // => tries to withdrawAll all twice
 describe('DCA#withdrawAll', () => {
     let dca: DollarCostAverage
-    let tokenIn: TestERC20
-    let tokenOut: TestERC20
+    let stablecoin: TestERC20
+    let weth: TestERC20
     let quoterUniV3: Quoter
 
     let account0: Signer
@@ -48,14 +48,14 @@ describe('DCA#withdrawAll', () => {
     let POOL_FEE: bigint
     let TWENTY_FOUR_HOURS_IN_SECONDS: number
 
-    const tokenOutBalance = async () => tokenOut.balanceOf(await account0.getAddress())
-    const tokenInBalance = async () => tokenIn.balanceOf(await account0.getAddress())
+    const tokenOutBalance = async () => weth.balanceOf(await account0.getAddress())
+    const tokenInBalance = async () => stablecoin.balanceOf(await account0.getAddress())
 
     beforeEach(async () => {
         ({
             dca,
-            tokenIn,
-            tokenOut,
+            stablecoin,
+            weth,
             account0,
             swapper,
             positionParams,
@@ -83,8 +83,8 @@ describe('DCA#withdrawAll', () => {
         it('withdraws all tokens when position is halfway through', async () => {
             const expectedAmountOut = await UniswapV3.getOutputTokenAmount(
                 quoterUniV3,
-                tokenIn,
-                tokenOut,
+                stablecoin,
+                weth,
                 POOL_FEE,
                 positionParams.depositAmount / 2n,
             )
@@ -121,8 +121,8 @@ describe('DCA#withdrawAll', () => {
         it('withdraws all tokens when position finishes', async () => {
             const expectedAmountOut = await UniswapV3.getOutputTokenAmount(
                 quoterUniV3,
-                tokenIn,
-                tokenOut,
+                stablecoin,
+                weth,
                 POOL_FEE,
                 positionParams.depositAmount,
             )
@@ -291,13 +291,13 @@ describe('DCA#withdrawAll', () => {
 
             const account0Address = await account0.getAddress()
 
-            const tokenInBalanceBefore = await tokenIn.balanceOf(account0Address)
-            const tokenOutBalanceBefore = await tokenOut.balanceOf(account0Address)
+            const tokenInBalanceBefore = await stablecoin.balanceOf(account0Address)
+            const tokenOutBalanceBefore = await weth.balanceOf(account0Address)
 
             await dca.connect(account0).withdrawAll(positionParams.poolId)
 
-            const tokenInBalanceAfter = await tokenIn.balanceOf(account0Address)
-            const tokenOutBalanceAfter = await tokenOut.balanceOf(account0Address)
+            const tokenInBalanceAfter = await stablecoin.balanceOf(account0Address)
+            const tokenOutBalanceAfter = await weth.balanceOf(account0Address)
 
             expect(tokenInBalanceBefore).to.be.deep.equal(tokenInBalanceAfter)
             expect(tokenOutBalanceBefore).to.be.deep.equal(tokenOutBalanceAfter)
