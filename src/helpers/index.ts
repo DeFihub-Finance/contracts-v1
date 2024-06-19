@@ -1,4 +1,3 @@
-export * from './defender'
 export * from './deployment-helpers'
 export * from './Slippage'
 export * from './transaction'
