@@ -1,6 +1,6 @@
 import { PathUniswapV3 } from '@defihub/shared'
 import { DollarCostAverage, TestERC20 } from '@src/typechain'
-import { Signer } from 'ethers'
+import { Signer, ZeroAddress } from 'ethers'
 import { expect } from 'chai'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import { PositionParams, baseDcaFixture } from './fixtures/base.fixture'
@@ -24,9 +24,8 @@ describe('DCA#setters', () => {
     let positionParams: PositionParams
     let wbtc: TestERC20
 
-    let tokenIn: TestERC20
-    let tokenOut: TestERC20
-    const ZERO = '0x0000000000000000000000000000000000000000'
+    let stablecoin: TestERC20
+    let weth: TestERC20
 
     beforeEach(async () => {
         ({
@@ -34,8 +33,8 @@ describe('DCA#setters', () => {
             account1,
             account2,
             positionParams,
-            tokenIn,
-            tokenOut,
+            stablecoin,
+            weth,
             wbtc,
         } = await loadFixture(baseDcaFixture))
     })
@@ -57,10 +56,10 @@ describe('DCA#setters', () => {
 
         it('sets a new path for a given pool', async () => {
             const newPath = new PathUniswapV3(
-                tokenIn,
+                stablecoin,
                 [
                     { fee: 3000, token: wbtc },
-                    { fee: 3000, token: tokenOut },
+                    { fee: 3000, token: weth },
                 ],
             )
             const encodedNewPath = await newPath.encodedPath()
@@ -114,19 +113,19 @@ describe('DCA#setters', () => {
 
     describe('REVERTS', () => {
         it('if router address is 0x0', async () => {
-            const tx = dca.setPoolRouter(positionParams.poolId, ZERO)
+            const tx = dca.setPoolRouter(positionParams.poolId, ZeroAddress)
 
             await expect(tx).to.revertedWithCustomError(dca, 'InvalidZeroAddress')
         })
 
         it('if treasury address is 0x0', async () => {
-            const tx = dca.setTreasury(ZERO)
+            const tx = dca.setTreasury(ZeroAddress)
 
             await expect(tx).to.revertedWithCustomError(dca, 'InvalidZeroAddress')
         })
 
         it('if treasury address is 0x0', async () => {
-            const tx = dca.setSwapper(ZERO)
+            const tx = dca.setSwapper(ZeroAddress)
 
             await expect(tx).to.revertedWithCustomError(dca, 'InvalidZeroAddress')
         })
@@ -138,7 +137,7 @@ describe('DCA#setters', () => {
         })
 
         it('if poolPath[0] is different than tokenIn', async () => {
-            const newPath = new PathUniswapV3(wbtc, [{ fee: 3000, token: tokenOut }])
+            const newPath = new PathUniswapV3(wbtc, [{ fee: 3000, token: weth }])
 
             const tx = dca.setPoolPath(positionParams.poolId, await newPath.encodedPath())
 
@@ -146,7 +145,7 @@ describe('DCA#setters', () => {
         })
 
         it('if poolPath[length - 1] is different than tokenOut', async () => {
-            const newPath = new PathUniswapV3(tokenIn, [{ fee: 3000, token: wbtc }])
+            const newPath = new PathUniswapV3(stablecoin, [{ fee: 3000, token: wbtc }])
 
             const tx = dca.setPoolPath(positionParams.poolId, await newPath.encodedPath())
 

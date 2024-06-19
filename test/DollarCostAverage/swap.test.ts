@@ -23,9 +23,9 @@ import { UniswapV3 } from '@src/helpers'
 // => if swap occur when there's no tokens to be traded
 // => if poolId doesn't exist
 describe('DCA#swap', () => {
-    let tokenIn: TestERC20
+    let stablecoin: TestERC20
+    let weth: TestERC20
     let POOL_FEE: bigint
-    let tokenOut: TestERC20
 
     let dca: DollarCostAverage
     let account1: Signer
@@ -41,10 +41,9 @@ describe('DCA#swap', () => {
     beforeEach(async () => {
         ({
             dca,
-            tokenOut,
             account1,
-            tokenIn,
-            tokenOut,
+            stablecoin,
+            weth,
             swapper,
             positionParams,
             quoterUniV3,
@@ -52,12 +51,12 @@ describe('DCA#swap', () => {
             POOL_FEE,
         } = await loadFixture(createDepositFixture))
 
-        dcaOutputTokenBalanceBefore = await tokenOut.balanceOf(await dca.getAddress())
+        dcaOutputTokenBalanceBefore = await weth.balanceOf(await dca.getAddress())
 
         expectedSwapAmountOut = await UniswapV3.getOutputTokenAmount(
             quoterUniV3,
-            tokenIn,
-            tokenOut,
+            stablecoin,
+            weth,
             POOL_FEE,
             positionParams.depositAmount / positionParams.swaps,
         )
@@ -75,7 +74,7 @@ describe('DCA#swap', () => {
                 },
             ])
 
-            const dcaOutputTokenBalanceDelta = (await tokenOut.balanceOf(dca)) - dcaOutputTokenBalanceBefore
+            const dcaOutputTokenBalanceDelta = (await weth.balanceOf(dca)) - dcaOutputTokenBalanceBefore
 
             expect(dcaOutputTokenBalanceDelta).to.be.gte(expectedMinAmountOut)
         })

@@ -9,9 +9,9 @@ describe('DCA#createPool', () => {
     let account0: Signer
     let dca: DollarCostAverage
     let routerUniV3: SwapRouter
+    let stablecoin: TestERC20
     let wbtc: TestERC20
-    let tokenIn: TestERC20
-    let tokenOut: TestERC20
+    let weth: TestERC20
 
     let TWENTY_FOUR_HOURS_IN_SECONDS: number
     let path: PathUniswapV3
@@ -23,30 +23,37 @@ describe('DCA#createPool', () => {
             account0,
             dca,
             path,
+            stablecoin,
             wbtc,
-            tokenIn,
-            tokenOut,
+            weth,
             routerUniV3,
             TWENTY_FOUR_HOURS_IN_SECONDS,
         } = await loadFixture(baseDcaFixture))
 
-        encodedSingleHopPath = await new PathUniswapV3(tokenIn, [{ token: tokenOut, fee: 3000 }])
-            .encodedPath()
+        encodedSingleHopPath = await new PathUniswapV3(
+            stablecoin,
+            [{ token: weth, fee: 3000 }],
+        ).encodedPath()
     })
 
     describe('EFFECTS', () => {
         let poolId: bigint
+        let reversePoolPath: string
 
         beforeEach(async () => {
             poolId = await dca.getPoolsLength()
+            reversePoolPath = await new PathUniswapV3(
+                weth,
+                [{ token: stablecoin, fee: 3_000 }],
+            ).encodedPath()
         })
 
         it('creates a new pool', async () => {
             await dca.createPool(
-                tokenIn,
-                tokenOut,
+                weth,
+                stablecoin,
                 routerUniV3,
-                await path.encodedPath(),
+                reversePoolPath,
                 TWENTY_FOUR_HOURS_IN_SECONDS,
             )
 
@@ -63,29 +70,29 @@ describe('DCA#createPool', () => {
                 dca.poolPath(poolId),
             ])
 
-            expect(inputToken).to.be.equal(tokenIn)
-            expect(outputToken).to.be.equal(tokenOut)
+            expect(inputToken).to.be.equal(weth)
+            expect(outputToken).to.be.equal(stablecoin)
             expect(router).to.be.equal(routerUniV3)
-            expect(poolPath).to.be.deep.equal(encodedSingleHopPath)
+            expect(poolPath).to.be.deep.equal(reversePoolPath.toLowerCase())
             expect(nextSwapAmount).to.be.equals(0n)
             expect(performedSwaps).to.be.equals(0n)
         })
 
-        it('emit CreatePosition after position created', async () => {
+        it('emit PoolCreated after pool is created', async () => {
             const tx = dca.createPool(
-                tokenIn,
-                tokenOut,
+                weth,
+                stablecoin,
                 routerUniV3,
-                await path.encodedPath(),
+                reversePoolPath,
                 TWENTY_FOUR_HOURS_IN_SECONDS,
             )
 
             await expect(tx).to.emit(dca, 'PoolCreated').withArgs(
                 poolId,
-                tokenIn,
-                tokenOut,
+                weth,
+                stablecoin,
                 routerUniV3,
-                encodedSingleHopPath.toLowerCase(),
+                reversePoolPath.toLowerCase(),
                 TWENTY_FOUR_HOURS_IN_SECONDS,
             )
         })
@@ -94,12 +101,12 @@ describe('DCA#createPool', () => {
     describe('REVERTS', () => {
         it('if poolPath[0] is different than tokenIn', async () => {
             const tx = dca.createPool(
-                tokenIn,
-                tokenOut,
+                stablecoin,
+                weth,
                 routerUniV3,
                 await new PathUniswapV3(
                     wbtc,
-                    [{ token: tokenOut, fee: 3000 }],
+                    [{ token: weth, fee: 3000 }],
                 ).encodedPath(),
                 TWENTY_FOUR_HOURS_IN_SECONDS,
             )
@@ -109,11 +116,11 @@ describe('DCA#createPool', () => {
 
         it('if poolPath[length - 1] is different than tokenOut', async () => {
             const tx = dca.createPool(
-                tokenIn,
-                tokenOut,
+                stablecoin,
+                weth,
                 routerUniV3,
                 await new PathUniswapV3(
-                    tokenIn,
+                    stablecoin,
                     [{ token: wbtc, fee: 3000 }],
                 ).encodedPath(),
                 TWENTY_FOUR_HOURS_IN_SECONDS,
@@ -124,8 +131,8 @@ describe('DCA#createPool', () => {
 
         it('if EOA is not owner', async () => {
             const tx = dca.connect(account0).createPool(
-                tokenIn,
-                tokenOut,
+                stablecoin,
+                weth,
                 routerUniV3,
                 await path.encodedPath(),
                 TWENTY_FOUR_HOURS_IN_SECONDS,
@@ -136,8 +143,8 @@ describe('DCA#createPool', () => {
 
         it ('if interval in less than the min interval', async () => {
             const tx = dca.createPool(
-                tokenIn,
-                tokenOut,
+                stablecoin,
+                weth,
                 routerUniV3,
                 await path.encodedPath(),
                 60 * 60,

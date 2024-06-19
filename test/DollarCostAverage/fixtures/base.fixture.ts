@@ -63,15 +63,13 @@ export const baseDcaFixture = async () => {
 
     const path = new PathUniswapV3(stablecoin, [{ token: weth, fee: POOL_FEE }])
 
-    for (let i = 0; i < 30; i++) {
-        await dca.createPool(
-            stablecoin,
-            weth,
-            routerUniV3,
-            await path.encodedPath(),
-            TWENTY_FOUR_HOURS_IN_SECONDS,
-        )
-    }
+    await dca.createPool(
+        stablecoin,
+        weth,
+        routerUniV3,
+        await path.encodedPath(),
+        TWENTY_FOUR_HOURS_IN_SECONDS,
+    )
 
     const positionParams: PositionParams = {
         depositAmount: BigInt(parseEther('1000')),
@@ -91,8 +89,7 @@ export const baseDcaFixture = async () => {
         // Contracts
         dca,
         path,
-        tokenIn: stablecoin,
-        tokenOut: weth,
+        stablecoin,
         weth,
         routerUniV3,
 

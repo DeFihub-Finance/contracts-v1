@@ -28,8 +28,8 @@ describe('DCA#withdrawSwapped', () => {
     let account0: Signer
     let swapper: Signer
     let dca: DollarCostAverage
-    let tokenIn: TestERC20
-    let tokenOut: TestERC20
+    let stablecoin: TestERC20
+    let weth: TestERC20
     let userOutputTokenBalanceBefore: bigint
     let positionParams: PositionParams
     let quoterUniV3: Quoter
@@ -37,18 +37,17 @@ describe('DCA#withdrawSwapped', () => {
     let POOL_FEE: bigint
     let TWENTY_FOUR_HOURS_IN_SECONDS: number
 
-    const tokenOutBalance = async () => tokenOut.balanceOf(await account0.getAddress())
+    const tokenOutBalance = async () => weth.balanceOf(await account0.getAddress())
 
     beforeEach(async () => {
         ({
             dca,
             account0,
             swapper,
-            tokenOut,
             positionParams,
             quoterUniV3,
-            tokenIn,
-            tokenOut,
+            stablecoin,
+            weth,
             POOL_FEE,
             TWENTY_FOUR_HOURS_IN_SECONDS,
         } = await loadFixture(createDepositFixture))
@@ -68,8 +67,8 @@ describe('DCA#withdrawSwapped', () => {
         it('withdraws swapped tokens when position is halfway through', async () => {
             const expectedAmountOut = await UniswapV3.getOutputTokenAmount(
                 quoterUniV3,
-                tokenIn,
-                tokenOut,
+                stablecoin,
+                weth,
                 POOL_FEE,
                 positionParams.depositAmount / 2n,
             )
@@ -100,8 +99,8 @@ describe('DCA#withdrawSwapped', () => {
         it('withdraws swapped tokens when position finishes', async () => {
             const expectedAmountOut = await UniswapV3.getOutputTokenAmount(
                 quoterUniV3,
-                tokenIn,
-                tokenOut,
+                stablecoin,
+                weth,
                 POOL_FEE,
                 positionParams.depositAmount,
             )
