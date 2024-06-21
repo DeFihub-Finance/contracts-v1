@@ -75,12 +75,12 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
     }
 
     struct PullFundsParams {
-        address strategist;
         uint strategyId;
         IERC20Upgradeable inputToken;
         uint inputAmount;
         bytes inputTokenSwap;
-        SubscriptionManager.Permit permit;
+        SubscriptionManager.Permit investorPermit;
+        SubscriptionManager.Permit strategistPermit;
     }
 
     struct PullFundsResult {
@@ -256,9 +256,6 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
             revert StrategyUnavailable();
 
         Strategy storage strategy = _strategies[_params.strategyId];
-        address strategist = subscriptionManager.isSubscribed(strategy.creator, _params.strategistPermit)
-            ? strategy.creator
-            : address(0);
 
         // max approve is safe since zapManager is a trusted contract
         if (_params.inputToken.allowance(address(this), address(zapManager)) < _params.inputAmount)
@@ -266,12 +263,12 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
 
         PullFundsResult memory pullFundsResult = _pullFunds(
             PullFundsParams({
-                strategist: strategist,
                 strategyId: _params.strategyId,
                 inputToken: _params.inputToken,
                 inputAmount: _params.inputAmount,
                 inputTokenSwap: _params.inputTokenSwap,
-                permit: _params.investorPermit
+                investorPermit: _params.investorPermit,
+                strategistPermit: _params.strategistPermit
             })
         );
 
@@ -539,9 +536,8 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
     ) {
         Strategy storage strategy = _strategies[_params.strategyId];
 
-        uint currentStrategistPercentage = isHot(_params.strategyId)
-            ? hotStrategistPercentage
-            : strategistPercentage;
+        bool strategistSubscribed = subscriptionManager.isSubscribed(strategy.creator, _params.strategistPermit);
+        bool userSubscribed = subscriptionManager.isSubscribed(msg.sender, _params.investorPermit);
         uint initialInputTokenBalance = _params.inputToken.balanceOf(address(this));
 
         _params.inputToken.safeTransferFrom(msg.sender, address(this), _params.inputAmount);
@@ -556,57 +552,37 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
                 _params.inputToken.balanceOf(address(this)) - initialInputTokenBalance
             );
 
-        uint protocolFee;
+        uint totalFeePercentage;
+
+        if (strategy.percentages[PRODUCT_DCA] > 0)
+            totalFeePercentage = dca.getFeePercentage(userSubscribed) * strategy.percentages[PRODUCT_DCA];
+
+        if (strategy.percentages[PRODUCT_VAULTS] > 0)
+            totalFeePercentage += vaultManager.getFeePercentage(userSubscribed) * strategy.percentages[PRODUCT_VAULTS];
+
+        if (strategy.percentages[PRODUCT_LIQUIDITY] > 0)
+            totalFeePercentage += liquidityManager.getFeePercentage(userSubscribed) * strategy.percentages[PRODUCT_LIQUIDITY];
+
+        // Divided by multiplier 10_000 (fee percentage) * 100 (strategy percentage per investment) = 1M
+        uint totalFee = stableAmount * totalFeePercentage / 1_000_000;
         uint strategistFee;
 
-        if (strategy.percentages[PRODUCT_DCA] > 0) {
-            (uint _protocolFee, uint _strategistFee) = _calculateProductFee(
-                address(dca),
-                msg.sender,
-                _params.strategist,
-                stableAmount * strategy.percentages[PRODUCT_DCA] / 100,
-                currentStrategistPercentage,
-                _params.permit
-            );
+        if (strategistSubscribed) {
+            uint currentStrategistPercentage = isHot(_params.strategyId)
+                ? hotStrategistPercentage
+                : strategistPercentage;
 
-            protocolFee += _protocolFee;
-            strategistFee += _strategistFee;
+            strategistFee = totalFee * currentStrategistPercentage / 100;
         }
 
-        if (strategy.percentages[PRODUCT_VAULTS] > 0) {
-            (uint _protocolFee, uint _strategistFee) = _calculateProductFee(
-                address(vaultManager),
-                msg.sender,
-                _params.strategist,
-                stableAmount * strategy.percentages[PRODUCT_VAULTS] / 100,
-                currentStrategistPercentage,
-                _params.permit
-            );
-
-            protocolFee += _protocolFee;
-            strategistFee += _strategistFee;
-        }
-
-        if (strategy.percentages[PRODUCT_LIQUIDITY] > 0) {
-            (uint _protocolFee, uint _strategistFee) = _calculateProductFee(
-                address(liquidityManager),
-                msg.sender,
-                _params.strategist,
-                stableAmount * strategy.percentages[PRODUCT_LIQUIDITY] / 100,
-                currentStrategistPercentage,
-                _params.permit
-            );
-
-            protocolFee += _protocolFee;
-            strategistFee += _strategistFee;
-        }
+        uint protocolFee = totalFee - strategistFee;
 
         stable.safeTransfer(treasury, protocolFee);
 
         if (strategistFee > 0) {
-            _strategistRewards[_params.strategist] += strategistFee;
+            _strategistRewards[strategy.creator] += strategistFee;
 
-            emit UseFee.Fee(msg.sender, _params.strategist, strategistFee, abi.encode(_params.strategyId));
+            emit UseFee.Fee(msg.sender, strategy.creator, strategistFee, abi.encode(_params.strategyId));
         }
 
         emit UseFee.Fee(msg.sender, treasury, protocolFee, abi.encode(_params.strategyId));

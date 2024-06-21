@@ -42,6 +42,12 @@ abstract contract UseFee is OwnableUpgradeable, UseTreasury {
         );
     }
 
+    function getFeePercentage(
+        bool _subscribed
+    ) external view returns (uint) {
+        return _subscribed ? baseFeeBP : baseFeeBP + nonSubscriberFeeBP;
+    }
+
     function _getBaseFee(
         uint _amount
     ) private view returns (uint) {
