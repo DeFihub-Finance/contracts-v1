@@ -8,6 +8,7 @@ import {
     BeefyMockStrategy__factory,
     BeefyVaultV7__factory,
     DollarCostAverage,
+    LiquidityManager,
     StrategyManager,
     SubscriptionManager,
     TestERC20,
@@ -19,11 +20,12 @@ import {
 import { expect } from 'chai'
 import { AddressLike, parseEther, Signer, ZeroHash } from 'ethers'
 import hre from 'hardhat'
-import { Fees, PathUniswapV3 } from '@defihub/shared'
+import { PathUniswapV3 } from '@defihub/shared'
 import { BigNumber } from '@ryze-blockchain/ethereum'
 import { Compare } from '@src/Compare'
 import { zapFixture } from './fixtures/zap.fixture'
 import { decodeLowLevelCallError } from '@src/helpers'
+import { Fees } from '@src/helpers/Fees'
 
 describe('StrategyManager#invest (zap)', () => {
     const amount = parseEther('1000')
@@ -49,6 +51,7 @@ describe('StrategyManager#invest (zap)', () => {
     let strategyManager: StrategyManager
     let dca: DollarCostAverage
     let vaultManager: VaultManager
+    let liquidityManager: LiquidityManager
     let zapManager: ZapManager
 
     // external test contracts
@@ -94,6 +97,7 @@ describe('StrategyManager#invest (zap)', () => {
             strategyManager,
             dca,
             vaultManager,
+            liquidityManager,
             zapManager,
 
             // external test contracts
@@ -136,14 +140,14 @@ describe('StrategyManager#invest (zap)', () => {
                 tolerance,
             })
 
-            const { protocolFee, strategistFee } = await strategyManager.calculateFee(
-                strategyId,
-                dca,
+            const { protocolFee, strategistFee } = await Fees.getStrategyFeeAmount(
                 amount,
-                account0,
-                account0,
-                permitAccount0,
-                permitAccount0,
+                strategyManager,
+                strategyId,
+                true,
+                dca,
+                vaultManager,
+                liquidityManager,
             )
 
             expect(await stablecoin.balanceOf(treasury)).to.equal(initialTreasuryBalance + protocolFee)
@@ -178,13 +182,13 @@ describe('StrategyManager#invest (zap)', () => {
             await stablecoin.connect(account0).approve(strategyManager, amount)
 
             amountPerInvestmentMinusFees = await Fees.deductStrategyFee(
+                amount * 50n / 100n,
                 strategyManager,
                 strategyId,
+                true,
                 dca,
-                amount * 50n / 100n,
-                account0,
-                permitAccount0,
-                hre.ethers.provider,
+                vaultManager,
+                liquidityManager,
             )
         })
 
@@ -282,7 +286,15 @@ describe('StrategyManager#invest (zap)', () => {
         })
 
         it('fails with 0% slippage', async () => {
-            const amountPerInvestment = amount * 50n / 100n
+            const amountPerInvestmentMinusFees = await Fees.deductStrategyFee(
+                amount * 50n / 100n,
+                strategyManager,
+                strategyId,
+                true,
+                dca,
+                vaultManager,
+                liquidityManager,
+            )
 
             try {
                 await strategyManager
@@ -295,15 +307,7 @@ describe('StrategyManager#invest (zap)', () => {
                         dcaSwaps: [
                             '0x',
                             await uniswapV2ZapHelper.encodeSwap(
-                                await Fees.deductStrategyFee(
-                                    strategyManager,
-                                    strategyId,
-                                    dca,
-                                    amountPerInvestment,
-                                    account0,
-                                    permitAccount0,
-                                    hre.ethers.provider,
-                                ),
+                                amountPerInvestmentMinusFees,
                                 stablecoin,
                                 wbtc,
                                 USD_PRICE_BN,
@@ -356,13 +360,13 @@ describe('StrategyManager#invest (zap)', () => {
             await stablecoin.connect(account0).approve(strategyManager, amount)
 
             amountPerInvestmentMinusFees = await Fees.deductStrategyFee(
+                amount * 50n / 100n,
                 strategyManager,
                 strategyId,
+                true,
                 dca,
-                amount * 50n / 100n,
-                account0,
-                permitAccount0,
-                hre.ethers.provider,
+                vaultManager,
+                liquidityManager,
             )
         })
 
@@ -511,13 +515,13 @@ describe('StrategyManager#invest (zap)', () => {
             await stablecoin.connect(account0).approve(strategyManager, amount)
 
             amountPerInvestmentMinusFees = await Fees.deductStrategyFee(
+                amount * 25n / 100n,
                 strategyManager,
                 strategyId,
+                true,
                 dca,
-                amount * 25n / 100n,
-                account0,
-                permitAccount0,
-                hre.ethers.provider,
+                vaultManager,
+                liquidityManager,
             )
         })
 

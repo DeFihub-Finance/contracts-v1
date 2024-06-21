@@ -485,33 +485,6 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         return _hottestStrategiesMapping[_strategyId];
     }
 
-    function calculateFee(
-        uint _strategyId,
-        address _product,
-        uint _amount,
-        address _investor,
-        address _strategist,
-        SubscriptionManager.Permit calldata _investorPermit,
-        SubscriptionManager.Permit calldata _strategistPermit
-    ) external view returns (uint protocolFee, uint strategistFee) {
-        uint currentStrategistPercentage = isHot(_strategyId)
-            ? hotStrategistPercentage
-            : strategistPercentage;
-
-        address strategist = subscriptionManager.isSubscribed(_strategist, _strategistPermit)
-            ? _strategist
-            : address(0);
-
-        (protocolFee, strategistFee) = _calculateProductFee(
-            _product,
-            _investor,
-            strategist,
-            _amount,
-            currentStrategistPercentage,
-            _investorPermit
-        );
-    }
-
     /**
      * ----- Internal functions -----
      */
@@ -591,42 +564,6 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
             stableAmount - (protocolFee + strategistFee),
             strategistFee
         );
-    }
-
-    /**
-     * @dev Takes the base fee of a product and splits it between the protocol and strategist fees by applying the current strategist percentage.
-     *
-     * @param _product The product to calculate the fee for
-     * @param _investor The user that is paying the fee
-     * @param _strategist The strategist that created the strategy
-     * @param _amount The amount being deposited into the product
-     * @param _currentStrategistPercentage Percentage based on the strategy being one of the hottest deals
-     * @param _permit The permit to check if the user is subscribed
-     *
-     * @return protocolFee The fee that goes to the protocol
-     * @return strategistFee The fee that goes to the strategy creator
-     **/
-    function _calculateProductFee(
-        address _product,
-        address _investor,
-        address _strategist,
-        uint _amount,
-        uint _currentStrategistPercentage,
-        SubscriptionManager.Permit memory _permit
-    ) internal virtual view returns (
-        uint protocolFee,
-        uint strategistFee
-    ) {
-        (uint baseFee, uint nonSubscriberFee) = UseFee(_product).calculateFee(
-            _investor,
-            _amount,
-            _permit
-        );
-
-        strategistFee = _strategist != address(0)
-            ? baseFee * _currentStrategistPercentage / 100
-            : 0;
-        protocolFee = baseFee - strategistFee + nonSubscriberFee;
     }
 
     /**

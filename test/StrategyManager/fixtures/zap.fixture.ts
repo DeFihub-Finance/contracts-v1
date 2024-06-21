@@ -44,6 +44,7 @@ export async function zapFixture() {
         strategyManager,
         dca,
         vaultManager,
+        liquidityManager,
         subscriptionManager,
         zapManager,
 
@@ -60,18 +61,8 @@ export async function zapFixture() {
         subscriptionSignerAccount,
     )
 
-    const uniswapV2ZapHelper = new UniswapV2ZapHelper(
-        zapManager,
-        strategyManager,
-        subscriptionManager,
-        subscriptionSignerAccount,
-    )
-    const uniswapV3ZapHelper = new UniswapV3ZapHelper(
-        zapManager,
-        strategyManager,
-        subscriptionManager,
-        subscriptionSignerAccount,
-    )
+    const uniswapV2ZapHelper = new UniswapV2ZapHelper()
+    const uniswapV3ZapHelper = new UniswapV3ZapHelper()
     const permitAccount0 = await subscriptionSignerHelper
         .signSubscriptionPermit(account0, deadline, chainId)
 
@@ -182,6 +173,7 @@ export async function zapFixture() {
         strategyManager,
         dca,
         vaultManager,
+        liquidityManager,
         subscriptionManager,
         zapManager,
 
