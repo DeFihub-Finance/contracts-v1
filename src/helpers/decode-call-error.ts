@@ -3,6 +3,7 @@ import { decodeLowLevelCallError as _decodeLowLevelCallError } from '@defihub/sh
 import {
     DollarCostAverage__factory,
     InvestLib__factory,
+    LiquidityManager__factory,
     StrategyManager__factory,
     SubscriptionManager__factory,
     VaultManager__factory,
@@ -16,7 +17,7 @@ const contractInterfaces = [
     VaultManager__factory.createInterface(),
     ZapManager__factory.createInterface(),
     InvestLib__factory.createInterface(),
-    // TODO add liquidity manager interface
+    LiquidityManager__factory.createInterface(),
 ]
 
 export function decodeLowLevelCallError(error: unknown): string | ErrorDescription | undefined {

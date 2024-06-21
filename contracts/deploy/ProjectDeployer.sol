@@ -9,14 +9,29 @@ import {SubscriptionManager} from '../SubscriptionManager.sol';
 import {StrategyManager} from '../StrategyManager.sol';
 import {DollarCostAverage} from '../DollarCostAverage.sol';
 import {VaultManager} from '../VaultManager.sol';
+import {LiquidityManager} from '../LiquidityManager.sol';
 import {ZapManager} from '../zap/ZapManager.sol';
 
 contract ProjectDeployer is GenericDeployer {
-    ProxyAddress public subscriptionManager;
+    // Strategies
+    address public investLib;
     ProxyAddress public strategyManager;
+
+    // Products
     ProxyAddress public dca;
     ProxyAddress public vaultManager;
+    ProxyAddress public liquidityManager;
+
+    // Helpers
+    ProxyAddress public subscriptionManager;
     ProxyAddress public zapManager;
+
+    function deployInvestLib(
+        bytes memory _code,
+        bytes32 _salt
+    ) external onlyOwner {
+        investLib = deploy(_code, _salt);
+    }
 
     function deployStrategyManager(
         ProxyDeploymentInfo calldata _strategyManagerDeploymentInfo
@@ -42,6 +57,12 @@ contract ProjectDeployer is GenericDeployer {
         vaultManager = deployProxy(_vaultManagerDeploymentInfo);
     }
 
+    function deployLiquidityManager(
+        ProxyDeploymentInfo calldata _liquidityManagerDeploymentInfo
+    ) external onlyOwner {
+        liquidityManager = deployProxy(_liquidityManagerDeploymentInfo);
+    }
+
     function deployZapManager(
         ProxyDeploymentInfo calldata _zapManagerInfo
     ) external onlyOwner {
@@ -53,24 +74,18 @@ contract ProjectDeployer is GenericDeployer {
         StrategyManager.InitializeParams memory _strategyManagerParam,
         DollarCostAverage.InitializeParams memory _dcaParams,
         VaultManager.InitializeParams memory _vaultManagerParams,
+        LiquidityManager.InitializeParams memory _liquidityManagerParams,
         ZapManager.InitializeParams memory _zapManagerParams
     ) external onlyOwner {
-        SubscriptionManager(subscriptionManager.proxy).initialize(_subscriptionManagerParams);
-
-        _strategyManagerParam.subscriptionManager = SubscriptionManager(subscriptionManager.proxy);
-        _strategyManagerParam.dca = DollarCostAverage(dca.proxy);
-        _strategyManagerParam.vaultManager = VaultManager(vaultManager.proxy);
-        _strategyManagerParam.zapManager = ZapManager(zapManager.proxy);
         StrategyManager(strategyManager.proxy).initialize(_strategyManagerParam);
 
-        _dcaParams.subscriptionManager = subscriptionManager.proxy;
-        _dcaParams.strategyManager = strategyManager.proxy;
+        // Products
         DollarCostAverage(dca.proxy).initialize(_dcaParams);
-
-        _vaultManagerParams.subscriptionManager = subscriptionManager.proxy;
-        _vaultManagerParams.strategyManager = strategyManager.proxy;
         VaultManager(vaultManager.proxy).initialize(_vaultManagerParams);
+        LiquidityManager(liquidityManager.proxy).initialize(_liquidityManagerParams);
 
+        // Helpers
+        SubscriptionManager(subscriptionManager.proxy).initialize(_subscriptionManagerParams);
         ZapManager(zapManager.proxy).initialize(_zapManagerParams);
     }
 }

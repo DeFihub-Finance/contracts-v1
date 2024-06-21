@@ -31,7 +31,7 @@ export async function getGenericDeployer(deployer: Signer) {
     return genericDeployer
 }
 
-export function getImplementationHash(saltBuilder: Salt, contract: string) {
+export function getImplementationSalt(saltBuilder: Salt, contract: string) {
     return saltBuilder.getImplementationSalt(
         contract,
         { saveAs: contract + 'Implementation' },
@@ -53,7 +53,7 @@ export async function getProxyHash(
 }
 
 export async function getImplementationAndProxySalt(saltBuilder: Salt, contract: string) {
-    const implementationSalt = await getImplementationHash(saltBuilder, contract)
+    const implementationSalt = await getImplementationSalt(saltBuilder, contract)
 
     return {
         implementationSalt,

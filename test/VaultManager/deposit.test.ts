@@ -49,7 +49,7 @@ describe('VaultManager#deposit', () => {
             it('then vault tokens are transferred to the user discounting the base fee', async () => {
                 const balanceBefore = await vault.balanceOf(await account0.getAddress())
 
-                await vaultManager.connect(account0).deposit(
+                await vaultManager.connect(account0).invest(
                     await vault.getAddress(),
                     amountToDeposit,
                     await subscriptionSignature.signSubscriptionPermit(await account0.getAddress(), deadline),
@@ -64,7 +64,7 @@ describe('VaultManager#deposit', () => {
             it('then base fee is transferred to the treasury', async () => {
                 const balanceBefore = await token.balanceOf(await treasury.getAddress())
 
-                await vaultManager.connect(account0).deposit(
+                await vaultManager.connect(account0).invest(
                     await vault.getAddress(),
                     amountToDeposit,
                     await subscriptionSignature.signSubscriptionPermit(await account0.getAddress(), deadline),
@@ -79,7 +79,7 @@ describe('VaultManager#deposit', () => {
             it('then want tokens are deducted from the user', async () => {
                 const balanceBefore = await token.balanceOf(await account0.getAddress())
 
-                await vaultManager.connect(account0).deposit(
+                await vaultManager.connect(account0).invest(
                     await vault.getAddress(),
                     amountToDeposit,
                     await subscriptionSignature.signSubscriptionPermit(await account0.getAddress(), deadline),
@@ -93,7 +93,7 @@ describe('VaultManager#deposit', () => {
 
             it('then emits a Deposit event', async () => {
                 const vaultAddress = await vault.getAddress()
-                const tx = vaultManager.connect(account0).deposit(
+                const tx = vaultManager.connect(account0).invest(
                     vaultAddress,
                     amountToDeposit,
                     await subscriptionSignature.signSubscriptionPermit(await account0.getAddress(), deadline),
@@ -106,7 +106,7 @@ describe('VaultManager#deposit', () => {
             it('then emits a Fee event', async () => {
                 const vaultAddress = await vault.getAddress()
 
-                const tx = vaultManager.connect(account0).deposit(
+                const tx = vaultManager.connect(account0).invest(
                     vaultAddress,
                     amountToDeposit,
                     await subscriptionSignature.signSubscriptionPermit(await account0.getAddress(), deadline),
@@ -128,7 +128,7 @@ describe('VaultManager#deposit', () => {
 
                 await vaultManager.setVaultWhitelistStatus(vaultAddress, false)
 
-                const tx = vaultManager.connect(account0).deposit(
+                const tx = vaultManager.connect(account0).invest(
                     vaultAddress,
                     amountToDeposit,
                     await subscriptionSignature.signSubscriptionPermit(await account0.getAddress(), deadline),
@@ -144,7 +144,7 @@ describe('VaultManager#deposit', () => {
             it('then vault tokens are transferred to the user discounting the base fee + non-subscriber fee', async () => {
                 const balanceBefore = await vault.balanceOf(await account0.getAddress())
 
-                await vaultManager.connect(account0).deposit(
+                await vaultManager.connect(account0).invest(
                     await vault.getAddress(),
                     amountToDeposit,
                     await subscriptionSignature.signSubscriptionPermit(await account0.getAddress(), 0),
@@ -159,7 +159,7 @@ describe('VaultManager#deposit', () => {
             it('then base + non-subscriber fees are transferred to the treasury', async () => {
                 const balanceBefore = await token.balanceOf(await treasury.getAddress())
 
-                await vaultManager.connect(account0).deposit(
+                await vaultManager.connect(account0).invest(
                     await vault.getAddress(),
                     amountToDeposit,
                     await subscriptionSignature.signSubscriptionPermit(await account0.getAddress(), 0),

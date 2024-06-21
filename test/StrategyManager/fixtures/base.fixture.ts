@@ -8,7 +8,7 @@ import {
     NonFungiblePositionManager,
     TestERC20,
 } from '@src/typechain'
-import { InvestLib } from '@src/typechain/artifacts/contracts/StrategyManager'
+import { InvestLib } from '@src/typechain/artifacts/contracts/StrategyManager' // typechain doesn't generate lib properly so we must import it this way
 import { NetworkService } from '@src/NetworkService'
 import { SubscriptionSignature } from '@src/SubscriptionSignature'
 import { deployVaultFixture } from '../../VaultManager/fixtures/deploy-vault.fixture'
