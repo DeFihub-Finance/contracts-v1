@@ -28,6 +28,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
     struct Position {
         uint strategyId;
         bool closed;
+        bool collected;
     }
 
     struct InitializeParams {
@@ -151,7 +152,8 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         uint strategyId,
         uint positionId,
         uint[] dcaWithdrawnAmounts,
-        uint[][] liquidityWithdrawnAmounts
+        uint[][] liquidityWithdrawnAmounts,
+        uint[] tokenWithdrawnAmounts
     );
     event CollectedStrategistRewards(address strategist, uint amount);
     event StrategistPercentageUpdated(uint32 discountPercentage);
@@ -391,9 +393,18 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         if (position.closed)
             revert PositionAlreadyClosed();
 
+        bool positionWasCollected = position.collected;
+
+        position.collected = true;
+
+        InvestLib.TokenPosition[] memory tokenPositions = positionWasCollected
+            ? new InvestLib.TokenPosition[](0)
+            : _tokenPositionsPerPosition[msg.sender][_positionId];
+
         (
             uint[] memory dcaWithdrawnAmounts,
-            uint[][] memory liquidityWithdrawnAmounts
+            uint[][] memory liquidityWithdrawnAmounts,
+            uint[] memory tokenWithdrawnAmounts
         ) = abi.decode(
             _callInvestLib(
                 abi.encodeWithSelector(
@@ -401,11 +412,12 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
                     InvestLib.CollectPositionParams({
                         dca: dca,
                         dcaPositions: _dcaPositionsPerPosition[msg.sender][_positionId],
-                        liquidityPositions: _liquidityPositionsPerPosition[msg.sender][_positionId]
+                        liquidityPositions: _liquidityPositionsPerPosition[msg.sender][_positionId],
+                        tokenPositions: tokenPositions
                     })
                 )
             ),
-            (uint[], uint[][])
+            (uint[], uint[][], uint[])
         );
 
         emit PositionCollected(
@@ -413,7 +425,8 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
             position.strategyId,
             _positionId,
             dcaWithdrawnAmounts,
-            liquidityWithdrawnAmounts
+            liquidityWithdrawnAmounts,
+            tokenWithdrawnAmounts
         );
     }
 

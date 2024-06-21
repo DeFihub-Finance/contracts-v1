@@ -64,6 +64,7 @@ describe('StrategyManager#collectPosition', () => {
                         positionToCollect,
                         outputTokenBalances,
                         [],
+                        [],
                     )
             })
         })

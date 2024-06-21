@@ -183,6 +183,8 @@ library InvestLib {
         uint[] dcaPositions;
         // liquidity
         LiquidityPosition[] liquidityPositions;
+        // tokens
+        TokenPosition[] tokenPositions;
     }
 
     function invest(
@@ -367,6 +369,7 @@ library InvestLib {
         return tokenPositions;
     }
 
+    // TODO close token positions
     function closePosition(ClosePositionParams memory _params) external returns (
         uint[][] memory dcaWithdrawnAmounts,
         uint[] memory vaultWithdrawnAmounts,
@@ -470,11 +473,13 @@ library InvestLib {
         CollectPositionParams memory _params
     ) external returns (
         uint[] memory dcaWithdrawnAmounts,
-        uint[][] memory liquidityWithdrawnAmounts
+        uint[][] memory liquidityWithdrawnAmounts,
+        uint[] memory tokenWithdrawnAmounts
     ) {
         return (
             _collectPositionsDca(_params.dca, _params.dcaPositions),
-            _collectPositionsLiquidity(_params.liquidityPositions)
+            _collectPositionsLiquidity(_params.liquidityPositions),
+            _collectPositionsToken(_params.tokenPositions)
         );
     }
 
@@ -523,6 +528,23 @@ library InvestLib {
 
             withdrawnAmounts[i][0] = amount0;
             withdrawnAmounts[i][1] = amount1;
+        }
+
+        return withdrawnAmounts;
+    }
+
+    function _collectPositionsToken(
+        TokenPosition[] memory _positions
+    ) private returns (uint[] memory) {
+        uint[] memory withdrawnAmounts = new uint[](_positions.length);
+
+        for (uint i; i < _positions.length; ++i) {
+            TokenPosition memory position = _positions[i];
+            uint initialBalance = position.token.balanceOf(address(this));
+
+            position.token.safeTransfer(msg.sender, position.amount);
+
+            withdrawnAmounts[i] = position.token.balanceOf(address(this)) - initialBalance;
         }
 
         return withdrawnAmounts;
