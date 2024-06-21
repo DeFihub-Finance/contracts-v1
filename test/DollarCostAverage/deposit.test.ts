@@ -35,7 +35,7 @@ describe('DCA#deposit', () => {
     let subscriptionManager: SubscriptionManager
     let dca: DollarCostAverage
     let positionParams: PositionParams
-    let tokenIn: ERC20
+    let stablecoin: ERC20
 
     beforeEach(async () => {
         ({
@@ -43,7 +43,7 @@ describe('DCA#deposit', () => {
             treasury,
             dca,
             positionParams,
-            tokenIn,
+            stablecoin,
             subscriptionManager,
             subscriptionSigner,
         } = await loadFixture(baseDcaFixture))
@@ -71,7 +71,7 @@ describe('DCA#deposit', () => {
         })
 
         it('transfer deposit fee to treasury for non-subscriber', async () => {
-            const treasuryBalanceBefore = await tokenIn.balanceOf(await treasury.getAddress())
+            const treasuryBalanceBefore = await stablecoin.balanceOf(await treasury.getAddress())
 
             await dca.connect(account0).invest(
                 positionParams.poolId,
@@ -80,7 +80,7 @@ describe('DCA#deposit', () => {
                 fakePermit,
             )
 
-            const treasuryOutputTokenBalanceDelta = (await tokenIn.balanceOf(await treasury.getAddress())) - treasuryBalanceBefore
+            const treasuryOutputTokenBalanceDelta = (await stablecoin.balanceOf(await treasury.getAddress())) - treasuryBalanceBefore
 
             expect(treasuryOutputTokenBalanceDelta)
                 .to.be.equal(ContractFees.getNonSubscriberFee(positionParams.depositAmount))
@@ -93,7 +93,7 @@ describe('DCA#deposit', () => {
                     await NetworkService.getBlockTimestamp() + 10_000,
                 )
 
-            const treasuryBalanceBefore = await tokenIn.balanceOf(await treasury.getAddress())
+            const treasuryBalanceBefore = await stablecoin.balanceOf(await treasury.getAddress())
 
             await dca.connect(account0).invest(
                 positionParams.poolId,
@@ -102,7 +102,7 @@ describe('DCA#deposit', () => {
                 signature,
             )
 
-            const treasuryOutputTokenBalanceDelta = (await tokenIn.balanceOf(await treasury.getAddress())) - treasuryBalanceBefore
+            const treasuryOutputTokenBalanceDelta = (await stablecoin.balanceOf(await treasury.getAddress())) - treasuryBalanceBefore
 
             expect(treasuryOutputTokenBalanceDelta)
                 .to.be.equal(ContractFees.getBaseFee(positionParams.depositAmount))
@@ -132,7 +132,7 @@ describe('DCA#deposit', () => {
         it('transfers the amount of tokens specified by the user', async () => {
             const pool = await dca.getPool(positionParams.poolId)
             const balanceBefore = await dca.tokenBalance(pool.inputToken)
-            const treasuryBalanceBefore = await tokenIn.balanceOf(await treasury.getAddress())
+            const treasuryBalanceBefore = await stablecoin.balanceOf(await treasury.getAddress())
 
             await dca.connect(account0).invest(
                 positionParams.poolId,
@@ -142,7 +142,7 @@ describe('DCA#deposit', () => {
             )
 
             const balanceAfter = await dca.tokenBalance(pool.inputToken)
-            const treasuryBalanceAfter = await tokenIn.balanceOf(await treasury.getAddress())
+            const treasuryBalanceAfter = await stablecoin.balanceOf(await treasury.getAddress())
 
             expect(balanceAfter - balanceBefore).to.be.equals(ContractFees.discountNonSubscriberFee(
                 positionParams.depositAmount,

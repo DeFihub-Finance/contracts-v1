@@ -16,7 +16,3 @@ artifacts
 eradicate2.cl
 keccak.cl
 profanity.cl
-
-# Autotask build files
-scripts/dca/autotask/build
-
