@@ -16,8 +16,6 @@ describe('DCA#createPool', () => {
     let TWENTY_FOUR_HOURS_IN_SECONDS: number
     let path: PathUniswapV3
 
-    let encodedSingleHopPath: string
-
     beforeEach(async () => {
         ({
             account0,
@@ -29,11 +27,6 @@ describe('DCA#createPool', () => {
             routerUniV3,
             TWENTY_FOUR_HOURS_IN_SECONDS,
         } = await loadFixture(baseDcaFixture))
-
-        encodedSingleHopPath = await new PathUniswapV3(
-            stablecoin,
-            [{ token: weth, fee: 3000 }],
-        ).encodedPath()
     })
 
     describe('EFFECTS', () => {

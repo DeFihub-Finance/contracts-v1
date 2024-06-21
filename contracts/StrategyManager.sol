@@ -63,6 +63,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         bytes inputTokenSwap;
         bytes[] dcaSwaps;
         bytes[] vaultSwaps;
+        bytes[] tokenSwaps;
         InvestLib.LiquidityZapParams[] liquidityZaps;
         SubscriptionManager.Permit investorPermit;
         SubscriptionManager.Permit strategistPermit;
@@ -98,6 +99,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
     mapping(uint => InvestLib.DcaInvestment[]) internal _dcaInvestmentsPerStrategy;
     mapping(uint => InvestLib.VaultInvestment[]) internal _vaultInvestmentsPerStrategy;
     mapping(uint => InvestLib.LiquidityInvestment[]) internal _liquidityInvestmentsPerStrategy;
+    mapping(uint => InvestLib.TokenInvestment[]) internal _tokenInvestmentsPerStrategy;
 
     mapping(address => Position[]) internal _positions;
     // @dev investor => strategy position id => dca position ids
@@ -106,6 +108,8 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
     mapping(address => mapping(uint => InvestLib.VaultPosition[])) internal _vaultPositionsPerPosition;
     // @dev investor => strategy position id => liquidity positions
     mapping(address => mapping(uint => InvestLib.LiquidityPosition[])) internal _liquidityPositionsPerPosition;
+    // @dev investor => strategy position id => liquidity positions
+    mapping(address => mapping(uint => InvestLib.TokenPosition[])) internal _tokenPositionsPerPosition;
 
     address public investLib;
     IERC20Upgradeable public stable;
@@ -301,7 +305,10 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
                     // liquidity
                         liquidityInvestments: _liquidityInvestmentsPerStrategy[_params.strategyId],
                         liquidityZaps: _params.liquidityZaps,
-                        liquidityTotalPercentage: strategy.percentages[PRODUCT_LIQUIDITY]
+                        liquidityTotalPercentage: strategy.percentages[PRODUCT_LIQUIDITY],
+                    // token
+                        tokenInvestments: _tokenInvestmentsPerStrategy[_params.strategyId],
+                        tokenSwaps: _params.tokenSwaps
                     })
                 )
             ),
