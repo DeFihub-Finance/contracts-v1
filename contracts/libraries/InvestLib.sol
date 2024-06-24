@@ -169,6 +169,8 @@ library InvestLib {
         // liquidity
         LiquidityPosition[] liquidityPositions;
         LiquidityMinOutputs[] liquidityMinOutputs;
+        // tokens
+        TokenPosition[] tokenPositions;
     }
 
     /**
@@ -373,12 +375,14 @@ library InvestLib {
     function closePosition(ClosePositionParams memory _params) external returns (
         uint[][] memory dcaWithdrawnAmounts,
         uint[] memory vaultWithdrawnAmounts,
-        uint[][] memory liquidityWithdrawnAmounts
+        uint[][] memory liquidityWithdrawnAmounts,
+        uint[] memory tokenWithdrawnAmounts
     ) {
         return (
             _closeDcaPositions(_params.dca, _params.dcaPositions),
             _closeVaultPositions(_params.vaultPositions),
-            _closeLiquidityPositions(_params.liquidityPositions, _params.liquidityMinOutputs)
+            _closeLiquidityPositions(_params.liquidityPositions, _params.liquidityMinOutputs),
+            _closeTokenPositions(_params.tokenPositions)
         );
     }
 
@@ -464,6 +468,22 @@ library InvestLib {
                     deadline: block.timestamp
                 })
             );
+        }
+
+        return withdrawnAmounts;
+    }
+
+    function _closeTokenPositions(
+        TokenPosition[] memory _positions
+    ) private returns (uint[] memory) {
+        uint[] memory withdrawnAmounts = new uint[](_positions.length);
+
+        for (uint i; i < _positions.length; ++i) {
+            TokenPosition memory position = _positions[i];
+
+            position.token.safeTransfer(msg.sender, position.amount);
+
+            withdrawnAmounts[i] = position.amount;
         }
 
         return withdrawnAmounts;

@@ -145,7 +145,8 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         uint positionId,
         uint[][] dcaWithdrawnAmounts,
         uint[] vaultWithdrawnAmount,
-        uint[][] liquidityWithdrawnAmounts
+        uint[][] liquidityWithdrawnAmounts,
+        uint[] tokenWithdrawnAmounts
     );
     event PositionCollected(
         address owner,
@@ -352,12 +353,19 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         if (position.closed)
             revert PositionAlreadyClosed();
 
+        // TODO test for possible reentrancy attack
+        InvestLib.TokenPosition[] memory tokenPositions = position.collected
+            ? new InvestLib.TokenPosition[](0)
+            : _tokenPositionsPerPosition[msg.sender][_positionId];
+
         position.closed = true;
+        position.collected = true;
 
         (
             uint[][] memory dcaWithdrawnAmounts,
             uint[] memory vaultWithdrawnAmounts,
-            uint[][] memory liquidityWithdrawnAmounts
+            uint[][] memory liquidityWithdrawnAmounts,
+            uint[] memory tokenWithdrawnAmounts
         ) = abi.decode(
             _callInvestLib(
                 abi.encodeWithSelector(
@@ -367,11 +375,12 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
                         dcaPositions: _dcaPositionsPerPosition[msg.sender][_positionId],
                         vaultPositions: _vaultPositionsPerPosition[msg.sender][_positionId],
                         liquidityPositions: _liquidityPositionsPerPosition[msg.sender][_positionId],
-                        liquidityMinOutputs: _liquidityMinOutputs
+                        liquidityMinOutputs: _liquidityMinOutputs,
+                        tokenPositions: tokenPositions
                     })
                 )
             ),
-            (uint[][], uint[], uint[][])
+            (uint[][], uint[], uint[][], uint[])
         );
 
         emit PositionClosed(
@@ -380,7 +389,8 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
             _positionId,
             dcaWithdrawnAmounts,
             vaultWithdrawnAmounts,
-            liquidityWithdrawnAmounts
+            liquidityWithdrawnAmounts,
+            tokenWithdrawnAmounts
         );
     }
 
@@ -393,13 +403,12 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         if (position.closed)
             revert PositionAlreadyClosed();
 
-        bool positionWasCollected = position.collected;
-
-        position.collected = true;
-
-        InvestLib.TokenPosition[] memory tokenPositions = positionWasCollected
+        // TODO test for possible reentrancy attack
+        InvestLib.TokenPosition[] memory tokenPositions = position.collected
             ? new InvestLib.TokenPosition[](0)
             : _tokenPositionsPerPosition[msg.sender][_positionId];
+
+        position.collected = true;
 
         (
             uint[] memory dcaWithdrawnAmounts,
