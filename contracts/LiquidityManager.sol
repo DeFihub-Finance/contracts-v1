@@ -2,6 +2,7 @@
 
 pragma solidity 0.8.26;
 
+import "hardhat/console.sol";
 import {IERC20Upgradeable, SafeERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import {INonfungiblePositionManager} from "./interfaces/INonfungiblePositionManager.sol";
 import {HubOwnable} from "./abstract/HubOwnable.sol";
@@ -133,7 +134,9 @@ contract LiquidityManager is HubOwnable, UseFee, UseDust, OnlyStrategyManager {
         _params.token0.safeIncreaseAllowance(address(_params.positionManager), amountToken0);
         _params.token1.safeIncreaseAllowance(address(_params.positionManager), amountToken1);
 
-        (tokenId, liquidity,,) = INonfungiblePositionManager(_params.positionManager).mint(
+        uint amount0; uint amount1;
+
+        (tokenId, liquidity, amount0, amount1) = INonfungiblePositionManager(_params.positionManager).mint(
             INonfungiblePositionManager.MintParams({
                 token0: address(_params.token0),
                 token1: address(_params.token1),
@@ -147,6 +150,26 @@ contract LiquidityManager is HubOwnable, UseFee, UseDust, OnlyStrategyManager {
                 recipient: msg.sender,
                 deadline: block.timestamp
             })
+        );
+
+        console.log(
+            "token0 \n provided: %s \n minted:   %s \n minimum:  %s",
+            amountToken0,
+            amount0,
+            _params.amount0Min
+        );
+
+        console.log(
+            "token1 \n provided: %s \n minted:   %s \n minimum:  %s",
+            amountToken1,
+            amount1,
+            _params.amount1Min
+        );
+
+        console.log(
+            "token0 balance: %s \ntoken1 balance: %s",
+            _params.token0.balanceOf(address(this)),
+            _params.token1.balanceOf(address(this))
         );
     }
 
