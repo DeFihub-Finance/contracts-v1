@@ -40,6 +40,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         DollarCostAverage dca;
         VaultManager vaultManager;
         LiquidityManager liquidityManager;
+        UseFee tokenManager;
         ZapManager zapManager;
         uint8 maxHottestStrategies;
         uint32 strategistPercentage;
@@ -93,6 +94,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
     uint8 public constant PRODUCT_DCA = 0;
     uint8 public constant PRODUCT_VAULTS = 1;
     uint8 public constant PRODUCT_LIQUIDITY = 2;
+    uint8 public constant PRODUCT_TOKENS = 3;
 
     mapping(address => uint) internal _strategistRewards;
 
@@ -119,6 +121,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
     DollarCostAverage public dca;
     VaultManager public vaultManager;
     LiquidityManager public liquidityManager;
+    UseFee public tokenManager;
 
     mapping(uint => bool) internal _hottestStrategiesMapping;
     uint[] internal _hottestStrategiesArray;
@@ -189,6 +192,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         dca = _initializeParams.dca;
         vaultManager = _initializeParams.vaultManager;
         liquidityManager = _initializeParams.liquidityManager;
+        tokenManager = _initializeParams.tokenManager;
     }
 
     function createStrategy(CreateStrategyParams memory _params) external virtual {
@@ -564,6 +568,9 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
 
         if (strategy.percentages[PRODUCT_LIQUIDITY] > 0)
             totalFeePercentage += liquidityManager.getFeePercentage(userSubscribed) * strategy.percentages[PRODUCT_LIQUIDITY];
+
+        if (strategy.percentages[PRODUCT_TOKENS] > 0)
+            totalFeePercentage += tokenManager.getFeePercentage(userSubscribed) * strategy.percentages[PRODUCT_TOKENS];
 
         // Divided by multiplier 10_000 (fee percentage) * 100 (strategy percentage per investment) = 1M
         uint totalFee = stableAmount * totalFeePercentage / 1_000_000;
