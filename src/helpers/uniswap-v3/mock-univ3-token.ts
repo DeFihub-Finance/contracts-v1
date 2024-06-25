@@ -1,4 +1,4 @@
-import { Token } from '@defihub/shared/node_modules/@uniswap/sdk-core'
+import { Token } from '@uniswap/sdk-core'
 import { ChainIds } from '@ryze-blockchain/ethereum'
 
 export function mockUniV3Token(address: string, decimals: number | bigint) {

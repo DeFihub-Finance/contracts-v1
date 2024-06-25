@@ -1,7 +1,8 @@
 import JSBI from 'jsbi'
 import { type BigintIsh } from '@uniswap/sdk-core'
-import { type Pool, Position, FullMath, SqrtPriceMath, TickMath, maxLiquidityForAmounts } from '@uniswap/v3-sdk'
+import { type Pool, Position, FullMath, SqrtPriceMath, TickMath } from '@uniswap/v3-sdk'
 import { BigNumber } from '@ryze-blockchain/ethereum'
+import { parseUnits } from 'ethers'
 
 /**
  * Returns the minimum token0 and token1 amounts that must be sent in order to
@@ -33,41 +34,63 @@ export function getMintTokenAmounts(
     return mockPosition.mintAmounts
 }
 
+function splitAmounts(
+    amountInputToken: bigint,
+    ratio: BigNumber,
+    price0: BigNumber,
+    price1: BigNumber,
+): { amount0: bigint, amount1: bigint } {
+    const amount0 = new BigNumber(amountInputToken.toString())
+        .div(ratio.plus(1))
+    const amount1 = ratio.times(amount0)
+
+    return {
+        amount0: BigInt(amount0.div(price0).toFixed(0)),
+        amount1: BigInt(amount1.div(price1).toFixed(0)),
+    }
+}
+
+export function getAmounts(
+    amountInputToken: bigint,
+    pool: Pool,
+    tickLower: number,
+    tickUpper: number,
+    price0: BigNumber,
+    price1: BigNumber,
+) {
+    const { amount0, amount1 } = Position.fromAmount0({
+        pool,
+        tickLower,
+        tickUpper,
+        amount0: parseUnits('1', 18).toString(),
+        useFullPrecision: true,
+    }).mintAmounts
+    const ratio = new BigNumber(amount1.toString()).times(price1)
+        .div(new BigNumber(amount0.toString()).times(price0))
+
+    return splitAmounts(
+        amountInputToken,
+        ratio,
+        price0,
+        price1,
+    )
+}
+
 export function getMintTokenFromAmount(
     pool: Pool,
     amount0: BigintIsh,
-    amount1: BigintIsh,
     tickLower: number,
     tickUpper: number,
-    // fromAmountFunction: 'fromAmount0' | 'fromAmount1',
 ): { amount0: JSBI, amount1: JSBI } {
-    const sqrtRatioAX96 = TickMath.getSqrtRatioAtTick(amount0 ? tickLower : TickMath.MAX_TICK)
-    const sqrtRatioBX96 = TickMath.getSqrtRatioAtTick(amount1 ? tickUpper : TickMath.MIN_TICK)
+    const baseAmount0 = parseUnits('1', 18)
 
-    const liquidity = maxLiquidityForAmounts(
-        pool.sqrtRatioX96,
-        sqrtRatioAX96,
-        sqrtRatioBX96,
-        amount0,
-        amount1,
-        true,
-    )
-
-    // Create a mock position instance in order to reuse Uniswap SDK logic to compute amounts
-    // const mockPosition = fromAmountFunction === 'fromAmount0'
-    //     ? Position.fromAmount0({
-    //         pool,
-    //         amount0: amount,
-    //         tickLower,
-    //         tickUpper,
-    //         useFullPrecision: true,
-    //     })
-    //     : Position.fromAmount1({
-    //         pool,
-    //         amount1: amount,
-    //         tickLower,
-    //         tickUpper,
-    //     })
+    const midPosition = Position.fromAmount0({
+        pool,
+        tickLower,
+        tickUpper,
+        amount0: baseAmount0.toString(),
+        useFullPrecision: true,
+    }).mintAmounts
 
     return new Position({
         pool,

@@ -4,9 +4,7 @@ import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import {
     Fees,
     Slippage,
-    parsePriceToTick,
     unwrapAddressLike,
-    getTokenAmountsFromDepositAmountUSD,
 } from '@defihub/shared'
 import { LiquidityManagerFixture } from './liquidity-manager.fixture'
 import {
@@ -15,16 +13,18 @@ import {
     SubscriptionManager,
     TestERC20,
     UniswapV3Pool,
+    UniswapV3Pool__factory,
 } from '@src/typechain'
-import { UniswapV2ZapHelper, UniswapV3ZapHelper } from '@src/helpers'
-import { AddressLike, ErrorDescription, Signer, ZeroAddress, parseEther } from 'ethers'
+import { getAmounts, parsePriceToTick, UniswapV2ZapHelper, UniswapV3ZapHelper } from '@src/helpers'
+import { AddressLike, ErrorDescription, Signer, ZeroAddress, parseEther, LogDescription } from 'ethers'
 import { BigNumber } from '@ryze-blockchain/ethereum'
 import { decodeLowLevelCallError } from '@src/helpers/decode-call-error'
 import { getUniV3Pool } from '@src/helpers'
+import { Compare } from '@src/Compare'
 
 describe.only('LiquidityManager#invest', () => {
     const amount = parseEther('1000')
-    const SLIPPAGE_BN = new BigNumber(0.1)
+    const SLIPPAGE_BN = new BigNumber(0.01)
 
     // prices
     let USD_PRICE_BN: BigNumber
@@ -224,7 +224,7 @@ describe.only('LiquidityManager#invest', () => {
             )
     })
 
-    it('should add liquidity using different token0 and token1 amount proportions', async () => {
+    it.only('should add liquidity using different token0 and token1 amount proportions', async () => {
         const [amountWithDeductedFees, pool] = await Promise.all([
             deductFees(amount),
             getUniV3Pool(stableBtcLpUniV3),
@@ -232,7 +232,6 @@ describe.only('LiquidityManager#invest', () => {
 
         const stableIsToken0 = await isSameToken(stablecoin, pool.token0.address)
 
-        // TODO get price checking if stable is token0
         const currentPrice = pool.token0Price.asFraction
 
         const currentPrice10Percent = currentPrice.divide(10)
@@ -245,33 +244,23 @@ describe.only('LiquidityManager#invest', () => {
 
         const tickLower = parsePriceToTick(pool.token0, pool.token1, pool.fee, lowerPrice)
         const tickUpper = parsePriceToTick(pool.token0, pool.token1, pool.fee, upperPrice)
+        const price0 = stableIsToken0 ? USD_PRICE_BN : BTC_PRICE_BN
+        const price1 = stableIsToken0 ? BTC_PRICE_BN : USD_PRICE_BN
 
-        const { amount0, amount1 } = getTokenAmountsFromDepositAmountUSD(
-            amountWithDeductedFees.toString(),
-            BTC_PRICE_BN,
-            USD_PRICE_BN,
-            currentPrice.toFixed(6),
-            lowerPrice,
-            upperPrice,
+        const { amount0, amount1 } = getAmounts(
+            amountWithDeductedFees,
+            pool,
+            tickLower,
+            tickUpper,
+            price0,
+            price1,
         )
 
-        const amount0Raw = BigInt(amount0.toFixed(0))
-        const amount1Raw = BigInt(amount1.toFixed(0))
-
-        const swapAmountToken0 = stableIsToken0 ? amount0Raw : amount0Raw * BTC_PRICE
-        const swapAmountToken1 = stableIsToken0 ? amount1Raw * BTC_PRICE : amount1Raw
+        const swapAmountToken0 = stableIsToken0 ? amount0 : amount0 * BTC_PRICE
+        const swapAmountToken1 = stableIsToken0 ? amount1 * BTC_PRICE : amount1
 
         const amount0Min = getMinOutput(swapAmountToken0, stableIsToken0 ? USD_PRICE_BN : BTC_PRICE_BN)
         const amount1Min = getMinOutput(swapAmountToken1, stableIsToken0 ? BTC_PRICE_BN : USD_PRICE_BN)
-
-        console.table({
-            amountWithDeductedFees,
-            amount0Raw,
-            amount0Min,
-            amount1Raw,
-            amount1Min,
-            total: amount0.times(BTC_PRICE_BN).plus(amount1).toFixed(0),
-        })
 
         const encodedSwap = await getEncodedSwap(
             stableIsToken0
@@ -281,33 +270,75 @@ describe.only('LiquidityManager#invest', () => {
             BTC_PRICE_BN,
         )
 
-        await liquidityManager
-            .connect(account0)
-            .investUniswapV3(
-                {
-                    positionManager: positionManagerUniV3,
-                    inputToken: stablecoin,
-                    depositAmountInputToken: amount,
+        const receipt = await (
+            await liquidityManager
+                .connect(account0)
+                .investUniswapV3(
+                    {
+                        positionManager: positionManagerUniV3,
+                        inputToken: stablecoin,
+                        depositAmountInputToken: amount,
 
-                    fee: 3_000,
+                        fee: 3_000,
 
-                    token0: pool.token0.address,
-                    token1: pool.token1.address,
+                        token0: pool.token0.address,
+                        token1: pool.token1.address,
 
-                    swapToken0: stableIsToken0 ? '0x' : encodedSwap,
-                    swapToken1: stableIsToken0 ? encodedSwap : '0x',
+                        swapToken0: stableIsToken0 ? '0x' : encodedSwap,
+                        swapToken1: stableIsToken0 ? encodedSwap : '0x',
 
-                    swapAmountToken0,
-                    swapAmountToken1,
+                        swapAmountToken0,
+                        swapAmountToken1,
 
-                    tickLower,
-                    tickUpper,
+                        tickLower,
+                        tickUpper,
 
-                    amount0Min,
-                    amount1Min,
-                },
-                permitAccount0,
-            )
+                        amount0Min,
+                        amount1Min,
+                    },
+                    permitAccount0,
+                )
+        ).wait()
+
+        expect(receipt).to.not.be.undefined
+
+        let eventLog: LogDescription | undefined
+
+        if (receipt?.logs) {
+            for (const log of receipt.logs) {
+                const parsedLog = UniswapV3Pool__factory
+                    .createInterface()
+                    .parseLog(log)
+
+                if (parsedLog && parsedLog.name === 'Mint')
+                    eventLog = parsedLog
+            }
+        }
+
+        const mintedAmount0 = eventLog?.args.amount0
+        const mintedAmount1 = eventLog?.args.amount1
+
+        Compare.almostEqualPercentage({
+            target: amount0,
+            value: mintedAmount0,
+            tolerance: new BigNumber('0.1'),
+        })
+
+        Compare.almostEqualPercentage({
+            target: amount1,
+            value: mintedAmount1,
+            tolerance: new BigNumber('0.1'),
+        })
+
+        Compare.almostEqualPercentage({
+            target: amount,
+            value: BigInt(
+                new BigNumber(amount0.toString()).times(price0)
+                    .plus(new BigNumber(amount1.toString()).times(price1))
+                    .toString(),
+            ),
+            tolerance: new BigNumber('0.1'),
+        })
     })
 
     it('should add liquidity using uniswap v2 and v3 swap in the same transaction', async () => {
@@ -579,7 +610,7 @@ describe.only('LiquidityManager#invest', () => {
             )
     })
 
-    it.only('testing ', async () => {
+    it('testing ', async () => {
         const [amountWithDeductedFees, pool] = await Promise.all([
             deductFees(amount),
             getUniV3Pool(btcEthLpUniV3),

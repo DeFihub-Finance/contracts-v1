@@ -1,8 +1,8 @@
 import { UniswapV3Pool } from '@src/typechain'
 
 // TODO update imports
-import { Pool } from '@defihub/shared/node_modules/@uniswap/v3-sdk'
-import { mockUniV3Token } from './mock-univ3-token'
+import { Pool } from '@uniswap/v3-sdk'
+import { mockUniV3Token } from '@src/helpers'
 
 export async function getUniV3Pool(contract: UniswapV3Pool): Promise<Pool> {
     const [
