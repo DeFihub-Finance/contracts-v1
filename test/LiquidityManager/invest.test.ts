@@ -21,6 +21,7 @@ import { BigNumber } from '@ryze-blockchain/ethereum'
 import { decodeLowLevelCallError } from '@src/helpers/decode-call-error'
 import { getUniV3Pool } from '@src/helpers'
 import { Compare } from '@src/Compare'
+import type { Pool } from '@uniswap/v3-sdk'
 
 describe.only('LiquidityManager#invest', () => {
     const amount = parseEther('1000')
@@ -132,6 +133,27 @@ describe.only('LiquidityManager#invest', () => {
         )
     }
 
+    function getRangeTicks(
+        pool: Pool,
+        lowerPricePercentage: number,
+        upperPricePercentage: number,
+    ) {
+        const currentPrice = pool.token0Price.asFraction
+
+        const lowerPrice = currentPrice.subtract(
+            currentPrice.divide(lowerPricePercentage),
+        ).toFixed(8)
+
+        const upperPrice = currentPrice.add(
+            currentPrice.divide(upperPricePercentage),
+        ).toFixed(8)
+
+        return {
+            tickLower: parsePriceToTick(pool.token0, pool.token1, pool.fee, lowerPrice),
+            tickUpper: parsePriceToTick(pool.token0, pool.token1, pool.fee, upperPrice),
+        }
+    }
+
     beforeEach(async () => {
         ({
             // prices
@@ -173,6 +195,7 @@ describe.only('LiquidityManager#invest', () => {
         await weth.connect(account0).approve(positionManagerUniV3, amount)
     })
 
+    // TODO remove unnecessary test?
     it('should add liquidity using 50/50 token0 and token1 amount proportion', async () => {
         const halfAmount = amount * 50n / 100n
         const halfAmountWithDeductedFees = await deductFees(halfAmount)
@@ -224,7 +247,7 @@ describe.only('LiquidityManager#invest', () => {
             )
     })
 
-    it.only('should add liquidity using different token0 and token1 amount proportions', async () => {
+    it('should add liquidity using different token0 and token1 amount proportions', async () => {
         const [amountWithDeductedFees, pool] = await Promise.all([
             deductFees(amount),
             getUniV3Pool(stableBtcLpUniV3),
@@ -232,18 +255,9 @@ describe.only('LiquidityManager#invest', () => {
 
         const stableIsToken0 = await isSameToken(stablecoin, pool.token0.address)
 
-        const currentPrice = pool.token0Price.asFraction
+        // 10% lower and upper
+        const { tickLower, tickUpper } = getRangeTicks(pool, 10, 10)
 
-        const currentPrice10Percent = currentPrice.divide(10)
-        const currentPrice20Percent = currentPrice.divide(20)
-
-        // 10% lower
-        const lowerPrice = currentPrice.subtract(currentPrice10Percent).toFixed(8)
-        // 20% upper
-        const upperPrice = currentPrice.add(currentPrice20Percent).toFixed(8)
-
-        const tickLower = parsePriceToTick(pool.token0, pool.token1, pool.fee, lowerPrice)
-        const tickUpper = parsePriceToTick(pool.token0, pool.token1, pool.fee, upperPrice)
         const price0 = stableIsToken0 ? USD_PRICE_BN : BTC_PRICE_BN
         const price1 = stableIsToken0 ? BTC_PRICE_BN : USD_PRICE_BN
 
@@ -259,8 +273,8 @@ describe.only('LiquidityManager#invest', () => {
         const swapAmountToken0 = stableIsToken0 ? amount0 : amount0 * BTC_PRICE
         const swapAmountToken1 = stableIsToken0 ? amount1 * BTC_PRICE : amount1
 
-        const amount0Min = getMinOutput(swapAmountToken0, stableIsToken0 ? USD_PRICE_BN : BTC_PRICE_BN)
-        const amount1Min = getMinOutput(swapAmountToken1, stableIsToken0 ? BTC_PRICE_BN : USD_PRICE_BN)
+        const amount0Min = getMinOutput(swapAmountToken0, price0)
+        const amount1Min = getMinOutput(swapAmountToken1, price1)
 
         const encodedSwap = await getEncodedSwap(
             stableIsToken0
@@ -342,28 +356,58 @@ describe.only('LiquidityManager#invest', () => {
     })
 
     it('should add liquidity using uniswap v2 and v3 swap in the same transaction', async () => {
-        const halfAmount = amount * 50n / 100n
-        const halfAmountWithDeductedFees = await deductFees(halfAmount)
-
         const [
-            { tick },
-            tickSpacing,
+            amountWithDeductedFees,
+            pool,
             { token0, token1 },
-            wbtcEncodedSwap,
-            wethEncodedSwap,
         ] = await Promise.all([
-            btcEthLpUniV3.slot0(),
-            btcEthLpUniV3.tickSpacing(),
+            deductFees(amount),
+            getUniV3Pool(btcEthLpUniV3),
             sortTokens(wbtc, weth),
-            getEncodedSwap(halfAmountWithDeductedFees, wbtc, BTC_PRICE_BN),
-            getEncodedSwap(halfAmountWithDeductedFees, weth, ETH_PRICE_BN, 'uniswapV3'),
         ])
 
         const wbtcIsToken0 = await isSameToken(wbtc, token0)
 
-        const wbtcAmountMin = getMinOutput(halfAmountWithDeductedFees, BTC_PRICE_BN)
-        const wethAmountMin = getMinOutput(halfAmountWithDeductedFees, ETH_PRICE_BN)
+        // 10% lower and upper
+        const { tickLower, tickUpper } = getRangeTicks(pool, 10, 10)
 
+        const price0 = wbtcIsToken0 ? BTC_PRICE_BN : ETH_PRICE_BN
+        const price1 = wbtcIsToken0 ? ETH_PRICE_BN : BTC_PRICE_BN
+
+        const { amount0, amount1 } = getAmounts(
+            amountWithDeductedFees,
+            pool,
+            tickLower,
+            tickUpper,
+            price0,
+            price1,
+        )
+
+        const swapAmountToken0 = amount0 * (wbtcIsToken0 ? BTC_PRICE : ETH_PRICE)
+        const swapAmountToken1 = amount1 * (wbtcIsToken0 ? ETH_PRICE : BTC_PRICE)
+
+        const amount0Min = getMinOutput(swapAmountToken0, price0)
+        const amount1Min = getMinOutput(swapAmountToken1, price1)
+
+        const [wbtcEncodedSwap, wethEncodedSwap] = await Promise.all([
+            getEncodedSwap(
+                wbtcIsToken0
+                    ? swapAmountToken0
+                    : swapAmountToken1,
+                wbtc,
+                BTC_PRICE_BN,
+            ),
+            getEncodedSwap(
+                wbtcIsToken0
+                    ? swapAmountToken1
+                    : swapAmountToken0,
+                weth,
+                ETH_PRICE_BN,
+                'uniswapV3',
+            ),
+        ])
+
+        // TODO check receipt
         await liquidityManager
             .connect(account0)
             .investUniswapV3(
@@ -380,15 +424,14 @@ describe.only('LiquidityManager#invest', () => {
                     swapToken0: wbtcIsToken0 ? wbtcEncodedSwap : wethEncodedSwap,
                     swapToken1: wbtcIsToken0 ? wethEncodedSwap : wbtcEncodedSwap,
 
-                    swapAmountToken0: halfAmountWithDeductedFees,
-                    swapAmountToken1: halfAmountWithDeductedFees,
+                    swapAmountToken0,
+                    swapAmountToken1,
 
-                    // TODO calculate tick dinamically using price
-                    tickLower: getNearestUsableTick(tick - (tick / 10n), tickSpacing),
-                    tickUpper: getNearestUsableTick(tick + (tick / 10n), tickSpacing),
+                    tickLower,
+                    tickUpper,
 
-                    amount0Min: wbtcIsToken0 ? wbtcAmountMin : wethAmountMin,
-                    amount1Min: wbtcIsToken0 ? wethAmountMin : wbtcAmountMin,
+                    amount0Min,
+                    amount1Min,
                 },
                 permitAccount0,
             )
