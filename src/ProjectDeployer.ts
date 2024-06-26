@@ -63,7 +63,6 @@ export class ProjectDeployer {
             positionManagerUniV3,
             quoterUniV3,
         } = await this.deployUniV3(deployer, weth)
-        const investLib = await new InvestLib__factory(deployer).deploy()
 
         const subscriptionManagerDeployParams = this.getDeploymentInfo(SubscriptionManager__factory)
         const strategyManagerDeployParams = this.getDeploymentInfo(StrategyManager__factory)
@@ -73,6 +72,11 @@ export class ProjectDeployer {
         const zapManagerDeployParams = this.getDeploymentInfo(ZapManager__factory)
         const exchangeManagerDeployParams = this.getDeploymentInfo(ExchangeManager__factory)
 
+        await sendLocalTransaction(
+            await projectDeployer.deployInvestLib
+                .populateTransaction(InvestLib__factory.bytecode, ZeroHash),
+            deployer,
+        )
         await sendLocalTransaction(
             await projectDeployer.deploySubscriptionManager
                 .populateTransaction(subscriptionManagerDeployParams),
@@ -109,6 +113,7 @@ export class ProjectDeployer {
             deployer,
         )
 
+        const investLib = await projectDeployer.investLib()
         const [
             strategyManager,
             subscriptionManager,
