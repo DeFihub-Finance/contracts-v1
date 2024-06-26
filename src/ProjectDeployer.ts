@@ -23,6 +23,8 @@ import {
     InvestLib__factory,
     LiquidityManager,
     LiquidityManager__factory,
+    ExchangeManager__factory,
+    ExchangeManager,
 } from '@src/typechain'
 import { ZeroHash, ZeroAddress, Signer, AddressLike } from 'ethers'
 
@@ -69,6 +71,7 @@ export class ProjectDeployer {
         const vaultManagerDeployParams = this.getDeploymentInfo(VaultManager__factory)
         const liquidityManagerDeployParams = this.getDeploymentInfo(LiquidityManager__factory)
         const zapManagerDeployParams = this.getDeploymentInfo(ZapManager__factory)
+        const exchangeManagerDeployParams = this.getDeploymentInfo(ExchangeManager__factory)
 
         await sendLocalTransaction(
             await projectDeployer.deploySubscriptionManager
@@ -100,21 +103,28 @@ export class ProjectDeployer {
                 .populateTransaction(zapManagerDeployParams),
             deployer,
         )
+        await sendLocalTransaction(
+            await projectDeployer.deployExchangeManager
+                .populateTransaction(exchangeManagerDeployParams),
+            deployer,
+        )
 
         const [
             strategyManager,
             subscriptionManager,
             dca,
             vaultManager,
-            zapManager,
             liquidityManager,
+            exchangeManager,
+            zapManager,
         ] = (await Promise.all([
             projectDeployer.strategyManager(),
             projectDeployer.subscriptionManager(),
             projectDeployer.dca(),
             projectDeployer.vaultManager(),
-            projectDeployer.zapManager(),
             projectDeployer.liquidityManager(),
+            projectDeployer.exchangeManager(),
+            projectDeployer.zapManager(),
         ])).map(({ proxy }) => proxy)
 
         const subscriptionManagerInitParams: SubscriptionManager.InitializeParamsStruct = {
@@ -134,6 +144,7 @@ export class ProjectDeployer {
             dca,
             vaultManager,
             liquidityManager,
+            exchangeManager,
             zapManager,
             maxHottestStrategies: 10n,
             strategistPercentage: 20n,
@@ -169,6 +180,14 @@ export class ProjectDeployer {
             nonSubscriberFeeBP: 30n,
         }
 
+        const exchangeManagerInit: ExchangeManager.InitializeParamsStruct = {
+            owner: owner.address,
+            treasury: treasury.address,
+            subscriptionManager,
+            baseFeeBP: 30n,
+            nonSubscriberFeeBP: 30n,
+        }
+
         const zapManagerInit: ZapManager.InitializeParamsStruct = {
             owner: owner.address,
             uniswapV2ZapperConstructor: {
@@ -188,6 +207,7 @@ export class ProjectDeployer {
                 dcaInitParams,
                 vaultManagerInit,
                 liquidityManagerInit,
+                exchangeManagerInit,
                 zapManagerInit,
             ),
             deployer,
