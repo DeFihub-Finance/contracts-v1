@@ -119,7 +119,7 @@ describe.only('LiquidityManager#invest', () => {
         outputTokenPrice: BigNumber,
         protocol: 'uniswapV2' | 'uniswapV3' = 'uniswapV2',
     ) {
-        if (await isSameToken(stablecoin, outputToken))
+        if (!amount || await isSameToken(stablecoin, outputToken))
             return '0x'
 
         return protocol === 'uniswapV2'
@@ -382,6 +382,70 @@ describe.only('LiquidityManager#invest', () => {
 
                         amount0Min: getMinOutput(swapAmountToken0, token0PriceBn),
                         amount1Min: getMinOutput(swapAmountToken1, token1PriceBn),
+                    },
+                    permitAccount0,
+                )
+        ).wait()
+
+        validateInvestTransaction(amount0, token0PriceBn, amount1, token1PriceBn, receipt)
+    })
+
+    it('should add liquidity using a price range outside the current price', async () => {
+        const [
+            amountWithDeductedFees,
+            pool,
+            { token0, token0Price, token0PriceBn, token1, token1Price, token1PriceBn },
+        ] = await Promise.all([
+            deductFees(amount),
+            getUniV3Pool(stableBtcLpUniV3),
+            sortTokensAndPrices(stablecoin, USD_PRICE, wbtc, BTC_PRICE),
+        ])
+
+        // 10% lower and -20% upper
+        const { tickLower, tickUpper } = getRangeTicks(pool, 10, -20)
+
+        const { amount0, amount1 } = getAmounts(
+            amountWithDeductedFees,
+            pool,
+            tickLower,
+            tickUpper,
+            token0PriceBn,
+            token1PriceBn,
+        )
+
+        const swapAmountToken0 = amount0 * token0Price
+        const swapAmountToken1 = amount1 * token1Price
+
+        const [swapToken0, swapToken1] = await Promise.all([
+            getEncodedSwap(swapAmountToken0, token0, token0PriceBn),
+            getEncodedSwap(swapAmountToken1, token1, token1PriceBn),
+        ])
+
+        const receipt = await (
+            await liquidityManager
+                .connect(account0)
+                .investUniswapV3(
+                    {
+                        positionManager: positionManagerUniV3,
+                        inputToken: stablecoin,
+                        depositAmountInputToken: amount,
+
+                        fee: pool.fee,
+
+                        token0,
+                        token1,
+
+                        swapToken0,
+                        swapToken1,
+
+                        swapAmountToken0,
+                        swapAmountToken1,
+
+                        tickLower,
+                        tickUpper,
+
+                        amount0Min: swapAmountToken0 ? getMinOutput(swapAmountToken0, token0PriceBn) : swapAmountToken0,
+                        amount1Min: swapAmountToken1 ? getMinOutput(swapAmountToken1, token1PriceBn) : swapAmountToken1,
                     },
                     permitAccount0,
                 )

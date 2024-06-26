@@ -35,13 +35,12 @@ export function getMintTokenAmounts(
 }
 
 function splitAmounts(
-    amountInputToken: bigint,
+    amountInputToken: BigNumber,
     ratio: BigNumber,
     price0: BigNumber,
     price1: BigNumber,
 ): { amount0: bigint, amount1: bigint } {
-    const amount0 = new BigNumber(amountInputToken.toString())
-        .div(ratio.plus(1))
+    const amount0 = amountInputToken.div(ratio.plus(1))
     const amount1 = ratio.times(amount0)
 
     return {
@@ -57,7 +56,23 @@ export function getAmounts(
     tickUpper: number,
     price0: BigNumber,
     price1: BigNumber,
-) {
+): { amount0: bigint, amount1: bigint } {
+    const amountInputTokenBn = new BigNumber(amountInputToken.toString())
+
+    if (pool.tickCurrent <= tickLower) {
+        return {
+            amount0: BigInt(amountInputTokenBn.div(price0).toFixed(0)),
+            amount1: BigInt(0),
+        }
+    }
+
+    if (pool.tickCurrent >= tickUpper) {
+        return {
+            amount0: BigInt(0),
+            amount1: BigInt(amountInputTokenBn.div(price1).toFixed(0)),
+        }
+    }
+
     const { amount0, amount1 } = Position.fromAmount0({
         pool,
         tickLower,
@@ -65,11 +80,12 @@ export function getAmounts(
         amount0: parseUnits('1', 18).toString(),
         useFullPrecision: true,
     }).mintAmounts
+
     const ratio = new BigNumber(amount1.toString()).times(price1)
         .div(new BigNumber(amount0.toString()).times(price0))
 
     return splitAmounts(
-        amountInputToken,
+        amountInputTokenBn,
         ratio,
         price0,
         price1,
