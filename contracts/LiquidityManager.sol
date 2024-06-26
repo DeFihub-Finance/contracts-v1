@@ -133,9 +133,7 @@ contract LiquidityManager is HubOwnable, UseFee, UseDust, OnlyStrategyManager {
         _params.token0.safeIncreaseAllowance(address(_params.positionManager), amountToken0);
         _params.token1.safeIncreaseAllowance(address(_params.positionManager), amountToken1);
 
-        uint amount0; uint amount1;
-
-        (tokenId, liquidity, amount0, amount1) = INonfungiblePositionManager(_params.positionManager).mint(
+        (tokenId, liquidity,,) = INonfungiblePositionManager(_params.positionManager).mint(
             INonfungiblePositionManager.MintParams({
                 token0: address(_params.token0),
                 token1: address(_params.token1),
