@@ -174,6 +174,7 @@ describe('StrategyManager#invest (zap)', () => {
                 ],
                 vaultInvestments: [],
                 liquidityInvestments: [],
+                tokenInvestments: [],
                 permit: permitAccount0,
                 metadataHash: ZeroHash,
             })
@@ -356,6 +357,7 @@ describe('StrategyManager#invest (zap)', () => {
                     },
                 ],
                 liquidityInvestments: [],
+                tokenInvestments: [],
                 permit: permitAccount0,
                 metadataHash: ZeroHash,
             })
@@ -513,6 +515,7 @@ describe('StrategyManager#invest (zap)', () => {
                     },
                 ],
                 liquidityInvestments: [],
+                tokenInvestments: [],
                 permit: permitAccount0,
                 metadataHash: ZeroHash,
             })

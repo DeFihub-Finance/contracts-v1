@@ -51,6 +51,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         InvestLib.DcaInvestment[] dcaInvestments;
         InvestLib.VaultInvestment[] vaultInvestments;
         InvestLib.LiquidityInvestment[] liquidityInvestments;
+        InvestLib.TokenInvestment[] tokenInvestments;
         SubscriptionManager.Permit permit;
         bytes32 metadataHash;
     }
@@ -207,6 +208,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         uint8 dcaPercentage;
         uint8 vaultPercentage;
         uint8 liquidityPercentage;
+        uint8 tokenPercentage;
 
         for (uint i; i < _params.dcaInvestments.length; ++i)
             dcaPercentage += _params.dcaInvestments[i].percentage;
@@ -217,7 +219,10 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         for (uint i = 0; i < _params.liquidityInvestments.length; i++)
             liquidityPercentage += _params.liquidityInvestments[i].percentage;
 
-        if ((dcaPercentage + vaultPercentage + liquidityPercentage) != 100)
+        for (uint i = 0; i < _params.tokenInvestments.length; i++)
+            tokenPercentage += _params.tokenInvestments[i].percentage;
+
+        if (dcaPercentage + vaultPercentage + liquidityPercentage + tokenPercentage != 100)
             revert InvalidTotalPercentage();
 
         uint strategyId = _strategies.length;
@@ -227,6 +232,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         strategy.percentages[PRODUCT_DCA] = dcaPercentage;
         strategy.percentages[PRODUCT_VAULTS] = vaultPercentage;
         strategy.percentages[PRODUCT_LIQUIDITY] = liquidityPercentage;
+        strategy.percentages[PRODUCT_TOKENS] = tokenPercentage;
 
         // Assigning isn't possible because you can't convert an array of structs from memory to storage
         for (uint i; i < _params.dcaInvestments.length; ++i) {
@@ -258,6 +264,9 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
 
             _liquidityInvestmentsPerStrategy[strategyId].push(liquidityStrategy);
         }
+
+        for (uint i = 0; i < _params.tokenInvestments.length; i++)
+            _tokenInvestmentsPerStrategy[strategyId].push(_params.tokenInvestments[i]);
 
         emit StrategyCreated(msg.sender, strategyId, _params.metadataHash);
     }
