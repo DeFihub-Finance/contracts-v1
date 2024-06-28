@@ -11,12 +11,14 @@ export class Fees {
         dca: UseFee,
         vaultManager: UseFee,
         liquidityManager: UseFee,
+        exchangeManager: UseFee,
     ) {
         const [
             isHottestDeal, {
                 dcaInvestments,
                 vaultInvestments,
                 liquidityInvestments,
+                tokenInvestments,
             },
         ] = await Promise.all([
             strategyManager.isHot(strategyId),
@@ -35,15 +37,21 @@ export class Fees {
             (acc, investment) => acc + investment.percentage,
             BigInt(0),
         )
+        const tokensPercentage = tokenInvestments.reduce(
+            (acc, investment) => acc + investment.percentage,
+            BigInt(0),
+        )
 
         const [
             strategistPercentage,
             dcaBaseFeeBP,
             vaultBaseFeeBP,
             liquidityBaseFeeBP,
+            exchangeBaseFeeBP,
             dcaNonSubscriberFeeBP,
             vaultNonSubscriberFeeBP,
             liquidityNonSubscriberFeeBP,
+            exchangeNonSubscriberFeeBP,
         ] = await Promise.all([
             isHottestDeal
                 ? strategyManager.hotStrategistPercentage()
@@ -51,23 +59,27 @@ export class Fees {
             dca.baseFeeBP(),
             vaultManager.baseFeeBP(),
             liquidityManager.baseFeeBP(),
+            exchangeManager.baseFeeBP(),
             subscribedUser ? BigInt(0) : dca.nonSubscriberFeeBP(),
             subscribedUser ? BigInt(0) : vaultManager.nonSubscriberFeeBP(),
             subscribedUser ? BigInt(0) : liquidityManager.nonSubscriberFeeBP(),
+            subscribedUser ? BigInt(0) : exchangeManager.nonSubscriberFeeBP(),
         ])
 
         const baseFee = new BigNumber(
             (
                 dcaBaseFeeBP * dcaPercentage +
                 vaultBaseFeeBP * vaultPercentage +
-                liquidityBaseFeeBP * liquidityPercentage
+                liquidityBaseFeeBP * liquidityPercentage +
+                exchangeBaseFeeBP * tokensPercentage
             ).toString(),
         ).div(10_000)
         const nonSubscriberFee = new BigNumber(
             (
                 dcaNonSubscriberFeeBP * dcaPercentage +
                 vaultNonSubscriberFeeBP * vaultPercentage +
-                liquidityNonSubscriberFeeBP * liquidityPercentage
+                liquidityNonSubscriberFeeBP * liquidityPercentage +
+                exchangeNonSubscriberFeeBP * tokensPercentage
             ).toString(),
         ).div(10_000)
         const strategistFee = baseFee.times(strategistPercentage.toString()).div(100)
@@ -86,6 +98,7 @@ export class Fees {
         dca: UseFee,
         vaultManager: UseFee,
         liquidityManager: UseFee,
+        exchangeManager: UseFee,
     ) {
         const {
             protocolFee,
@@ -97,6 +110,7 @@ export class Fees {
             dca,
             vaultManager,
             liquidityManager,
+            exchangeManager,
         )
         const amountBN = new BigNumber(amount.toString())
 
@@ -114,6 +128,7 @@ export class Fees {
         dca: UseFee,
         vaultManager: UseFee,
         liquidityManager: UseFee,
+        exchangeManager: UseFee,
     ) {
         const { protocolFee , strategistFee } = await this.getStrategyFeeAmount(
             amount,
@@ -123,6 +138,7 @@ export class Fees {
             dca,
             vaultManager,
             liquidityManager,
+            exchangeManager,
         )
 
         return amount - protocolFee - strategistFee

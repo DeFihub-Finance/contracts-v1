@@ -506,12 +506,14 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
     ) external virtual view returns (
         InvestLib.DcaInvestment[] memory dcaInvestments,
         InvestLib.VaultInvestment[] memory vaultInvestments,
-        InvestLib.LiquidityInvestment[] memory liquidityInvestments
+        InvestLib.LiquidityInvestment[] memory liquidityInvestments,
+        InvestLib.TokenInvestment[] memory tokenInvestments
     ) {
         return (
             _dcaInvestmentsPerStrategy[_strategyId],
             _vaultInvestmentsPerStrategy[_strategyId],
-            _liquidityInvestmentsPerStrategy[_strategyId]
+            _liquidityInvestmentsPerStrategy[_strategyId],
+            _tokenInvestmentsPerStrategy[_strategyId]
         );
     }
 
