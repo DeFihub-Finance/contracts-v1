@@ -8,6 +8,7 @@ import {
     BeefyMockStrategy__factory,
     BeefyVaultV7__factory,
     DollarCostAverage,
+    ExchangeManager,
     LiquidityManager,
     StrategyManager,
     SubscriptionManager,
@@ -52,6 +53,7 @@ describe('StrategyManager#invest (zap)', () => {
     let dca: DollarCostAverage
     let vaultManager: VaultManager
     let liquidityManager: LiquidityManager
+    let exchangeManager: ExchangeManager
     let zapManager: ZapManager
 
     // external test contracts
@@ -98,6 +100,7 @@ describe('StrategyManager#invest (zap)', () => {
             dca,
             vaultManager,
             liquidityManager,
+            exchangeManager,
             zapManager,
 
             // external test contracts
@@ -148,6 +151,7 @@ describe('StrategyManager#invest (zap)', () => {
                 dca,
                 vaultManager,
                 liquidityManager,
+                exchangeManager,
             )
 
             expect(await stablecoin.balanceOf(treasury)).to.equal(initialTreasuryBalance + protocolFee)
@@ -190,6 +194,7 @@ describe('StrategyManager#invest (zap)', () => {
                 dca,
                 vaultManager,
                 liquidityManager,
+                exchangeManager,
             )
         })
 
@@ -298,6 +303,7 @@ describe('StrategyManager#invest (zap)', () => {
                 dca,
                 vaultManager,
                 liquidityManager,
+                exchangeManager,
             )
 
             try {
@@ -373,6 +379,7 @@ describe('StrategyManager#invest (zap)', () => {
                 dca,
                 vaultManager,
                 liquidityManager,
+                exchangeManager,
             )
         })
 
@@ -482,6 +489,162 @@ describe('StrategyManager#invest (zap)', () => {
         })
     })
 
+    describe('zaps into Token strategy', () => {
+        let amountPerInvestmentMinusFees: bigint
+
+        beforeEach(async () => {
+            await strategyManager.connect(account0).createStrategy({
+                dcaInvestments: [],
+                vaultInvestments: [],
+                liquidityInvestments: [],
+                tokenInvestments: [
+                    {
+                        token: wbtc,
+                        percentage: 50n,
+                    },
+                    {
+                        token: weth,
+                        percentage: 50n,
+                    },
+                ],
+                permit: permitAccount0,
+                metadataHash: ZeroHash,
+            })
+
+            await stablecoin.connect(account0).mint(account0, amount)
+            await stablecoin.connect(account0).approve(strategyManager, amount)
+
+            amountPerInvestmentMinusFees = await Fees.deductStrategyFee(
+                amount * 50n / 100n,
+                strategyManager,
+                strategyId,
+                true,
+                dca,
+                vaultManager,
+                liquidityManager,
+                exchangeManager,
+            )
+        })
+
+        it('zaps with 1% slippage', async () => {
+            await strategyManager
+                .connect(account0)
+                .invest({
+                    strategyId,
+                    inputToken: stablecoin,
+                    inputAmount: amount,
+                    inputTokenSwap: '0x',
+                    dcaSwaps: [],
+                    vaultSwaps: [],
+                    tokenSwaps: [
+                        await uniswapV2ZapHelper.encodeSwap(
+                            amountPerInvestmentMinusFees,
+                            stablecoin,
+                            wbtc,
+                            USD_PRICE_BN,
+                            BTC_PRICE_BN,
+                            new BigNumber(0.01),
+                            strategyManager,
+                        ),
+                        await uniswapV2ZapHelper.encodeSwap(
+                            amountPerInvestmentMinusFees,
+                            stablecoin,
+                            weth,
+                            USD_PRICE_BN,
+                            ETH_PRICE_BN,
+                            new BigNumber(0.01),
+                            strategyManager,
+                        ),
+                    ],
+                    liquidityZaps: [],
+                    investorPermit: permitAccount0,
+                    strategistPermit: permitAccount0,
+                })
+
+            const expectedAmountBTC = BigInt(
+                new BigNumber(amountPerInvestmentMinusFees.toString())
+                    .div(BTC_PRICE_BN)
+                    .toFixed(0),
+            )
+            const expectedAmountETH = BigInt(
+                new BigNumber(amountPerInvestmentMinusFees.toString())
+                    .div(ETH_PRICE_BN)
+                    .toFixed(0),
+            )
+
+            Compare.almostEqualPercentage({
+                target: expectedAmountBTC,
+                value: await wbtc.balanceOf(strategyManager),
+                tolerance: new BigNumber(0.01), // Tolerance of 1%
+            })
+
+            Compare.almostEqualPercentage({
+                target: expectedAmountETH,
+                value: await weth.balanceOf(strategyManager),
+                tolerance: new BigNumber(0.01), // Tolerance of 1%
+            })
+
+            await strategyManager.connect(account0).closePosition(0, [])
+
+            Compare.almostEqualPercentage({
+                target: expectedAmountBTC,
+                value: await wbtc.balanceOf(account0),
+                tolerance: new BigNumber(0.01), // Tolerance of 1%
+            })
+
+            Compare.almostEqualPercentage({
+                target: expectedAmountETH,
+                value: await weth.balanceOf(account0),
+                tolerance: new BigNumber(0.01), // Tolerance of 1%
+            })
+        })
+
+        it('fails with 0% slippage', async () => {
+            try {
+                await strategyManager
+                    .connect(account0)
+                    .invest({
+                        strategyId,
+                        inputToken: stablecoin,
+                        inputAmount: amount,
+                        inputTokenSwap: '0x',
+                        dcaSwaps: [],
+                        vaultSwaps: [],
+                        tokenSwaps: [
+                            await uniswapV2ZapHelper.encodeSwap(
+                                amountPerInvestmentMinusFees,
+                                stablecoin,
+                                wbtc,
+                                USD_PRICE_BN,
+                                BTC_PRICE_BN,
+                                new BigNumber(0),
+                                strategyManager,
+                            ),
+                            await uniswapV2ZapHelper.encodeSwap(
+                                amountPerInvestmentMinusFees,
+                                stablecoin,
+                                weth,
+                                USD_PRICE_BN,
+                                ETH_PRICE_BN,
+                                new BigNumber(0),
+                                strategyManager,
+                            ),
+                        ],
+                        liquidityZaps: [],
+                        investorPermit: permitAccount0,
+                        strategistPermit: permitAccount0,
+                    })
+
+                throw new Error('Expected to fail')
+            }
+            catch (e) {
+                const error = decodeLowLevelCallError(e)
+
+                expect(error).to.equal(INSUFFICIENT_OUTPUT_AMOUNT)
+            }
+        })
+    })
+
     describe('zaps into mixed strategy with vaults and dca', () => {
         let initialLpBalance: bigint
         let initialStablecoinBalance: bigint
@@ -531,6 +694,7 @@ describe('StrategyManager#invest (zap)', () => {
                 dca,
                 vaultManager,
                 liquidityManager,
+                exchangeManager,
             )
         })
 
@@ -763,4 +927,5 @@ describe('StrategyManager#invest (zap)', () => {
             })
         })
     })
+
 })

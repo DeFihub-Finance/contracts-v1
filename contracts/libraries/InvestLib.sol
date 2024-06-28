@@ -88,7 +88,7 @@ library InvestLib {
     struct LiquidityInvestParams {
         address treasury;
         LiquidityManager liquidityManager;
-        LiquidityInvestment[] liquidityInvestments;
+        LiquidityInvestment[] investments;
         IERC20Upgradeable inputToken;
         uint amount;
         uint8 liquidityTotalPercentage;
@@ -223,7 +223,7 @@ library InvestLib {
             LiquidityInvestParams({
                 treasury: _params.treasury,
                 liquidityManager: _params.liquidityManager,
-                liquidityInvestments: _params.liquidityInvestments,
+                investments: _params.liquidityInvestments,
                 inputToken: _params.inputToken,
                 amount: _params.amount,
                 liquidityTotalPercentage: _params.liquidityTotalPercentage,
@@ -265,6 +265,7 @@ library InvestLib {
                 _params.amount * investment.percentage / 100
             );
 
+            // TODO infinite approval to dca is safe
             poolInputToken.safeIncreaseAllowance(address(_params.dca), swapOutput);
 
             _params.dca.investUsingStrategy(investment.poolId, investment.swaps, swapOutput);
@@ -299,6 +300,7 @@ library InvestLib {
                 _params.amount * investment.percentage / 100
             );
 
+            // TODO infinite approval to vault is safe
             vaultWantToken.safeIncreaseAllowance(address(_params.vaultManager), swapOutput);
 
             uint initialBalance = vault.balanceOf(address(this));
@@ -315,21 +317,21 @@ library InvestLib {
     function _investInLiquidity(
         LiquidityInvestParams memory _params
     ) private returns (LiquidityPosition[] memory) {
-        if (_params.liquidityInvestments.length == 0)
+        if (_params.investments.length == 0)
             return new LiquidityPosition[](0);
 
-        if (_params.liquidityInvestments.length != _params.zaps.length)
+        if (_params.investments.length != _params.zaps.length)
             revert InvalidParamsLength();
 
-        LiquidityPosition[] memory liquidityPositions = new LiquidityPosition[](_params.liquidityInvestments.length);
+        LiquidityPosition[] memory liquidityPositions = new LiquidityPosition[](_params.investments.length);
 
         _params.inputToken.safeTransfer(
             address(_params.liquidityManager),
             _params.liquidityTotalPercentage * _params.amount / 100
         );
 
-        for (uint i; i < _params.liquidityInvestments.length; ++i) {
-            LiquidityInvestment memory investment = _params.liquidityInvestments[i];
+        for (uint i; i < _params.investments.length; ++i) {
+            LiquidityInvestment memory investment = _params.investments[i];
             LiquidityInvestZapParams memory zap = _params.zaps[i];
 
             _params.liquidityManager.investUniswapV3UsingStrategy(
@@ -384,7 +386,6 @@ library InvestLib {
         return tokenPositions;
     }
 
-    // TODO close token positions
     function closePosition(ClosePositionParams memory _params) external returns (
         uint[][] memory dcaWithdrawnAmounts,
         uint[] memory vaultWithdrawnAmounts,

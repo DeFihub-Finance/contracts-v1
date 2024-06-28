@@ -225,6 +225,7 @@ export class ProjectDeployer {
             dca: DollarCostAverage__factory.connect(dca, owner),
             vaultManager: VaultManager__factory.connect(vaultManager, owner),
             zapManager: ZapManager__factory.connect(zapManager, owner),
+            exchangeManager: ExchangeManager__factory.connect(exchangeManager, owner),
             liquidityManager: LiquidityManager__factory.connect(liquidityManager, owner),
 
             // EOA with contract roles

@@ -141,7 +141,8 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         uint stableAmountAfterFees,
         uint[] dcaPositionIds,
         InvestLib.VaultPosition[] vaultPositions,
-        InvestLib.LiquidityPosition[] liquidityPositions
+        InvestLib.LiquidityPosition[] liquidityPositions,
+        InvestLib.TokenPosition[] tokenPositions
     );
     event PositionClosed(
         address owner,
@@ -299,7 +300,8 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         (
             uint[] memory dcaPositionIds,
             InvestLib.VaultPosition[] memory vaultPositions,
-            InvestLib.LiquidityPosition[] memory liquidityPositions
+            InvestLib.LiquidityPosition[] memory liquidityPositions,
+            InvestLib.TokenPosition[] memory tokenPositions
         ) = abi.decode(
             _callInvestLib(
                 abi.encodeWithSelector(
@@ -328,7 +330,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
                     })
                 )
             ),
-            (uint[], InvestLib.VaultPosition[], InvestLib.LiquidityPosition[])
+            (uint[], InvestLib.VaultPosition[], InvestLib.LiquidityPosition[], InvestLib.TokenPosition[])
         );
 
         uint positionId = _positions[msg.sender].length;
@@ -344,6 +346,9 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         for (uint i; i < liquidityPositions.length; ++i)
             _liquidityPositionsPerPosition[msg.sender][positionId].push(liquidityPositions[i]);
 
+        for (uint i; i < tokenPositions.length; ++i)
+            _tokenPositionsPerPosition[msg.sender][positionId].push(tokenPositions[i]);
+
         emit PositionCreated(
             msg.sender,
             _params.strategyId,
@@ -353,7 +358,8 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
             pullFundsResult.remainingAmount,
             dcaPositionIds,
             vaultPositions,
-            liquidityPositions
+            liquidityPositions,
+            tokenPositions
         );
     }
 
