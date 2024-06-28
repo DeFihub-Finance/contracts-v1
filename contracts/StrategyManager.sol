@@ -67,7 +67,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         bytes[] dcaSwaps;
         bytes[] vaultSwaps;
         bytes[] tokenSwaps;
-        InvestLib.LiquidityZapParams[] liquidityZaps;
+        InvestLib.LiquidityInvestZapParams[] liquidityZaps;
         SubscriptionManager.Permit investorPermit;
         SubscriptionManager.Permit strategistPermit;
     }

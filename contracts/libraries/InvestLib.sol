@@ -74,7 +74,7 @@ library InvestLib {
     }
 
     /// part of LiquidityInvestParams
-    struct LiquidityZapParams {
+    struct LiquidityInvestZapParams {
         bytes swapToken0;
         bytes swapToken1;
         uint swapAmountToken0;
@@ -92,12 +92,12 @@ library InvestLib {
         IERC20Upgradeable inputToken;
         uint amount;
         uint8 liquidityTotalPercentage;
-        LiquidityZapParams[] zaps;
+        LiquidityInvestZapParams[] zaps;
     }
 
     struct TokenInvestParams {
+        TokenInvestment[] investments;
         IERC20Upgradeable inputToken;
-        IERC20Upgradeable outputToken;
         uint amount;
         ZapManager zapManager;
         bytes[] swaps;
@@ -119,7 +119,7 @@ library InvestLib {
         bytes[] vaultSwaps;
         // liquidity
         LiquidityInvestment[] liquidityInvestments;
-        LiquidityZapParams[] liquidityZaps;
+        LiquidityInvestZapParams[] liquidityZaps;
         uint8 liquidityTotalPercentage;
         // tokens
         TokenInvestment[] tokenInvestments;
@@ -194,7 +194,8 @@ library InvestLib {
     ) external returns (
         uint[] memory dcaPositionIds,
         VaultPosition[] memory vaultPositions,
-        LiquidityPosition[] memory liquidityPositions
+        LiquidityPosition[] memory liquidityPositions,
+        TokenPosition[] memory tokenPositions
     ) {
         dcaPositionIds = _investInDca(
             DcaInvestmentParams({
@@ -227,6 +228,16 @@ library InvestLib {
                 amount: _params.amount,
                 liquidityTotalPercentage: _params.liquidityTotalPercentage,
                 zaps: _params.liquidityZaps
+            })
+        );
+
+        tokenPositions = _investInToken(
+            TokenInvestParams({
+                investments: _params.tokenInvestments,
+                inputToken: _params.inputToken,
+                amount: _params.amount,
+                zapManager: _params.zapManager,
+                swaps: _params.tokenSwaps
             })
         );
     }
@@ -319,7 +330,7 @@ library InvestLib {
 
         for (uint i; i < _params.liquidityInvestments.length; ++i) {
             LiquidityInvestment memory investment = _params.liquidityInvestments[i];
-            LiquidityZapParams memory zap = _params.zaps[i];
+            LiquidityInvestZapParams memory zap = _params.zaps[i];
 
             _params.liquidityManager.investUniswapV3UsingStrategy(
                 LiquidityManager.InvestUniswapV3Params({
@@ -355,15 +366,17 @@ library InvestLib {
         TokenPosition[] memory tokenPositions = new TokenPosition[](_params.swaps.length);
 
         for (uint i; i < _params.swaps.length; ++i) {
+            TokenInvestment memory investment = _params.investments[i];
+
             uint swapOutput = _params.zapManager.zap(
                 _params.swaps[i],
                 _params.inputToken,
-                _params.outputToken,
-                _params.amount
+                investment.token,
+                _params.amount * investment.percentage / 100
             );
 
             tokenPositions[i] = TokenPosition(
-                _params.outputToken,
+                investment.token,
                 swapOutput
             );
         }
