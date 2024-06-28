@@ -10,7 +10,7 @@ import {
     ZeroAddress,
     parseEther,
     type LogDescription,
-    type ContractTransactionReceipt,
+    ContractTransactionReceipt,
 } from 'ethers'
 import { Compare } from '@src/Compare'
 import { getUniV3Pool } from '@src/helpers'
@@ -185,7 +185,7 @@ describe.only('LiquidityManager#invest', () => {
         token1Price: BigNumber,
         receipt: ContractTransactionReceipt | null,
     ) {
-        expect(receipt).to.not.be.undefined
+        expect(receipt).to.be.an.instanceof(ContractTransactionReceipt)
 
         const uniswapV3PoolInterface = UniswapV3Pool__factory.createInterface()
         let eventLog: LogDescription | undefined
