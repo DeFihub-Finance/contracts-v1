@@ -31,7 +31,7 @@ import {
     UniswapV3Pool__factory,
 } from '@src/typechain'
 
-describe.only('LiquidityManager#invest', () => {
+describe('LiquidityManager#invest', () => {
     const amount = parseEther('1000')
     const SLIPPAGE_BN = new BigNumber(0.01)
     const USD_PRICE = 1n
