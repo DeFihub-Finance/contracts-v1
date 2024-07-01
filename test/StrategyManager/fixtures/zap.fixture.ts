@@ -46,6 +46,7 @@ export async function zapFixture() {
         vaultManager,
         liquidityManager,
         subscriptionManager,
+        exchangeManager,
         zapManager,
 
         // external test contracts
@@ -175,6 +176,7 @@ export async function zapFixture() {
         vaultManager,
         liquidityManager,
         subscriptionManager,
+        exchangeManager,
         zapManager,
 
         // external test contracts

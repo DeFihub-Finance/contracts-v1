@@ -10,6 +10,7 @@ import {StrategyManager} from '../StrategyManager.sol';
 import {DollarCostAverage} from '../DollarCostAverage.sol';
 import {VaultManager} from '../VaultManager.sol';
 import {LiquidityManager} from '../LiquidityManager.sol';
+import {ExchangeManager} from '../ExchangeManager.sol';
 import {ZapManager} from '../zap/ZapManager.sol';
 
 contract ProjectDeployer is GenericDeployer {
@@ -21,6 +22,7 @@ contract ProjectDeployer is GenericDeployer {
     ProxyAddress public dca;
     ProxyAddress public vaultManager;
     ProxyAddress public liquidityManager;
+    ProxyAddress public exchangeManager;
 
     // Helpers
     ProxyAddress public subscriptionManager;
@@ -63,6 +65,12 @@ contract ProjectDeployer is GenericDeployer {
         liquidityManager = deployProxy(_liquidityManagerDeploymentInfo);
     }
 
+    function deployExchangeManager(
+        ProxyDeploymentInfo calldata _exchangeManagerDeploymentInfo
+    ) external onlyOwner {
+        exchangeManager = deployProxy(_exchangeManagerDeploymentInfo);
+    }
+
     function deployZapManager(
         ProxyDeploymentInfo calldata _zapManagerInfo
     ) external onlyOwner {
@@ -75,6 +83,7 @@ contract ProjectDeployer is GenericDeployer {
         DollarCostAverage.InitializeParams memory _dcaParams,
         VaultManager.InitializeParams memory _vaultManagerParams,
         LiquidityManager.InitializeParams memory _liquidityManagerParams,
+        ExchangeManager.InitializeParams memory _exchangeManagerParams,
         ZapManager.InitializeParams memory _zapManagerParams
     ) external onlyOwner {
         StrategyManager(strategyManager.proxy).initialize(_strategyManagerParam);
@@ -83,6 +92,7 @@ contract ProjectDeployer is GenericDeployer {
         DollarCostAverage(dca.proxy).initialize(_dcaParams);
         VaultManager(vaultManager.proxy).initialize(_vaultManagerParams);
         LiquidityManager(liquidityManager.proxy).initialize(_liquidityManagerParams);
+        ExchangeManager(exchangeManager.proxy).initialize(_exchangeManagerParams);
 
         // Helpers
         SubscriptionManager(subscriptionManager.proxy).initialize(_subscriptionManagerParams);

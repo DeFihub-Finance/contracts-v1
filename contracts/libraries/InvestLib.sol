@@ -10,11 +10,19 @@ import {DollarCostAverage} from '../DollarCostAverage.sol';
 import {VaultManager} from '../VaultManager.sol';
 import {LiquidityManager} from "../LiquidityManager.sol";
 import {ZapManager} from "../zap/ZapManager.sol";
+import {IERC20Mintable} from "../test/TestRouter.sol";
+import {ZapLib} from "./ZapLib.sol";
 
 library InvestLib {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     error InvalidParamsLength();
+
+    /**
+     * Investment structs
+     *
+     * Interfaces of how investments are stored for each product in a strategy
+     */
 
     struct DcaInvestment {
         uint208 poolId;
@@ -37,6 +45,17 @@ library InvestLib {
         uint8 percentage;
     }
 
+    struct TokenInvestment {
+        IERC20Upgradeable token;
+        uint8 percentage;
+    }
+
+    /**
+     * Invest Params structs
+     *
+     * Interfaces of the internal functions of the InvestLib library that are used to invest in each product
+     */
+
     struct DcaInvestmentParams {
         DollarCostAverage dca;
         DcaInvestment[] dcaInvestments;
@@ -55,7 +74,8 @@ library InvestLib {
         bytes[] swaps;
     }
 
-    struct LiquidityZapParams {
+    /// part of LiquidityInvestParams
+    struct LiquidityInvestZapParams {
         bytes swapToken0;
         bytes swapToken1;
         uint swapAmountToken0;
@@ -69,22 +89,19 @@ library InvestLib {
     struct LiquidityInvestParams {
         address treasury;
         LiquidityManager liquidityManager;
-        LiquidityInvestment[] liquidityInvestments;
+        LiquidityInvestment[] investments;
         IERC20Upgradeable inputToken;
         uint amount;
         uint8 liquidityTotalPercentage;
-        LiquidityZapParams[] zaps;
+        LiquidityInvestZapParams[] zaps;
     }
 
-    struct VaultPosition {
-        address vault;
+    struct TokenInvestParams {
+        TokenInvestment[] investments;
+        IERC20Upgradeable inputToken;
         uint amount;
-    }
-
-    struct LiquidityPosition {
-        address positionManager;
-        uint tokenId;
-        uint128 liquidity;
+        ZapManager zapManager;
+        bytes[] swaps;
     }
 
     struct InvestParams {
@@ -103,8 +120,74 @@ library InvestLib {
         bytes[] vaultSwaps;
         // liquidity
         LiquidityInvestment[] liquidityInvestments;
-        LiquidityZapParams[] liquidityZaps;
+        LiquidityInvestZapParams[] liquidityZaps;
         uint8 liquidityTotalPercentage;
+        // tokens
+        TokenInvestment[] tokenInvestments;
+        bytes[] tokenSwaps;
+    }
+
+    /**
+     * Position structs
+     *
+     * Interfaces for users' positions to be stored in the Strategy contract
+     */
+
+    struct VaultPosition {
+        address vault;
+        uint amount;
+    }
+
+    struct LiquidityPosition {
+        address positionManager;
+        uint tokenId;
+        uint128 liquidity;
+    }
+
+    struct TokenPosition {
+        IERC20Upgradeable token;
+        uint amount;
+    }
+
+    /**
+     * Close Position structs
+     *
+     * Interfaces for the functions that close users' positions in the Strategy contract
+     */
+
+    /// part of ClosePositionParams
+    struct LiquidityMinOutputs {
+        uint minOutputToken0;
+        uint minOutputToken1;
+    }
+
+    struct ClosePositionParams {
+        // dca
+        DollarCostAverage dca;
+        uint[] dcaPositions;
+        // vaults
+        VaultPosition[] vaultPositions;
+        // liquidity
+        LiquidityPosition[] liquidityPositions;
+        LiquidityMinOutputs[] liquidityMinOutputs;
+        // tokens
+        TokenPosition[] tokenPositions;
+    }
+
+    /**
+     * Collect Position structs
+     *
+     * Interfaces for functions that collect users' funds/rewards without withdrawing the deposited amount
+     */
+
+    struct CollectPositionParams {
+        // dca
+        DollarCostAverage dca;
+        uint[] dcaPositions;
+        // liquidity
+        LiquidityPosition[] liquidityPositions;
+        // tokens
+        TokenPosition[] tokenPositions;
     }
 
     function invest(
@@ -112,7 +195,8 @@ library InvestLib {
     ) external returns (
         uint[] memory dcaPositionIds,
         VaultPosition[] memory vaultPositions,
-        LiquidityPosition[] memory liquidityPositions
+        LiquidityPosition[] memory liquidityPositions,
+        TokenPosition[] memory tokenPositions
     ) {
         dcaPositionIds = _investInDca(
             DcaInvestmentParams({
@@ -140,11 +224,21 @@ library InvestLib {
             LiquidityInvestParams({
                 treasury: _params.treasury,
                 liquidityManager: _params.liquidityManager,
-                liquidityInvestments: _params.liquidityInvestments,
+                investments: _params.liquidityInvestments,
                 inputToken: _params.inputToken,
                 amount: _params.amount,
                 liquidityTotalPercentage: _params.liquidityTotalPercentage,
                 zaps: _params.liquidityZaps
+            })
+        );
+
+        tokenPositions = _investInToken(
+            TokenInvestParams({
+                investments: _params.tokenInvestments,
+                inputToken: _params.inputToken,
+                amount: _params.amount,
+                zapManager: _params.zapManager,
+                swaps: _params.tokenSwaps
             })
         );
     }
@@ -165,11 +259,14 @@ library InvestLib {
             DcaInvestment memory investment = _params.dcaInvestments[i];
             IERC20Upgradeable poolInputToken = IERC20Upgradeable(_params.dca.getPool(investment.poolId).inputToken);
 
-            uint swapOutput = _params.zapManager.zap(
+            uint investmentAmount = _params.amount * investment.percentage / 100;
+
+            uint swapOutput = ZapLib._zap(
+                _params.zapManager,
                 _params.swaps[i],
                 _params.inputToken,
                 poolInputToken,
-                _params.amount * investment.percentage / 100
+                investmentAmount
             );
 
             poolInputToken.safeIncreaseAllowance(address(_params.dca), swapOutput);
@@ -199,7 +296,8 @@ library InvestLib {
             IBeefyVaultV7 vault = IBeefyVaultV7(investment.vault);
             IERC20Upgradeable vaultWantToken = vault.want();
 
-            uint swapOutput = _params.zapManager.zap(
+            uint swapOutput = ZapLib._zap(
+                _params.zapManager,
                 _params.swaps[i],
                 _params.inputToken,
                 vaultWantToken,
@@ -222,22 +320,22 @@ library InvestLib {
     function _investInLiquidity(
         LiquidityInvestParams memory _params
     ) private returns (LiquidityPosition[] memory) {
-        if (_params.liquidityInvestments.length == 0)
+        if (_params.investments.length == 0)
             return new LiquidityPosition[](0);
 
-        if (_params.liquidityInvestments.length != _params.zaps.length)
+        if (_params.investments.length != _params.zaps.length)
             revert InvalidParamsLength();
 
-        LiquidityPosition[] memory liquidityPositions = new LiquidityPosition[](_params.liquidityInvestments.length);
+        LiquidityPosition[] memory liquidityPositions = new LiquidityPosition[](_params.investments.length);
 
         _params.inputToken.safeTransfer(
             address(_params.liquidityManager),
             _params.liquidityTotalPercentage * _params.amount / 100
         );
 
-        for (uint i; i < _params.liquidityInvestments.length; ++i) {
-            LiquidityInvestment memory investment = _params.liquidityInvestments[i];
-            LiquidityZapParams memory zap = _params.zaps[i];
+        for (uint i; i < _params.investments.length; ++i) {
+            LiquidityInvestment memory investment = _params.investments[i];
+            LiquidityInvestZapParams memory zap = _params.zaps[i];
 
             _params.liquidityManager.investUniswapV3UsingStrategy(
                 LiquidityManager.InvestUniswapV3Params({
@@ -264,31 +362,45 @@ library InvestLib {
         return liquidityPositions;
     }
 
-    struct LiquidityMinOutputs {
-        uint minOutputToken0;
-        uint minOutputToken1;
-    }
+    function _investInToken(
+        TokenInvestParams memory _params
+    ) private returns (TokenPosition[] memory) {
+        if (_params.swaps.length == 0)
+            return new TokenPosition[](0);
 
-    struct ClosePositionParams {
-        // dca
-        DollarCostAverage dca;
-        uint[] dcaPositions;
-        // vaults
-        VaultPosition[] vaultPositions;
-        // liquidity
-        LiquidityPosition[] liquidityPositions;
-        LiquidityMinOutputs[] liquidityMinOutputs;
+        TokenPosition[] memory tokenPositions = new TokenPosition[](_params.swaps.length);
+
+        for (uint i; i < _params.swaps.length; ++i) {
+            TokenInvestment memory investment = _params.investments[i];
+
+            uint swapOutput = ZapLib._zap(
+                _params.zapManager,
+                _params.swaps[i],
+                _params.inputToken,
+                investment.token,
+                _params.amount * investment.percentage / 100
+            );
+
+            tokenPositions[i] = TokenPosition(
+                investment.token,
+                swapOutput
+            );
+        }
+
+        return tokenPositions;
     }
 
     function closePosition(ClosePositionParams memory _params) external returns (
         uint[][] memory dcaWithdrawnAmounts,
         uint[] memory vaultWithdrawnAmounts,
-        uint[][] memory liquidityWithdrawnAmounts
+        uint[][] memory liquidityWithdrawnAmounts,
+        uint[] memory tokenWithdrawnAmounts
     ) {
         return (
             _closeDcaPositions(_params.dca, _params.dcaPositions),
             _closeVaultPositions(_params.vaultPositions),
-            _closeLiquidityPositions(_params.liquidityPositions, _params.liquidityMinOutputs)
+            _closeLiquidityPositions(_params.liquidityPositions, _params.liquidityMinOutputs),
+            _closeTokenPositions(_params.tokenPositions)
         );
     }
 
@@ -379,23 +491,33 @@ library InvestLib {
         return withdrawnAmounts;
     }
 
-    struct CollectPositionParams {
-        // dca
-        DollarCostAverage dca;
-        uint[] dcaPositions;
-        // liquidity
-        LiquidityPosition[] liquidityPositions;
+    function _closeTokenPositions(
+        TokenPosition[] memory _positions
+    ) private returns (uint[] memory) {
+        uint[] memory withdrawnAmounts = new uint[](_positions.length);
+
+        for (uint i; i < _positions.length; ++i) {
+            TokenPosition memory position = _positions[i];
+
+            position.token.safeTransfer(msg.sender, position.amount);
+
+            withdrawnAmounts[i] = position.amount;
+        }
+
+        return withdrawnAmounts;
     }
 
     function collectPosition(
         CollectPositionParams memory _params
     ) external returns (
         uint[] memory dcaWithdrawnAmounts,
-        uint[][] memory liquidityWithdrawnAmounts
+        uint[][] memory liquidityWithdrawnAmounts,
+        uint[] memory tokenWithdrawnAmounts
     ) {
         return (
             _collectPositionsDca(_params.dca, _params.dcaPositions),
-            _collectPositionsLiquidity(_params.liquidityPositions)
+            _collectPositionsLiquidity(_params.liquidityPositions),
+            _collectPositionsToken(_params.tokenPositions)
         );
     }
 
@@ -444,6 +566,23 @@ library InvestLib {
 
             withdrawnAmounts[i][0] = amount0;
             withdrawnAmounts[i][1] = amount1;
+        }
+
+        return withdrawnAmounts;
+    }
+
+    function _collectPositionsToken(
+        TokenPosition[] memory _positions
+    ) private returns (uint[] memory) {
+        uint[] memory withdrawnAmounts = new uint[](_positions.length);
+
+        for (uint i; i < _positions.length; ++i) {
+            TokenPosition memory position = _positions[i];
+            uint initialBalance = position.token.balanceOf(address(this));
+
+            position.token.safeTransfer(msg.sender, position.amount);
+
+            withdrawnAmounts[i] = position.token.balanceOf(address(this)) - initialBalance;
         }
 
         return withdrawnAmounts;

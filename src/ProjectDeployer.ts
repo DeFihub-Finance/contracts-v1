@@ -23,6 +23,8 @@ import {
     InvestLib__factory,
     LiquidityManager,
     LiquidityManager__factory,
+    ExchangeManager__factory,
+    ExchangeManager,
 } from '@src/typechain'
 import { ZeroHash, ZeroAddress, Signer, AddressLike } from 'ethers'
 
@@ -61,7 +63,6 @@ export class ProjectDeployer {
             positionManagerUniV3,
             quoterUniV3,
         } = await this.deployUniV3(deployer, weth)
-        const investLib = await new InvestLib__factory(deployer).deploy()
 
         const subscriptionManagerDeployParams = this.getDeploymentInfo(SubscriptionManager__factory)
         const strategyManagerDeployParams = this.getDeploymentInfo(StrategyManager__factory)
@@ -69,7 +70,13 @@ export class ProjectDeployer {
         const vaultManagerDeployParams = this.getDeploymentInfo(VaultManager__factory)
         const liquidityManagerDeployParams = this.getDeploymentInfo(LiquidityManager__factory)
         const zapManagerDeployParams = this.getDeploymentInfo(ZapManager__factory)
+        const exchangeManagerDeployParams = this.getDeploymentInfo(ExchangeManager__factory)
 
+        await sendLocalTransaction(
+            await projectDeployer.deployInvestLib
+                .populateTransaction(InvestLib__factory.bytecode, ZeroHash),
+            deployer,
+        )
         await sendLocalTransaction(
             await projectDeployer.deploySubscriptionManager
                 .populateTransaction(subscriptionManagerDeployParams),
@@ -100,21 +107,29 @@ export class ProjectDeployer {
                 .populateTransaction(zapManagerDeployParams),
             deployer,
         )
+        await sendLocalTransaction(
+            await projectDeployer.deployExchangeManager
+                .populateTransaction(exchangeManagerDeployParams),
+            deployer,
+        )
 
+        const investLib = await projectDeployer.investLib()
         const [
             strategyManager,
             subscriptionManager,
             dca,
             vaultManager,
-            zapManager,
             liquidityManager,
+            exchangeManager,
+            zapManager,
         ] = (await Promise.all([
             projectDeployer.strategyManager(),
             projectDeployer.subscriptionManager(),
             projectDeployer.dca(),
             projectDeployer.vaultManager(),
-            projectDeployer.zapManager(),
             projectDeployer.liquidityManager(),
+            projectDeployer.exchangeManager(),
+            projectDeployer.zapManager(),
         ])).map(({ proxy }) => proxy)
 
         const subscriptionManagerInitParams: SubscriptionManager.InitializeParamsStruct = {
@@ -134,6 +149,7 @@ export class ProjectDeployer {
             dca,
             vaultManager,
             liquidityManager,
+            exchangeManager,
             zapManager,
             maxHottestStrategies: 10n,
             strategistPercentage: 20n,
@@ -169,6 +185,14 @@ export class ProjectDeployer {
             nonSubscriberFeeBP: 30n,
         }
 
+        const exchangeManagerInit: ExchangeManager.InitializeParamsStruct = {
+            owner: owner.address,
+            treasury: treasury.address,
+            subscriptionManager,
+            baseFeeBP: 30n,
+            nonSubscriberFeeBP: 30n,
+        }
+
         const zapManagerInit: ZapManager.InitializeParamsStruct = {
             owner: owner.address,
             uniswapV2ZapperConstructor: {
@@ -188,6 +212,7 @@ export class ProjectDeployer {
                 dcaInitParams,
                 vaultManagerInit,
                 liquidityManagerInit,
+                exchangeManagerInit,
                 zapManagerInit,
             ),
             deployer,
@@ -200,6 +225,7 @@ export class ProjectDeployer {
             dca: DollarCostAverage__factory.connect(dca, owner),
             vaultManager: VaultManager__factory.connect(vaultManager, owner),
             zapManager: ZapManager__factory.connect(zapManager, owner),
+            exchangeManager: ExchangeManager__factory.connect(exchangeManager, owner),
             liquidityManager: LiquidityManager__factory.connect(liquidityManager, owner),
 
             // EOA with contract roles

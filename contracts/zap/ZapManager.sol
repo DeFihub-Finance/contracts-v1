@@ -83,7 +83,7 @@ contract ZapManager is HubOwnable, ICall {
         return _outputToken.balanceOf(msg.sender) - initialBalanceOutputToken;
     }
 
-    function callProtocol(ProtocolCall memory _protocolCall) internal {
+    function callProtocol(ProtocolCall memory _protocolCall) public {
         address protocolAddr = protocolImplementations[_protocolCall.protocolName];
 
         if (protocolAddr == address(0))
