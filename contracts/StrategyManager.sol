@@ -365,7 +365,6 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         if (position.closed)
             revert PositionAlreadyClosed();
 
-        // TODO test for possible reentrancy attack
         InvestLib.TokenPosition[] memory tokenPositions = position.collected
             ? new InvestLib.TokenPosition[](0)
             : _tokenPositionsPerPosition[msg.sender][_positionId];
@@ -415,7 +414,6 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         if (position.closed)
             revert PositionAlreadyClosed();
 
-        // TODO test for possible reentrancy attack
         InvestLib.TokenPosition[] memory tokenPositions = position.collected
             ? new InvestLib.TokenPosition[](0)
             : _tokenPositionsPerPosition[msg.sender][_positionId];
