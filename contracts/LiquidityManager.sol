@@ -105,26 +105,25 @@ contract LiquidityManager is HubOwnable, UseFee, UseDust, OnlyStrategyManager {
         uint tokenId,
         uint128 liquidity
     ) {
-        if (
-            !positionManagerWhitelist[_params.positionManager] ||
-            _params.token0 > _params.token1
-        )
+        if (!positionManagerWhitelist[_params.positionManager] || _params.token0 > _params.token1)
             revert InvalidInvestment();
 
-        _params.inputToken.safeIncreaseAllowance(
-            address(zapManager),
-            _params.swapAmountToken0 + _params.swapAmountToken1
-        );
+        if (_params.swapToken0.length > 0 && _params.swapToken1.length > 0)
+            _params.inputToken.safeTransfer(address(zapManager), _params.swapAmountToken0 + _params.swapAmountToken1);
+        else if (_params.swapToken0.length > 0)
+            _params.inputToken.safeTransfer(address(zapManager), _params.swapAmountToken0);
+        else if (_params.swapToken1.length > 0)
+            _params.inputToken.safeTransfer(address(zapManager), _params.swapAmountToken1);
 
-        uint amountToken0 = zapManager.zap(
+        uint amountToken0 = _zap(
+            zapManager,
             _params.swapToken0,
-            _params.inputToken,
             _params.token0,
             _params.swapAmountToken0
         );
-        uint amountToken1 = zapManager.zap(
+        uint amountToken1 = _zap(
+            zapManager,
             _params.swapToken1,
-            _params.inputToken,
             _params.token1,
             _params.swapAmountToken1
         );
@@ -148,6 +147,22 @@ contract LiquidityManager is HubOwnable, UseFee, UseDust, OnlyStrategyManager {
                 deadline: block.timestamp
             })
         );
+    }
+
+    function _zap(
+        ZapManager _zapManager,
+        bytes memory _encodedProtocolCall,
+        IERC20Upgradeable _outputToken,
+        uint _amount
+    ) internal returns (uint outputAmount) {
+        if (_encodedProtocolCall.length == 0)
+            return _amount;
+
+        uint initialOutputBalance = _outputToken.balanceOf(address(this));
+
+        _zapManager.callProtocol(abi.decode(_encodedProtocolCall, (ZapManager.ProtocolCall)));
+
+        return _outputToken.balanceOf(address(this)) - initialOutputBalance;
     }
 
     function setPositionManagerWhitelist(
