@@ -218,10 +218,10 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         for (uint i; i < _params.vaultInvestments.length; ++i)
             vaultPercentage += _params.vaultInvestments[i].percentage;
 
-        for (uint i = 0; i < _params.liquidityInvestments.length; i++)
+        for (uint i; i < _params.liquidityInvestments.length; ++i)
             liquidityPercentage += _params.liquidityInvestments[i].percentage;
 
-        for (uint i = 0; i < _params.tokenInvestments.length; i++)
+        for (uint i; i < _params.tokenInvestments.length; ++i)
             tokenPercentage += _params.tokenInvestments[i].percentage;
 
         if (dcaPercentage + vaultPercentage + liquidityPercentage + tokenPercentage != 100)
@@ -255,7 +255,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
             _vaultInvestmentsPerStrategy[strategyId].push(vaultStrategy);
         }
 
-        for (uint i = 0; i < _params.liquidityInvestments.length; i++) {
+        for (uint i; i < _params.liquidityInvestments.length; ++i) {
             InvestLib.LiquidityInvestment memory liquidityStrategy = _params.liquidityInvestments[i];
 
             if (
@@ -267,7 +267,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
             _liquidityInvestmentsPerStrategy[strategyId].push(liquidityStrategy);
         }
 
-        for (uint i = 0; i < _params.tokenInvestments.length; i++)
+        for (uint i; i < _params.tokenInvestments.length; ++i)
             _tokenInvestmentsPerStrategy[strategyId].push(_params.tokenInvestments[i]);
 
         emit StrategyCreated(msg.sender, strategyId, _params.metadataHash);
