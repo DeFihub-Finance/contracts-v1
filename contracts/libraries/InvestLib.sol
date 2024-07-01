@@ -304,7 +304,6 @@ library InvestLib {
                 _params.amount * investment.percentage / 100
             );
 
-            // TODO infinite approval to vault is safe
             vaultWantToken.safeIncreaseAllowance(address(_params.vaultManager), swapOutput);
 
             uint initialBalance = vault.balanceOf(address(this));
