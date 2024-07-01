@@ -14,6 +14,7 @@ import {SubscriptionManager} from "./SubscriptionManager.sol";
 import {VaultManager} from "./VaultManager.sol";
 import {DollarCostAverage} from './DollarCostAverage.sol';
 import {InvestLib} from "./libraries/InvestLib.sol";
+import {ZapLib} from "./libraries/ZapLib.sol";
 import {LiquidityManager} from './LiquidityManager.sol';
 
 contract StrategyManager is HubOwnable, UseTreasury, ICall {
@@ -289,10 +290,6 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
             })
         );
 
-        // max approve is safe since zapManager is a trusted contract
-        if (stable.allowance(address(this), address(zapManager)) < pullFundsResult.remainingAmount)
-            stable.approve(address(zapManager), type(uint256).max);
-
         (
             uint[] memory dcaPositionIds,
             InvestLib.VaultPosition[] memory vaultPositions,
@@ -562,21 +559,13 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         _params.inputToken.safeTransferFrom(msg.sender, address(this), _params.inputAmount);
 
         uint inputTokenReceived = _params.inputToken.balanceOf(address(this)) - initialInputTokenBalance;
-        uint stableAmount;
-
-        // Convert to stable if input token is not stable and set amount in stable terms
-        if (_params.inputToken == stable) {
-            stableAmount = inputTokenReceived;
-        }
-        else {
-            uint initialStableBalance = stable.balanceOf(address(this));
-
-            _params.inputToken.safeTransfer(address(zapManager), inputTokenReceived);
-
-            zapManager.callProtocol(abi.decode(_params.inputTokenSwap, (ZapManager.ProtocolCall)));
-
-            stableAmount = stable.balanceOf(address(this)) - initialStableBalance;
-        }
+        uint stableAmount = ZapLib._zap(
+            zapManager,
+            _params.inputTokenSwap,
+            _params.inputToken,
+            stable,
+            inputTokenReceived
+        );
 
         uint totalFeePercentage;
 

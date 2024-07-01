@@ -11,6 +11,7 @@ import {VaultManager} from '../VaultManager.sol';
 import {LiquidityManager} from "../LiquidityManager.sol";
 import {ZapManager} from "../zap/ZapManager.sol";
 import {IERC20Mintable} from "../test/TestRouter.sol";
+import {ZapLib} from "./ZapLib.sol";
 
 library InvestLib {
     using SafeERC20Upgradeable for IERC20Upgradeable;
@@ -258,11 +259,14 @@ library InvestLib {
             DcaInvestment memory investment = _params.dcaInvestments[i];
             IERC20Upgradeable poolInputToken = IERC20Upgradeable(_params.dca.getPool(investment.poolId).inputToken);
 
-            uint swapOutput = _params.zapManager.zap(
+            uint investmentAmount = _params.amount * investment.percentage / 100;
+
+            uint swapOutput = ZapLib._zap(
+                _params.zapManager,
                 _params.swaps[i],
                 _params.inputToken,
                 poolInputToken,
-                _params.amount * investment.percentage / 100
+                investmentAmount
             );
 
             // TODO infinite approval to dca is safe
@@ -293,7 +297,8 @@ library InvestLib {
             IBeefyVaultV7 vault = IBeefyVaultV7(investment.vault);
             IERC20Upgradeable vaultWantToken = vault.want();
 
-            uint swapOutput = _params.zapManager.zap(
+            uint swapOutput = ZapLib._zap(
+                _params.zapManager,
                 _params.swaps[i],
                 _params.inputToken,
                 vaultWantToken,
@@ -370,7 +375,8 @@ library InvestLib {
         for (uint i; i < _params.swaps.length; ++i) {
             TokenInvestment memory investment = _params.investments[i];
 
-            uint swapOutput = _params.zapManager.zap(
+            uint swapOutput = ZapLib._zap(
+                _params.zapManager,
                 _params.swaps[i],
                 _params.inputToken,
                 investment.token,
