@@ -278,10 +278,6 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
 
         Strategy storage strategy = _strategies[_params.strategyId];
 
-        // max approve is safe since zapManager is a trusted contract
-        if (_params.inputToken.allowance(address(this), address(zapManager)) < _params.inputAmount)
-            _params.inputToken.approve(address(zapManager), type(uint256).max);
-
         PullFundsResult memory pullFundsResult = _pullFunds(
             PullFundsParams({
                 strategyId: _params.strategyId,
@@ -565,15 +561,22 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
 
         _params.inputToken.safeTransferFrom(msg.sender, address(this), _params.inputAmount);
 
+        uint inputTokenReceived = _params.inputToken.balanceOf(address(this)) - initialInputTokenBalance;
+        uint stableAmount;
+
         // Convert to stable if input token is not stable and set amount in stable terms
-        uint stableAmount = _params.inputToken == stable
-            ? _params.inputToken.balanceOf(address(this)) - initialInputTokenBalance
-            : zapManager.zap(
-                _params.inputTokenSwap,
-                _params.inputToken,
-                stable,
-                _params.inputToken.balanceOf(address(this)) - initialInputTokenBalance
-            );
+        if (_params.inputToken == stable) {
+            stableAmount = inputTokenReceived;
+        }
+        else {
+            uint initialStableBalance = stable.balanceOf(address(this));
+
+            _params.inputToken.safeTransfer(address(zapManager), inputTokenReceived);
+
+            zapManager.callProtocol(abi.decode(_params.inputTokenSwap, (ZapManager.ProtocolCall)));
+
+            stableAmount = stable.balanceOf(address(this)) - initialStableBalance;
+        }
 
         uint totalFeePercentage;
 
