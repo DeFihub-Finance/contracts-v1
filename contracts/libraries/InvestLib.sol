@@ -269,7 +269,6 @@ library InvestLib {
                 investmentAmount
             );
 
-            // TODO infinite approval to dca is safe
             poolInputToken.safeIncreaseAllowance(address(_params.dca), swapOutput);
 
             _params.dca.investUsingStrategy(investment.poolId, investment.swaps, swapOutput);
