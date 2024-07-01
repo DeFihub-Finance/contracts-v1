@@ -128,7 +128,6 @@ contract LiquidityManager is HubOwnable, UseFee, UseDust, OnlyStrategyManager {
             _params.swapAmountToken1
         );
 
-        // TODO test gas savings with infinite approval if safe
         _params.token0.safeIncreaseAllowance(address(_params.positionManager), amountToken0);
         _params.token1.safeIncreaseAllowance(address(_params.positionManager), amountToken1);
 
