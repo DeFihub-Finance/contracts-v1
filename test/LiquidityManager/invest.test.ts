@@ -13,14 +13,10 @@ import {
     ContractTransactionReceipt,
 } from 'ethers'
 import { Compare } from '@src/Compare'
-import { getUniV3Pool } from '@src/helpers'
+import { mockTokenWithAddress } from '@src/helpers/mock-token'
 import { decodeLowLevelCallError } from '@src/helpers/decode-call-error'
-import { getAmounts, parsePriceToTick, UniswapV2ZapHelper, UniswapV3ZapHelper } from '@src/helpers'
-import {
-    Fees,
-    Slippage,
-    unwrapAddressLike,
-} from '@defihub/shared'
+import { UniswapV2ZapHelper, UniswapV3ZapHelper, UniswapV3 as UniswapV3Helpers } from '@src/helpers'
+import { Fees, Slippage, unwrapAddressLike, UniswapV3, ERC20Priced } from '@defihub/shared'
 import { LiquidityManagerFixture } from './liquidity-manager.fixture'
 import {
     LiquidityManager,
@@ -34,12 +30,11 @@ import {
 describe('LiquidityManager#invest', () => {
     const amount = parseEther('1000')
     const SLIPPAGE_BN = new BigNumber(0.01)
-    const USD_PRICE = 1n
 
     // prices
     let USD_PRICE_BN: BigNumber
-    let BTC_PRICE: bigint
-    let ETH_PRICE: bigint
+    let BTC_PRICE_BN: BigNumber
+    let ETH_PRICE_BN: BigNumber
 
     // accounts
     let account0: Signer
@@ -74,36 +69,6 @@ describe('LiquidityManager#invest', () => {
         )
     }
 
-    async function sortTokensAndPrices(
-        token0: TestERC20,
-        token0Price: bigint,
-        token1: TestERC20,
-        token1Price: bigint,
-    ) {
-        const [addressToken0, addressToken1] = await Promise.all([
-            unwrapAddressLike(token0),
-            unwrapAddressLike(token1),
-        ])
-
-        if (addressToken0.toLowerCase() > addressToken1.toLowerCase()) {
-            [
-                token0,
-                token0Price,
-                token1,
-                token1Price,
-            ] = [token1, token1Price, token0, token0Price]
-        }
-
-        return {
-            token0,
-            token0Price,
-            token0PriceBn: new BigNumber(token0Price.toString()),
-            token1,
-            token1Price,
-            token1PriceBn: new BigNumber(token1Price.toString()),
-        }
-    }
-
     async function isSameToken(tokenA: AddressLike, tokenB: AddressLike) {
         const [addressTokenA, addressTokenB] = await Promise.all([
             unwrapAddressLike(tokenA),
@@ -115,30 +80,29 @@ describe('LiquidityManager#invest', () => {
 
     async function getEncodedSwap(
         amount: bigint,
-        outputToken: AddressLike,
-        outputTokenPrice: BigNumber,
+        outputToken: ERC20Priced,
         protocol: 'uniswapV2' | 'uniswapV3' = 'uniswapV2',
     ) {
-        if (!amount || await isSameToken(stablecoin, outputToken))
+        if (!amount || await isSameToken(stablecoin, outputToken.address))
             return '0x'
 
         return protocol === 'uniswapV2'
             ? uniswapV2ZapHelper.encodeSwap(
                 amount,
                 stablecoin,
-                outputToken,
+                outputToken.address,
                 USD_PRICE_BN,
-                outputTokenPrice,
+                outputToken.price,
                 SLIPPAGE_BN,
                 liquidityManager,
             )
             : uniswapV3ZapHelper.encodeExactInputSingle(
                 amount,
                 stablecoin,
-                outputToken,
+                outputToken.address,
                 3000,
                 USD_PRICE_BN,
-                outputTokenPrice,
+                outputToken.price,
                 SLIPPAGE_BN,
                 liquidityManager,
             )
@@ -151,39 +115,67 @@ describe('LiquidityManager#invest', () => {
 
         const amountBn = new BigNumber(amount.toString())
 
+        // Min output considering that we need to swap the token before
         return Slippage.deductSlippage(
             BigInt(amountBn.div(tokenPrice).toFixed(0)),
             SLIPPAGE_BN.times(2),
         )
     }
 
-    function getRangeTicks(
+    async function investAndValidateTransaction(
         pool: Pool,
-        lowerPricePercentage: number,
-        upperPricePercentage: number,
+        amount0: bigint,
+        amount1: bigint,
+        token0: ERC20Priced,
+        token1: ERC20Priced,
+        tickLower: number,
+        tickUpper: number,
     ) {
-        const currentPrice = pool.token0Price.asFraction
+        const swapAmountToken0 = BigInt(token0.price.times(amount0.toString()).toString())
+        const swapAmountToken1 = BigInt(token1.price.times(amount1.toString()).toString())
 
-        const lowerPrice = currentPrice.subtract(
-            currentPrice.divide(lowerPricePercentage),
-        ).toFixed(8)
+        const [swapToken0, swapToken1] = await Promise.all([
+            getEncodedSwap(swapAmountToken0, token0),
+            getEncodedSwap(swapAmountToken1, token1),
+        ])
 
-        const upperPrice = currentPrice.add(
-            currentPrice.divide(upperPricePercentage),
-        ).toFixed(8)
+        const receipt = await (await liquidityManager
+            .connect(account0)
+            .investUniswapV3(
+                {
+                    positionManager: positionManagerUniV3,
+                    inputToken: stablecoin,
+                    depositAmountInputToken: amount,
 
-        return {
-            tickLower: parsePriceToTick(pool.token0, pool.token1, pool.fee, lowerPrice),
-            tickUpper: parsePriceToTick(pool.token0, pool.token1, pool.fee, upperPrice),
-        }
+                    fee: pool.fee,
+
+                    token0: pool.token0.address,
+                    token1: pool.token1.address,
+
+                    swapToken0,
+                    swapToken1,
+
+                    swapAmountToken0,
+                    swapAmountToken1,
+
+                    tickLower,
+                    tickUpper,
+
+                    amount0Min: getMinOutput(swapAmountToken0, token0.price),
+                    amount1Min: getMinOutput(swapAmountToken1, token1.price),
+                },
+                permitAccount0,
+            )).wait()
+
+        validateInvestTransaction(receipt, amount0, token0.price, amount1, token1.price)
     }
 
     function validateInvestTransaction(
+        receipt: ContractTransactionReceipt | null,
         amount0: bigint,
         token0Price: BigNumber,
         amount1: bigint,
         token1Price: BigNumber,
-        receipt: ContractTransactionReceipt | null,
     ) {
         expect(receipt).to.be.an.instanceof(ContractTransactionReceipt)
 
@@ -231,8 +223,8 @@ describe('LiquidityManager#invest', () => {
         ({
             // prices
             USD_PRICE_BN,
-            BTC_PRICE,
-            ETH_PRICE,
+            BTC_PRICE_BN,
+            ETH_PRICE_BN,
 
             // accounts
             account0,
@@ -263,195 +255,105 @@ describe('LiquidityManager#invest', () => {
     })
 
     it('should add liquidity and mint a position with expected token amounts', async () => {
-        const [
-            amountWithDeductedFees,
-            pool,
-            { token0, token0Price, token0PriceBn, token1, token1Price, token1PriceBn },
-        ] = await Promise.all([
+        const [amountWithDeductedFees, pool] = await Promise.all([
             deductFees(amount),
-            getUniV3Pool(stableBtcLpUniV3),
-            sortTokensAndPrices(stablecoin, USD_PRICE, wbtc, BTC_PRICE),
+            UniswapV3Helpers.getPoolByContract(stableBtcLpUniV3),
         ])
 
-        // 10% lower and upper
-        const { tickLower, tickUpper } = getRangeTicks(pool, 10, 10)
-
-        const { amount0, amount1 } = getAmounts(
-            amountWithDeductedFees,
-            pool,
-            tickLower,
-            tickUpper,
-            token0PriceBn,
-            token1PriceBn,
+        const { token0, token1 } = UniswapV3.sortTokens(
+            await mockTokenWithAddress(USD_PRICE_BN, 18, stablecoin),
+            await mockTokenWithAddress(BTC_PRICE_BN, 18, wbtc),
         )
 
-        const swapAmountToken0 = amount0 * token0Price
-        const swapAmountToken1 = amount1 * token1Price
+        // 10% lower and upper
+        const { lowerPrice, upperPrice } = UniswapV3Helpers.getPriceRangeByPercentages(pool, 10, 10)
 
-        const [swapToken0, swapToken1] = await Promise.all([
-            getEncodedSwap(swapAmountToken0, token0, token0PriceBn),
-            getEncodedSwap(swapAmountToken1, token1, token1PriceBn),
-        ])
+        const { amount0, amount1, tickLower, tickUpper } = UniswapV3.getMintPositionInfo(
+            amountWithDeductedFees,
+            pool,
+            token0.price,
+            token1.price,
+            lowerPrice,
+            upperPrice,
+        )
 
-        const receipt = await (
-            await liquidityManager
-                .connect(account0)
-                .investUniswapV3(
-                    {
-                        positionManager: positionManagerUniV3,
-                        inputToken: stablecoin,
-                        depositAmountInputToken: amount,
-
-                        fee: pool.fee,
-
-                        token0,
-                        token1,
-
-                        swapToken0,
-                        swapToken1,
-
-                        swapAmountToken0,
-                        swapAmountToken1,
-
-                        tickLower,
-                        tickUpper,
-
-                        amount0Min: getMinOutput(swapAmountToken0, token0PriceBn),
-                        amount1Min: getMinOutput(swapAmountToken1, token1PriceBn),
-                    },
-                    permitAccount0,
-                )
-        ).wait()
-
-        validateInvestTransaction(amount0, token0PriceBn, amount1, token1PriceBn, receipt)
+        await investAndValidateTransaction(
+            pool,
+            amount0,
+            amount1,
+            token0,
+            token1,
+            tickLower,
+            tickUpper,
+        )
     })
 
     it('should add liquidity using uniswap v2 and v3 swap in the same transaction', async () => {
-        const [
-            amountWithDeductedFees,
-            pool,
-            { token0, token0Price, token0PriceBn, token1, token1Price, token1PriceBn },
-        ] = await Promise.all([
+        const [amountWithDeductedFees, pool] = await Promise.all([
             deductFees(amount),
-            getUniV3Pool(btcEthLpUniV3),
-            sortTokensAndPrices(wbtc, BTC_PRICE, weth, ETH_PRICE),
+            UniswapV3Helpers.getPoolByContract(btcEthLpUniV3),
         ])
 
-        // 10% lower and upper
-        const { tickLower, tickUpper } = getRangeTicks(pool, 10, 10)
-
-        const { amount0, amount1 } = getAmounts(
-            amountWithDeductedFees,
-            pool,
-            tickLower,
-            tickUpper,
-            token0PriceBn,
-            token1PriceBn,
+        const { token0, token1 } = UniswapV3.sortTokens(
+            await mockTokenWithAddress(ETH_PRICE_BN, 18, weth),
+            await mockTokenWithAddress(BTC_PRICE_BN, 18, wbtc),
         )
 
-        const swapAmountToken0 = amount0 * token0Price
-        const swapAmountToken1 = amount1 * token1Price
+        // 10% lower and upper
+        const { lowerPrice, upperPrice } = UniswapV3Helpers.getPriceRangeByPercentages(pool, 10, 10)
 
-        const [swapToken0, swapToken1] = await Promise.all([
-            getEncodedSwap(swapAmountToken0, token0, token0PriceBn),
-            getEncodedSwap(swapAmountToken1, token1, token1PriceBn, 'uniswapV3'),
-        ])
+        const { amount0, amount1, tickLower, tickUpper } = UniswapV3.getMintPositionInfo(
+            amountWithDeductedFees,
+            pool,
+            token0.price,
+            token1.price,
+            lowerPrice,
+            upperPrice,
+        )
 
-        const receipt = await (
-            await liquidityManager
-                .connect(account0)
-                .investUniswapV3(
-                    {
-                        positionManager: positionManagerUniV3,
-                        inputToken: stablecoin,
-                        depositAmountInputToken: amount,
-
-                        fee: pool.fee,
-
-                        token0,
-                        token1,
-
-                        swapToken0,
-                        swapToken1,
-
-                        swapAmountToken0,
-                        swapAmountToken1,
-
-                        tickLower,
-                        tickUpper,
-
-                        amount0Min: getMinOutput(swapAmountToken0, token0PriceBn),
-                        amount1Min: getMinOutput(swapAmountToken1, token1PriceBn),
-                    },
-                    permitAccount0,
-                )
-        ).wait()
-
-        validateInvestTransaction(amount0, token0PriceBn, amount1, token1PriceBn, receipt)
+        await investAndValidateTransaction(
+            pool,
+            amount0,
+            amount1,
+            token0,
+            token1,
+            tickLower,
+            tickUpper,
+        )
     })
 
     it('should add liquidity using a price range outside the current price', async () => {
-        const [
-            amountWithDeductedFees,
-            pool,
-            { token0, token0Price, token0PriceBn, token1, token1Price, token1PriceBn },
-        ] = await Promise.all([
+        const [amountWithDeductedFees, pool] = await Promise.all([
             deductFees(amount),
-            getUniV3Pool(stableBtcLpUniV3),
-            sortTokensAndPrices(stablecoin, USD_PRICE, wbtc, BTC_PRICE),
+            UniswapV3Helpers.getPoolByContract(stableBtcLpUniV3),
         ])
 
-        // 10% lower and -20% upper
-        const { tickLower, tickUpper } = getRangeTicks(pool, 10, -20)
-
-        const { amount0, amount1 } = getAmounts(
-            amountWithDeductedFees,
-            pool,
-            tickLower,
-            tickUpper,
-            token0PriceBn,
-            token1PriceBn,
+        const { token0, token1 } = UniswapV3.sortTokens(
+            await mockTokenWithAddress(USD_PRICE_BN, 18, stablecoin),
+            await mockTokenWithAddress(BTC_PRICE_BN, 18, wbtc),
         )
 
-        const swapAmountToken0 = amount0 * token0Price
-        const swapAmountToken1 = amount1 * token1Price
+        // 10% lower and -20% upper
+        const { lowerPrice, upperPrice } = UniswapV3Helpers.getPriceRangeByPercentages(pool, 10, -20)
 
-        const [swapToken0, swapToken1] = await Promise.all([
-            getEncodedSwap(swapAmountToken0, token0, token0PriceBn),
-            getEncodedSwap(swapAmountToken1, token1, token1PriceBn),
-        ])
+        const { amount0, amount1, tickLower, tickUpper } = UniswapV3.getMintPositionInfo(
+            amountWithDeductedFees,
+            pool,
+            token0.price,
+            token1.price,
+            lowerPrice,
+            upperPrice,
+        )
 
-        const receipt = await (
-            await liquidityManager
-                .connect(account0)
-                .investUniswapV3(
-                    {
-                        positionManager: positionManagerUniV3,
-                        inputToken: stablecoin,
-                        depositAmountInputToken: amount,
-
-                        fee: pool.fee,
-
-                        token0,
-                        token1,
-
-                        swapToken0,
-                        swapToken1,
-
-                        swapAmountToken0,
-                        swapAmountToken1,
-
-                        tickLower,
-                        tickUpper,
-
-                        amount0Min: swapAmountToken0 ? getMinOutput(swapAmountToken0, token0PriceBn) : swapAmountToken0,
-                        amount1Min: swapAmountToken1 ? getMinOutput(swapAmountToken1, token1PriceBn) : swapAmountToken1,
-                    },
-                    permitAccount0,
-                )
-        ).wait()
-
-        validateInvestTransaction(amount0, token0PriceBn, amount1, token1PriceBn, receipt)
+        await investAndValidateTransaction(
+            pool,
+            amount0,
+            amount1,
+            token0,
+            token1,
+            tickLower,
+            tickUpper,
+        )
     })
 
     it('fails if swap amount is greater than deposit amount', async () => {
@@ -535,7 +437,10 @@ describe('LiquidityManager#invest', () => {
     })
 
     it('fails if token0 address is greater than token1 address', async () => {
-        const { token0, token1 } = await sortTokensAndPrices(stablecoin, USD_PRICE, wbtc, BTC_PRICE)
+        const { token0, token1 } = UniswapV3Helpers.sortTokens(
+            await unwrapAddressLike(stablecoin),
+            await unwrapAddressLike(wbtc),
+        )
 
         try {
             await liquidityManager
@@ -548,8 +453,8 @@ describe('LiquidityManager#invest', () => {
 
                         fee: 0,
 
-                        token0: token1,
-                        token1: token0,
+                        token0,
+                        token1,
 
                         swapToken0: '0x',
                         swapToken1: '0x',
