@@ -267,7 +267,7 @@ library InvestLib {
                 _params.amount * investment.percentage / 100
             );
 
-            poolInputToken.transfer(address(_params.dca), swapOutput);
+            poolInputToken.safeTransfer(address(_params.dca), swapOutput);
 
             _params.dca.investUsingStrategy(investment.poolId, investment.swaps, swapOutput);
 
