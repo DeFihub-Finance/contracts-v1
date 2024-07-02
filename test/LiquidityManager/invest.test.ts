@@ -27,7 +27,7 @@ import {
 } from '@src/typechain'
 import { zapFixture } from 'test/StrategyManager/fixtures/zap.fixture'
 
-describe('LiquidityManager#invest', () => {
+describe.only('LiquidityManager#invest', () => {
     const amount = parseEther('1000')
     const SLIPPAGE_BN = new BigNumber(0.01)
 
@@ -131,8 +131,8 @@ describe('LiquidityManager#invest', () => {
         tickLower: number,
         tickUpper: number,
     ) {
-        const swapAmountToken0 = BigInt(token0.price.times(amount0.toString()).toString())
-        const swapAmountToken1 = BigInt(token1.price.times(amount1.toString()).toString())
+        const swapAmountToken0 = BigInt(token0.price.times(amount0.toString()).toFixed(0))
+        const swapAmountToken1 = BigInt(token1.price.times(amount1.toString()).toFixed(0))
 
         const [swapToken0, swapToken1] = await Promise.all([
             getEncodedSwap(swapAmountToken0, token0),
@@ -453,8 +453,8 @@ describe('LiquidityManager#invest', () => {
 
                         fee: 0,
 
-                        token0,
-                        token1,
+                        token0: token1,
+                        token1: token0,
 
                         swapToken0: '0x',
                         swapToken1: '0x',
