@@ -241,7 +241,10 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
             InvestLib.DcaInvestment memory dcaStrategy = _params.dcaInvestments[i];
 
             if (dcaStrategy.poolId >= dca.getPoolsLength())
-                revert InvalidInvestment();
+                revert DollarCostAverage.InvalidPoolId();
+
+            if (dcaStrategy.swaps == 0)
+                revert DollarCostAverage.InvalidNumberOfSwaps();
 
             _dcaInvestmentsPerStrategy[strategyId].push(dcaStrategy);
         }

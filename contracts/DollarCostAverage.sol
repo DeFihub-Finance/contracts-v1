@@ -160,6 +160,9 @@ contract DollarCostAverage is HubOwnable, UseFee, OnlyStrategyManager, Reentranc
         if (_poolId >= poolInfo.length)
             revert InvalidPoolId();
 
+        if (_swaps == 0)
+            revert InvalidNumberOfSwaps();
+
         PoolInfo memory pool = poolInfo[_poolId];
 
         uint fee = _collectProtocolFees(
@@ -168,8 +171,15 @@ contract DollarCostAverage is HubOwnable, UseFee, OnlyStrategyManager, Reentranc
             abi.encode(_poolId),
             _subscriptionPermit
         );
+        uint finalAmount = _amount - fee;
 
-        _invest(_poolId, _swaps, _amount - fee);
+        IERC20Upgradeable(pool.inputToken).safeTransferFrom(
+            msg.sender,
+            address(this),
+            finalAmount / _swaps * _swaps // prevents dust by collecting the exact amount after precision loss
+        );
+
+        _invest(_poolId, _swaps, finalAmount);
     }
 
     function investUsingStrategy(
@@ -181,25 +191,13 @@ contract DollarCostAverage is HubOwnable, UseFee, OnlyStrategyManager, Reentranc
     }
 
     function _invest(uint208 _poolId, uint16 _swaps, uint _amount) internal virtual {
-        if (_poolId >= poolInfo.length)
-            revert InvalidPoolId();
-
         if (_amount == 0)
             revert InvalidAmount();
-
-        if (_swaps == 0)
-            revert InvalidNumberOfSwaps();
 
         PoolInfo storage pool = poolInfo[_poolId];
 
         uint amountPerSwap = _amount / _swaps;
         uint16 finalSwap = pool.performedSwaps + _swaps;
-
-        IERC20Upgradeable(pool.inputToken).safeTransferFrom(
-            msg.sender,
-            address(this),
-            amountPerSwap * _swaps
-        );
 
         pool.nextSwapAmount += amountPerSwap;
         endingPositionDeduction[_poolId][finalSwap + 1] += amountPerSwap;
