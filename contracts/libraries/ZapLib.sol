@@ -8,7 +8,15 @@ import {ZapManager} from "../zap/ZapManager.sol";
 library ZapLib {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
-    function _zap(
+    /**
+     * @notice Performs a zap operation using the specified protocol call data.
+     * @param _encodedProtocolCall - Encoded version of ZapManager.ProtocolCall
+     * @param _inputToken The ERC20 token to be sold.
+     * @param _outputToken The ERC20 token to be bought.
+     * @param _amount - Amount of input tokens to be sold
+     * @return outputAmount - The amount of output tokens bought. If no zap is needed, returns the input token amount.
+     */
+    function zap(
         ZapManager _zapManager,
         bytes memory _encodedProtocolCall,
         IERC20Upgradeable _inputToken,

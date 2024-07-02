@@ -55,34 +55,6 @@ contract ZapManager is HubOwnable, ICall {
         transferOwnership(_params.owner);
     }
 
-    /**
-     * @notice Performs a zap operation using the specified protocol call data.
-     * @param _protocolCallData - Encoded version of ZapManager.ProtocolCall
-     * @param _inputToken The ERC20 token to be sold.
-     * @param _outputToken The ERC20 token to be bought.
-     * @param _amount - Amount of input tokens to be sold
-     * @return The amount of output tokens bought. If no zap is needed, returns the input token amount.
-     */
-    function zap(
-        bytes memory _protocolCallData,
-        IERC20Upgradeable _inputToken,
-        IERC20Upgradeable _outputToken,
-        uint _amount
-    ) external virtual returns (uint) {
-        if (_protocolCallData.length == 0)
-            return _amount;
-
-        uint initialBalanceOutputToken = _outputToken.balanceOf(msg.sender);
-
-        // pull tokens
-        _inputToken.safeTransferFrom(msg.sender, address(this), _amount);
-
-        // make call to external dex
-        callProtocol(abi.decode(_protocolCallData, (ProtocolCall)));
-
-        return _outputToken.balanceOf(msg.sender) - initialBalanceOutputToken;
-    }
-
     function callProtocol(ProtocolCall memory _protocolCall) public {
         address protocolAddr = protocolImplementations[_protocolCall.protocolName];
 

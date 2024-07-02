@@ -556,7 +556,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
 
         _params.inputToken.safeTransferFrom(msg.sender, address(this), _params.inputAmount);
 
-        uint stableAmount = ZapLib._zap(
+        uint stableAmount = ZapLib.zap(
             zapManager,
             _params.inputTokenSwap,
             _params.inputToken,

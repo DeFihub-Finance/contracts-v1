@@ -259,14 +259,12 @@ library InvestLib {
             DcaInvestment memory investment = _params.dcaInvestments[i];
             IERC20Upgradeable poolInputToken = IERC20Upgradeable(_params.dca.getPool(investment.poolId).inputToken);
 
-            uint investmentAmount = _params.amount * investment.percentage / 100;
-
-            uint swapOutput = ZapLib._zap(
+            uint swapOutput = ZapLib.zap(
                 _params.zapManager,
                 _params.swaps[i],
                 _params.inputToken,
                 poolInputToken,
-                investmentAmount
+                _params.amount * investment.percentage / 100
             );
 
             poolInputToken.safeIncreaseAllowance(address(_params.dca), swapOutput);
@@ -296,7 +294,7 @@ library InvestLib {
             IBeefyVaultV7 vault = IBeefyVaultV7(investment.vault);
             IERC20Upgradeable vaultWantToken = vault.want();
 
-            uint swapOutput = ZapLib._zap(
+            uint swapOutput = ZapLib.zap(
                 _params.zapManager,
                 _params.swaps[i],
                 _params.inputToken,
@@ -373,7 +371,7 @@ library InvestLib {
         for (uint i; i < _params.swaps.length; ++i) {
             TokenInvestment memory investment = _params.investments[i];
 
-            uint swapOutput = ZapLib._zap(
+            uint swapOutput = ZapLib.zap(
                 _params.zapManager,
                 _params.swaps[i],
                 _params.inputToken,
