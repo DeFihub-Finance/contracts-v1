@@ -17,7 +17,6 @@ import { mockTokenWithAddress } from '@src/helpers/mock-token'
 import { decodeLowLevelCallError } from '@src/helpers/decode-call-error'
 import { UniswapV2ZapHelper, UniswapV3ZapHelper, UniswapV3 as UniswapV3Helpers } from '@src/helpers'
 import { Fees, Slippage, unwrapAddressLike, UniswapV3, ERC20Priced } from '@defihub/shared'
-import { LiquidityManagerFixture } from './liquidity-manager.fixture'
 import {
     LiquidityManager,
     NonFungiblePositionManager,
@@ -26,6 +25,7 @@ import {
     UniswapV3Pool,
     UniswapV3Pool__factory,
 } from '@src/typechain'
+import { zapFixture } from 'test/StrategyManager/fixtures/zap.fixture'
 
 describe('LiquidityManager#invest', () => {
     const amount = parseEther('1000')
@@ -248,7 +248,7 @@ describe('LiquidityManager#invest', () => {
             // helpers
             uniswapV2ZapHelper,
             uniswapV3ZapHelper,
-        } = await loadFixture(LiquidityManagerFixture))
+        } = await loadFixture(zapFixture))
 
         await stablecoin.connect(account0).mint(account0, amount)
         await stablecoin.connect(account0).approve(liquidityManager, amount)
