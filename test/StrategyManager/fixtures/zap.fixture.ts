@@ -150,7 +150,7 @@ export async function zapFixture() {
         stablecoin,
         wbtc,
         routerUniV3,
-        await new PathUniswapV3(stablecoin, [{ token: wbtc, fee : 3000 }]).encodedPath(),
+        await new PathUniswapV3(stablecoin, [{ token: wbtc, fee: 3000 }]).encodedPath(),
         60 * 60 * 24, // 24h
     )
 
@@ -160,7 +160,7 @@ export async function zapFixture() {
         wbtc,
         weth,
         routerUniV3,
-        await new PathUniswapV3(wbtc, [{ token: weth, fee : 3000 }]).encodedPath(),
+        await new PathUniswapV3(wbtc, [{ token: weth, fee: 3000 }]).encodedPath(),
         60 * 60 * 24, // 24h
     )
 
