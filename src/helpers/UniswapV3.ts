@@ -126,22 +126,4 @@ export class UniswapV3 {
             Number(tick),
         )
     }
-
-    public static getPriceRangeByPercentages(
-        pool: Pool,
-        lowerPricePercentage: number,
-        upperPricePercentage: number,
-    ) {
-        const currentPrice = pool.token0Price.asFraction
-
-        const lowerPrice = currentPrice.subtract(
-            currentPrice.divide(lowerPricePercentage),
-        ).toFixed(8)
-
-        const upperPrice = currentPrice.add(
-            currentPrice.divide(upperPricePercentage),
-        ).toFixed(8)
-
-        return { lowerPrice, upperPrice }
-    }
 }
