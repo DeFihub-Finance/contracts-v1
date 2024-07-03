@@ -1,4 +1,4 @@
-import { DollarCostAverage, SubscriptionManager } from '@src/typechain'
+import { DollarCostAverage, ERC20__factory, SubscriptionManager } from '@src/typechain'
 import { expect } from 'chai'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import { PositionParams, baseDcaFixture } from './fixtures/base.fixture'
@@ -131,8 +131,9 @@ describe('DCA#deposit', () => {
 
         it('transfers the amount of tokens specified by the user', async () => {
             const pool = await dca.getPool(positionParams.poolId)
-            const balanceBefore = await dca.tokenBalance(pool.inputToken)
-            const treasuryBalanceBefore = await stablecoin.balanceOf(await treasury.getAddress())
+            const inputToken = ERC20__factory.connect(pool.inputToken, account0)
+            const balanceBefore = await inputToken.balanceOf(dca)
+            const treasuryBalanceBefore = await stablecoin.balanceOf(treasury)
 
             await dca.connect(account0).invest(
                 positionParams.poolId,
@@ -141,8 +142,8 @@ describe('DCA#deposit', () => {
                 fakePermit,
             )
 
-            const balanceAfter = await dca.tokenBalance(pool.inputToken)
-            const treasuryBalanceAfter = await stablecoin.balanceOf(await treasury.getAddress())
+            const balanceAfter = await inputToken.balanceOf(dca)
+            const treasuryBalanceAfter = await stablecoin.balanceOf(treasury)
 
             expect(balanceAfter - balanceBefore).to.be.equals(ContractFees.discountNonSubscriberFee(
                 positionParams.depositAmount,

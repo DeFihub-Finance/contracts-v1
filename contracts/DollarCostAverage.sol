@@ -6,7 +6,6 @@ import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/se
 import {IERC20Upgradeable, SafeERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 
 import {MathHelpers} from "./helpers/MathHelpers.sol";
-import {TokenHelpers} from "./helpers/TokenHelpers.sol";
 import {HubOwnable} from "./abstract/HubOwnable.sol";
 import {OnlyStrategyManager} from "./abstract/OnlyStrategyManager.sol";
 import {UseFee} from "./abstract/UseFee.sol";
@@ -234,9 +233,9 @@ contract DollarCostAverage is HubOwnable, UseFee, OnlyStrategyManager, Reentranc
             if (inputTokenAmount == 0)
                 revert NoTokensToSwap();
 
-            uint contractBalanceBeforeSwap = tokenBalance(pool.outputToken);
+            uint contractBalanceBeforeSwap = IERC20Upgradeable(pool.outputToken).balanceOf(address(this));
 
-            TokenHelpers.approveIfNeeded(pool.inputToken, pool.router, type(uint).max);
+            IERC20Upgradeable(pool.inputToken).safeApprove(pool.router, inputTokenAmount);
             ISwapRouter(pool.router).exactInput(ISwapRouter.ExactInputParams({
                 path: pool.path,
                 recipient: address(this),
@@ -245,7 +244,7 @@ contract DollarCostAverage is HubOwnable, UseFee, OnlyStrategyManager, Reentranc
                 amountOutMinimum: swapInfo[i].minOutputAmount
             }));
 
-            uint outputTokenAmount = tokenBalance(pool.outputToken) - contractBalanceBeforeSwap;
+            uint outputTokenAmount = IERC20Upgradeable(pool.outputToken).balanceOf(address(this)) - contractBalanceBeforeSwap;
             uint swapQuote = (outputTokenAmount * SWAP_QUOTE_PRECISION) / inputTokenAmount;
             mapping(uint16 => uint) storage poolAccruedQuotes = accruedSwapQuoteByPool[poolId];
 
@@ -392,10 +391,6 @@ contract DollarCostAverage is HubOwnable, UseFee, OnlyStrategyManager, Reentranc
         poolInfo[_poolId].router = _router;
 
         emit SetPoolRouter(_poolId, oldRouter, _router);
-    }
-
-    function tokenBalance(address _token) public virtual view returns (uint balance) {
-        return TokenHelpers.currentBalance(_token);
     }
 
     function _closePosition(uint _positionId) internal virtual {
