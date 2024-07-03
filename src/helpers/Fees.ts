@@ -120,6 +120,19 @@ export class Fees {
         }
     }
 
+    public static async deductProductFee(
+        amount: bigint,
+        subscribedUser: boolean,
+        product: UseFee,
+    ) {
+        const [baseFeeBP, nonSubscriberFeeBP] = await Promise.all([
+            product.baseFeeBP(),
+            subscribedUser ? BigInt(0) : product.nonSubscriberFeeBP(),
+        ])
+
+        return amount - (amount * (baseFeeBP + nonSubscriberFeeBP) / BigInt(10_000))
+    }
+
     public static async deductStrategyFee(
         amount: bigint,
         strategyManager: StrategyManager,
@@ -130,7 +143,7 @@ export class Fees {
         liquidityManager: UseFee,
         exchangeManager: UseFee,
     ) {
-        const { protocolFee , strategistFee } = await this.getStrategyFeeAmount(
+        const { protocolFee, strategistFee } = await this.getStrategyFeeAmount(
             amount,
             strategyManager,
             strategyId,
