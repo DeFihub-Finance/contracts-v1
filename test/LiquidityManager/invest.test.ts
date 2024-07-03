@@ -26,7 +26,7 @@ import {
 } from '@src/typechain'
 import { zapFixture } from 'test/StrategyManager/fixtures/zap.fixture'
 
-describe.only('LiquidityManager#invest', () => {
+describe('LiquidityManager#invest', () => {
     const amount = parseEther('1000')
     const SLIPPAGE_BN = new BigNumber(0.01)
     let amountWithDeductedFees: BigNumber
@@ -352,6 +352,8 @@ describe.only('LiquidityManager#invest', () => {
             tickLower,
             tickUpper,
         )
+
+        expect(amount0 ? amount1 : amount0).to.be.eq(0)
     })
 
     it('fails if swap amount is greater than deposit amount', async () => {
