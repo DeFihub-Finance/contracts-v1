@@ -27,6 +27,8 @@ import {
     ExchangeManager,
 } from '@src/typechain'
 import { ZeroHash, ZeroAddress, Signer, AddressLike } from 'ethers'
+import { NetworkService } from '@src/NetworkService'
+import { SubscriptionSignature } from '@src/SubscriptionSignature'
 
 export class ProjectDeployer {
     private hashCount = 0
@@ -116,7 +118,7 @@ export class ProjectDeployer {
         const investLib = await projectDeployer.investLib()
         const [
             strategyManager,
-            subscriptionManager,
+            subscriptionManagerAddress,
             dca,
             vaultManager,
             liquidityManager,
@@ -131,6 +133,11 @@ export class ProjectDeployer {
             projectDeployer.exchangeManager(),
             projectDeployer.zapManager(),
         ])).map(({ proxy }) => proxy)
+
+        const subscriptionManager = SubscriptionManager__factory.connect(
+            subscriptionManagerAddress,
+            owner,
+        )
 
         const subscriptionManagerInitParams: SubscriptionManager.InitializeParamsStruct = {
             owner: owner.address,
@@ -218,10 +225,16 @@ export class ProjectDeployer {
             deployer,
         )
 
+        const subscriptionSignature= new SubscriptionSignature(
+            subscriptionManager,
+            subscriptionSigner,
+        )
+        const deadline = await NetworkService.getBlockTimestamp() + 10_000
+
         return {
             // Contracts
             strategyManager: StrategyManager__factory.connect(strategyManager, owner),
-            subscriptionManager: SubscriptionManager__factory.connect(subscriptionManager, owner),
+            subscriptionManager,
             dca: DollarCostAverage__factory.connect(dca, owner),
             vaultManager: VaultManager__factory.connect(vaultManager, owner),
             zapManager: ZapManager__factory.connect(zapManager, owner),
@@ -256,6 +269,11 @@ export class ProjectDeployer {
             routerUniV3,
             positionManagerUniV3,
             quoterUniV3,
+
+            subscriptionSignature,
+            deadline,
+            permit: await subscriptionSignature
+                .signSubscriptionPermit(await account0.getAddress(), deadline),
         }
     }
 
