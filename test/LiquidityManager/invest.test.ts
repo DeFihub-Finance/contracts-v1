@@ -9,13 +9,12 @@ import {
     type Signer,
     ZeroAddress,
     parseEther,
-    type LogDescription,
     ContractTransactionReceipt,
 } from 'ethers'
 import { Compare } from '@src/Compare'
 import { mockTokenWithAddress } from '@src/helpers/mock-token'
 import { decodeLowLevelCallError } from '@src/helpers/decode-call-error'
-import { UniswapV2ZapHelper, UniswapV3ZapHelper, UniswapV3 as UniswapV3Helpers } from '@src/helpers'
+import { UniswapV2ZapHelper, UniswapV3ZapHelper, UniswapV3 as UniswapV3Helpers, getEventLog } from '@src/helpers'
 import { Fees, Slippage, unwrapAddressLike, UniswapV3, ERC20Priced } from '@defihub/shared'
 import {
     LiquidityManager,
@@ -179,20 +178,7 @@ describe.only('LiquidityManager#invest', () => {
     ) {
         expect(receipt).to.be.an.instanceof(ContractTransactionReceipt)
 
-        const uniswapV3PoolInterface = UniswapV3Pool__factory.createInterface()
-        let eventLog: LogDescription | undefined
-
-        // TODO create helper
-        if (receipt?.logs) {
-            for (const log of receipt.logs) {
-                const parsedLog = uniswapV3PoolInterface.parseLog(log)
-
-                if (parsedLog && parsedLog.name === 'Mint') {
-                    eventLog = parsedLog
-                    break
-                }
-            }
-        }
+        const eventLog = getEventLog(receipt, 'Mint', UniswapV3Pool__factory.createInterface())
 
         const mintedAmount0 = eventLog?.args.amount0
         const mintedAmount1 = eventLog?.args.amount1
