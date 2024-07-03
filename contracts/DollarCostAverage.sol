@@ -165,21 +165,16 @@ contract DollarCostAverage is HubOwnable, UseFee, OnlyStrategyManager, Reentranc
 
         PoolInfo memory pool = poolInfo[_poolId];
 
-        uint fee = _collectProtocolFees(
-            pool.inputToken,
-            _amount,
-            abi.encode(_poolId),
-            _subscriptionPermit
+        _invest(
+            _poolId,
+            _swaps,
+            _pullFunds(
+                pool.inputToken,
+                _amount,
+                abi.encode(_poolId),
+                _subscriptionPermit
+            )
         );
-        uint finalAmount = _amount - fee;
-
-        IERC20Upgradeable(pool.inputToken).safeTransferFrom(
-            msg.sender,
-            address(this),
-            finalAmount / _swaps * _swaps // prevents dust by collecting the exact amount after precision loss
-        );
-
-        _invest(_poolId, _swaps, finalAmount);
     }
 
     function investUsingStrategy(

@@ -50,14 +50,15 @@ contract VaultManager is HubOwnable, UseFee, OnlyStrategyManager {
     ) external {
         IERC20Upgradeable want = IBeefyVaultV7(_vault).want();
 
-        uint fee = _collectProtocolFees(
-            address(want),
-            _amount,
-            abi.encode(_vault),
-            _permit
+        _invest(
+            _vault,
+            _pullFunds(
+                address(want),
+                _amount,
+                abi.encode(_vault),
+                _permit
+            )
         );
-
-        _invest(_vault, _amount - fee);
     }
 
     function investUsingStrategy(
@@ -74,17 +75,11 @@ contract VaultManager is HubOwnable, UseFee, OnlyStrategyManager {
         IBeefyVaultV7 vault = IBeefyVaultV7(_vault);
         IERC20Upgradeable want = vault.want();
 
-        uint balanceBefore = want.balanceOf(address(this));
-
-        want.safeTransferFrom(msg.sender, address(this), _amount);
-
-        uint depositAmount = want.balanceOf(address(this)) - balanceBefore;
-
-        want.safeIncreaseAllowance(_vault, depositAmount);
-        vault.deposit(depositAmount);
+        want.safeIncreaseAllowance(_vault, _amount);
+        vault.deposit(_amount);
         vault.safeTransfer(msg.sender, vault.balanceOf(address(this)));
 
-        emit PositionCreated(_vault, msg.sender, depositAmount);
+        emit PositionCreated(_vault, msg.sender, _amount);
     }
 
     function setVaultWhitelistStatus(address _vault, bool _whitelisted) external virtual onlyOwner {

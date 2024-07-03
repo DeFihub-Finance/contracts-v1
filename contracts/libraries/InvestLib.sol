@@ -302,7 +302,7 @@ library InvestLib {
                 _params.amount * investment.percentage / 100
             );
 
-            vaultWantToken.safeIncreaseAllowance(address(_params.vaultManager), swapOutput);
+            vaultWantToken.safeTransfer(address(_params.vaultManager), swapOutput);
 
             uint initialBalance = vault.balanceOf(address(this));
             _params.vaultManager.investUsingStrategy(investment.vault, swapOutput);

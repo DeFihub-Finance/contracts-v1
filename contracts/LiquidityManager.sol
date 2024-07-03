@@ -72,7 +72,7 @@ contract LiquidityManager is HubOwnable, UseFee, UseDust, OnlyStrategyManager {
         uint tokenId,
         uint128 liquidity
     ) {
-        uint depositFee = _collectProtocolFees(
+        uint remainingAmount = _pullFunds(
             address(_params.inputToken),
             _params.depositAmountInputToken,
             abi.encode(_params.inputToken, _params.token0, _params.token1, _params.fee),
@@ -80,12 +80,9 @@ contract LiquidityManager is HubOwnable, UseFee, UseDust, OnlyStrategyManager {
         );
 
         uint requested = _params.swapAmountToken0 + _params.swapAmountToken1;
-        uint available = _params.depositAmountInputToken - depositFee;
 
-        _params.inputToken.safeTransferFrom(msg.sender, address(this), available);
-
-        if (requested > available)
-            revert InsufficientFunds(requested, available);
+        if (requested > remainingAmount)
+            revert InsufficientFunds(requested, remainingAmount);
 
         return _investUniswapV3(_params);
     }
