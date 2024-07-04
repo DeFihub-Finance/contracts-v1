@@ -122,23 +122,20 @@ describe('LiquidityManager#invest', () => {
         )
     }
 
-    async function investAndValidateTransaction(
+    async function invest(
         pool: Pool,
-        amount0: bigint,
-        amount1: bigint,
-        token0: ERC20Priced,
-        token1: ERC20Priced,
-        swapAmountToken0: bigint,
-        swapAmountToken1: bigint,
-        tickLower: number,
-        tickUpper: number,
+        swapToken0: string,
+        swapToken1: string,
+        priceToken0: BigNumber,
+        priceToken1: BigNumber,
+        {
+            swapAmountToken0,
+            swapAmountToken1,
+            tickLower,
+            tickUpper,
+        }: ReturnType<typeof UniswapV3.getMintPositionInfo>,
     ) {
-        const [swapToken0, swapToken1] = await Promise.all([
-            getEncodedSwap(swapAmountToken0, token0),
-            getEncodedSwap(swapAmountToken1, token1),
-        ])
-
-        const receipt = await (await liquidityManager
+        return liquidityManager
             .connect(account0)
             .investUniswapV3(
                 {
@@ -160,13 +157,11 @@ describe('LiquidityManager#invest', () => {
                     tickLower,
                     tickUpper,
 
-                    amount0Min: getMinOutput(swapAmountToken0, token0.price),
-                    amount1Min: getMinOutput(swapAmountToken1, token1.price),
+                    amount0Min: getMinOutput(swapAmountToken0, priceToken0),
+                    amount1Min: getMinOutput(swapAmountToken1, priceToken1),
                 },
                 permitAccount0,
-            )).wait()
-
-        validateInvestTransaction(receipt, amount0, token0.price, amount1, token1.price)
+            )
     }
 
     function validateInvestTransaction(
@@ -251,14 +246,7 @@ describe('LiquidityManager#invest', () => {
             await mockTokenWithAddress(BTC_PRICE_BN, 18, wbtc),
         )
 
-        const {
-            amount0,
-            amount1,
-            tickLower,
-            tickUpper,
-            swapAmountToken0,
-            swapAmountToken1,
-        } = UniswapV3.getMintPositionInfo(
+        const mintPositionInfo = UniswapV3.getMintPositionInfo(
             amountWithDeductedFees,
             pool,
             token0.price,
@@ -267,16 +255,26 @@ describe('LiquidityManager#invest', () => {
             10, // 10% upper
         )
 
-        await investAndValidateTransaction(
+        const [swapToken0, swapToken1] = await Promise.all([
+            getEncodedSwap(mintPositionInfo.swapAmountToken0, token0),
+            getEncodedSwap(mintPositionInfo.swapAmountToken1, token1),
+        ])
+
+        const receipt = await (await invest(
             pool,
-            amount0,
-            amount1,
-            token0,
-            token1,
-            swapAmountToken0,
-            swapAmountToken1,
-            tickLower,
-            tickUpper,
+            swapToken0,
+            swapToken1,
+            token0.price,
+            token1.price,
+            mintPositionInfo,
+        )).wait()
+
+        validateInvestTransaction(
+            receipt,
+            mintPositionInfo.amount0,
+            token0.price,
+            mintPositionInfo.amount1,
+            token1.price,
         )
     })
 
@@ -288,14 +286,7 @@ describe('LiquidityManager#invest', () => {
             await mockTokenWithAddress(BTC_PRICE_BN, 18, wbtc),
         )
 
-        const {
-            amount0,
-            amount1,
-            tickLower,
-            tickUpper,
-            swapAmountToken0,
-            swapAmountToken1,
-        } = UniswapV3.getMintPositionInfo(
+        const mintPositionInfo = UniswapV3.getMintPositionInfo(
             amountWithDeductedFees,
             pool,
             token0.price,
@@ -304,16 +295,26 @@ describe('LiquidityManager#invest', () => {
             10, // 10% upper
         )
 
-        await investAndValidateTransaction(
+        const [swapToken0, swapToken1] = await Promise.all([
+            getEncodedSwap(mintPositionInfo.swapAmountToken0, token0),
+            getEncodedSwap(mintPositionInfo.swapAmountToken1, token1, 'uniswapV3'),
+        ])
+
+        const receipt = await (await invest(
             pool,
-            amount0,
-            amount1,
-            token0,
-            token1,
-            swapAmountToken0,
-            swapAmountToken1,
-            tickLower,
-            tickUpper,
+            swapToken0,
+            swapToken1,
+            token0.price,
+            token1.price,
+            mintPositionInfo,
+        )).wait()
+
+        validateInvestTransaction(
+            receipt,
+            mintPositionInfo.amount0,
+            token0.price,
+            mintPositionInfo.amount1,
+            token1.price,
         )
     })
 
@@ -325,35 +326,40 @@ describe('LiquidityManager#invest', () => {
             await mockTokenWithAddress(BTC_PRICE_BN, 18, wbtc),
         )
 
-        const {
-            amount0,
-            amount1,
-            tickLower,
-            tickUpper,
-            swapAmountToken0,
-            swapAmountToken1,
-        } = UniswapV3.getMintPositionInfo(
+        const mintPositionInfo = UniswapV3.getMintPositionInfo(
             amountWithDeductedFees,
             pool,
             token0.price,
             token1.price,
             10, // 10% lower
-            -20, // 10% upper
+            -20, // -20% upper
         )
 
-        await investAndValidateTransaction(
+        const [swapToken0, swapToken1] = await Promise.all([
+            getEncodedSwap(mintPositionInfo.swapAmountToken0, token0),
+            getEncodedSwap(mintPositionInfo.swapAmountToken1, token1),
+        ])
+
+        const receipt = await (await invest(
             pool,
-            amount0,
-            amount1,
-            token0,
-            token1,
-            swapAmountToken0,
-            swapAmountToken1,
-            tickLower,
-            tickUpper,
-        )
+            swapToken0,
+            swapToken1,
+            token0.price,
+            token1.price,
+            mintPositionInfo,
+        )).wait()
 
-        expect(amount0 ? amount1 : amount0).to.be.eq(0)
+        expect(mintPositionInfo.amount0
+            ? mintPositionInfo.amount1
+            : mintPositionInfo.amount0).to.be.eq(0)
+
+        validateInvestTransaction(
+            receipt,
+            mintPositionInfo.amount0,
+            token0.price,
+            mintPositionInfo.amount1,
+            token1.price,
+        )
     })
 
     it('fails if swap amount is greater than deposit amount', async () => {
