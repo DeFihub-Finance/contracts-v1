@@ -1,4 +1,4 @@
-import { PathUniswapV3 } from '@defihub/shared'
+import { PathUniswapV3, unwrapAddressLike } from '@defihub/shared'
 import { ethers } from 'hardhat'
 import { ProjectDeployer } from '@src/ProjectDeployer'
 import {
@@ -32,7 +32,9 @@ export const baseStrategyManagerFixture = async () => {
         subscriptionMonthlyPrice,
         strategyManager,
         vaultManager,
+        liquidityManager,
         weth,
+        wbtc,
         factoryUniV3,
         routerUniV3,
         positionManagerUniV3,
@@ -108,18 +110,36 @@ export const baseStrategyManagerFixture = async () => {
     ])
 
     await subscriptionManager.connect(account0).subscribe()
+    await liquidityManager.setPositionManagerWhitelist(positionManagerUniV3, true)
 
     ////////////////////////////////////////////////////////
     // Creating strategies to be used to create strategy //
     ///////////////////////////////////////////////////////
     const dcaStrategyPositions: InvestLib.DcaInvestmentStruct[] = [
-        { poolId: 0, swaps: 10, percentage: 33 },
-        { poolId: 1, swaps: 10, percentage: 33 },
+        { poolId: 0, swaps: 10, percentage: 25 },
+        { poolId: 1, swaps: 10, percentage: 25 },
     ]
     const vaultStrategyPosition: InvestLib.VaultInvestmentStruct[] = [
         {
             vault: await vault.getAddress(),
-            percentage: 34,
+            percentage: 25,
+        },
+    ]
+
+    const { token0, token1 } = UniswapV3.sortTokens(
+        await unwrapAddressLike(wbtc),
+        await unwrapAddressLike(weth),
+    )
+
+    const liquidityInvestmentPositions: InvestLib.LiquidityInvestmentStruct[] = [
+        {
+            fee: 3000,
+            lowerPricePercentage: 10,
+            upperPricePercentage: 10,
+            percentage: 25,
+            positionManager: positionManagerUniV3,
+            token0,
+            token1,
         },
     ]
 
@@ -136,6 +156,7 @@ export const baseStrategyManagerFixture = async () => {
         vaultManager,
         dcaStrategyPositions,
         vaultStrategyPosition,
+        liquidityInvestmentPositions,
         subscriptionSigner,
         subscriptionSignature: new SubscriptionSignature(
             subscriptionManager,

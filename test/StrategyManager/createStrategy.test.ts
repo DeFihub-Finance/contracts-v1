@@ -6,6 +6,7 @@ import { SubscriptionSignature } from '@src/SubscriptionSignature'
 import { NetworkService } from '@src/NetworkService'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import { baseStrategyManagerFixture } from './fixtures/base.fixture'
+import { unwrapAddressLike } from '@defihub/shared'
 
 // EFFECTS
 // => creates new strategy
@@ -24,6 +25,7 @@ describe('StrategyManager#createStrategy', () => {
     let strategyManager: StrategyManager
     let dcaStrategyPositions: InvestLib.DcaInvestmentStruct[]
     let vaultStrategyPosition: InvestLib.VaultInvestmentStruct[]
+    let liquidityInvestmentPositions: InvestLib.LiquidityInvestmentStruct[]
     let subscriptionSignature: SubscriptionSignature
     let deadline: number
     const nameBioHash = keccak256(new TextEncoder().encode('Name' + 'Bio'))
@@ -35,6 +37,7 @@ describe('StrategyManager#createStrategy', () => {
             strategyManager,
             dcaStrategyPositions,
             vaultStrategyPosition,
+            liquidityInvestmentPositions,
             subscriptionSignature,
         } = await loadFixture(baseStrategyManagerFixture))
 
@@ -48,7 +51,7 @@ describe('StrategyManager#createStrategy', () => {
             tx = strategyManager.connect(account0).createStrategy({
                 dcaInvestments: dcaStrategyPositions,
                 vaultInvestments: vaultStrategyPosition,
-                liquidityInvestments: [],
+                liquidityInvestments: liquidityInvestmentPositions,
                 permit: await subscriptionSignature.signSubscriptionPermit(
                     await account0.getAddress(),
                     await NetworkService.getBlockTimestamp() + 10_000,
@@ -72,6 +75,13 @@ describe('StrategyManager#createStrategy', () => {
 
             expect(investments.vaultInvestments[0].vault).to.be.equal(vaultStrategyPosition[0].vault)
             expect(investments.vaultInvestments[0].percentage).to.be.equal(vaultStrategyPosition[0].percentage)
+
+            expect(investments.liquidityInvestments[0].token0).to.be.equal(await unwrapAddressLike(liquidityInvestmentPositions[0].token0))
+            expect(investments.liquidityInvestments[0].token1).to.be.equal(await unwrapAddressLike(liquidityInvestmentPositions[0].token1))
+            expect(investments.liquidityInvestments[0].fee).to.be.equal(liquidityInvestmentPositions[0].fee)
+            expect(investments.liquidityInvestments[0].lowerPricePercentage).to.be.equal(liquidityInvestmentPositions[0].lowerPricePercentage)
+            expect(investments.liquidityInvestments[0].upperPricePercentage).to.be.equal(liquidityInvestmentPositions[0].upperPricePercentage)
+            expect(investments.liquidityInvestments[0].percentage).to.be.equal(liquidityInvestmentPositions[0].percentage)
         })
 
         it('emit StrategyCreated', async () => {
@@ -92,7 +102,7 @@ describe('StrategyManager#createStrategy', () => {
             await strategyManager.connect(account0).createStrategy({
                 dcaInvestments: dcaStrategyPositions,
                 vaultInvestments: vaultStrategyPosition,
-                liquidityInvestments: [],
+                liquidityInvestments: liquidityInvestmentPositions,
                 permit: await subscriptionSignature.signSubscriptionPermit(
                     await account0.getAddress(),
                     deadline,
@@ -109,7 +119,7 @@ describe('StrategyManager#createStrategy', () => {
             const tx = strategyManager.connect(account1).createStrategy({
                 dcaInvestments: dcaStrategyPositions,
                 vaultInvestments: vaultStrategyPosition,
-                liquidityInvestments: [],
+                liquidityInvestments: liquidityInvestmentPositions,
                 permit: await subscriptionSignature.signSubscriptionPermit(
                     await account1.getAddress(),
                     deadline,
@@ -165,6 +175,33 @@ describe('StrategyManager#createStrategy', () => {
             expect(tx).to.be.revertedWithCustomError(strategyManager, 'TooManyInvestments')
         })
 
+        it('if strategy uses more than 20 liquidity investments', async () => {
+            const investments: InvestLib.LiquidityInvestmentStruct[] = new Array(21)
+                .map(() => ({
+                    // @dev percentage doesn't matter here, the investmentCount check happens before
+                    percentage: 0,
+                    fee: 0,
+                    positionManager: '0x',
+                    lowerPricePercentage: 0,
+                    upperPricePercentage: 0,
+                    token0: '0x',
+                    token1: '0x',
+                }))
+
+            const tx = strategyManager.connect(account0).createStrategy({
+                dcaInvestments: [],
+                vaultInvestments: [],
+                liquidityInvestments: investments,
+                permit: await subscriptionSignature.signSubscriptionPermit(
+                    await account0.getAddress(),
+                    deadline,
+                ),
+                metadataHash: nameBioHash,
+            })
+
+            expect(tx).to.be.revertedWithCustomError(strategyManager, 'TooManyInvestments')
+        })
+
         it('if strategy uses more than 20 investments total', async () => {
             const vaultInvestments: InvestLib.VaultInvestmentStruct[] = new Array(10)
                 .map(() => ({
@@ -181,10 +218,22 @@ describe('StrategyManager#createStrategy', () => {
                     swaps: 10,
                 }))
 
+            const liquidityInvestments: InvestLib.LiquidityInvestmentStruct[] = new Array(10)
+                .map(() => ({
+                    // @dev percentage doesn't matter here, the investmentCount check happens before
+                    percentage: 0,
+                    fee: 0,
+                    positionManager: '0x',
+                    lowerPricePercentage: 0,
+                    upperPricePercentage: 0,
+                    token0: '0x',
+                    token1: '0x',
+                }))
+
             const tx = strategyManager.connect(account0).createStrategy({
                 dcaInvestments,
                 vaultInvestments,
-                liquidityInvestments: [],
+                liquidityInvestments,
                 permit: await subscriptionSignature.signSubscriptionPermit(
                     await account0.getAddress(),
                     deadline,
@@ -197,6 +246,7 @@ describe('StrategyManager#createStrategy', () => {
 
         it('if total percentage is different than 100', async () => {
             const tx0 = strategyManager.connect(account0).createStrategy({
+                // 0%
                 dcaInvestments: [],
                 vaultInvestments: [],
                 liquidityInvestments: [],
@@ -208,8 +258,8 @@ describe('StrategyManager#createStrategy', () => {
             })
 
             const tx1 = strategyManager.connect(account0).createStrategy({
-                // 122%
-                dcaInvestments: [...dcaStrategyPositions, ...dcaStrategyPositions],
+                // 150%
+                dcaInvestments: Array(3).fill(dcaStrategyPositions).flat(),
                 vaultInvestments: [],
                 liquidityInvestments: [],
                 permit: await subscriptionSignature.signSubscriptionPermit(
@@ -219,8 +269,8 @@ describe('StrategyManager#createStrategy', () => {
                 metadataHash: nameBioHash,
             })
 
-            expect(tx0).to.be.revertedWithCustomError(strategyManager, 'InvalidTotalPercentage')
-            expect(tx1).to.be.revertedWithCustomError(strategyManager, 'InvalidTotalPercentage')
+            await expect(tx0).to.be.revertedWithCustomError(strategyManager, 'InvalidTotalPercentage')
+            await expect(tx1).to.be.revertedWithCustomError(strategyManager, 'InvalidTotalPercentage')
         })
     })
 })
