@@ -278,7 +278,7 @@ describe('LiquidityManager#invest', () => {
         )
     })
 
-    it('should add liquidity using uniswap v2 and v3 swap in the same transaction', async () => {
+    it('should add liquidity to a pool that doesnt have a stablecoin, using different swap protocols', async () => {
         const pool = await UniswapV3Helpers.getPoolByContract(btcEthLpUniV3)
 
         const { token0, token1 } = UniswapV3.sortTokens(
