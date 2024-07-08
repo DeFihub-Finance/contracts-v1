@@ -14,12 +14,17 @@ import { SubscriptionSignature } from '@src/SubscriptionSignature'
 import { deployVaultFixture } from '../../VaultManager/fixtures/deploy-vault.fixture'
 import { Signer, parseEther } from 'ethers'
 import { UniswapV3 } from '@src/helpers'
+import { BigNumber } from '@ryze-blockchain/ethereum'
 
 export const baseStrategyManagerFixture = async () => {
     const [deployer] = await ethers.getSigners()
     const stablecoin = await new TestERC20__factory(deployer).deploy()
     const token = stablecoin // alias
     const anotherToken = await new TestERC20__factory(deployer).deploy()
+
+    const USD_PRICE_BN = new BigNumber(1)
+    const ETH_PRICE = 3_000n
+    const ETH_PRICE_BN = new BigNumber(ETH_PRICE.toString())
 
     /////////////////////////////////////
     // Initializing contracts and EOA //
@@ -56,14 +61,14 @@ export const baseStrategyManagerFixture = async () => {
 
     const path = new PathUniswapV3(TOKEN_IN, [{ token: TOKEN_OUT, fee: 3000 }])
 
-    await bootstrapDcaPoolLiquidity(
+    const stableEthLpUniV3 = await bootstrapDcaPoolLiquidity(
         deployer,
         factoryUniV3,
         positionManagerUniV3,
         token,
         weth,
         1,
-        3000n,
+        ETH_PRICE,
     )
 
     const routerAddress = await routerUniV3.getAddress()
@@ -144,29 +149,44 @@ export const baseStrategyManagerFixture = async () => {
     ]
 
     return {
+        // accounts
         account0,
+        subscriptionSigner,
+
+        // Hub contracts
         dca,
-        token,
-        anotherToken,
         vault,
-        subscriptionManager,
-        strategyManager,
-        strategyManagerAddress: await strategyManager.getAddress(),
-        subscriptionMonthlyPrice,
         vaultManager,
+        strategyManager,
+        subscriptionManager,
+
+        // tokens
+        weth,
+        token,
+        stablecoin,
+        anotherToken,
+
+        // external test contracts
+        routerUniV3,
+        positionManagerUniV3,
+        factoryUniV3,
+
+        // global data
+        stableEthLpUniV3,
+        subscriptionMonthlyPrice,
         dcaStrategyPositions,
         vaultStrategyPosition,
         liquidityInvestmentPositions,
-        subscriptionSigner,
+        strategyManagerAddress: await strategyManager.getAddress(),
         subscriptionSignature: new SubscriptionSignature(
             subscriptionManager,
             subscriptionSigner,
         ),
-        weth,
-        stablecoin,
-        routerUniV3,
-        positionManagerUniV3,
-        factoryUniV3,
+
+        // constants
+        USD_PRICE_BN,
+        ETH_PRICE_BN,
+
         ...rest,
     }
 }
@@ -181,10 +201,11 @@ async function bootstrapDcaPoolLiquidity(
     fee: bigint,
 ) {
     const thousand = parseEther('1000')
-    const [token0, token1] = [
-        await inputToken.getAddress(),
-        await outputToken.getAddress(),
-    ].sort((a, b) => parseInt(a, 16) - parseInt(b, 16))
+    const { token0, token1 } = UniswapV3.sortTokens(
+        await unwrapAddressLike(inputToken),
+        await unwrapAddressLike(outputToken),
+    )
+
     const inputTokenIsToken0 = token0 === (await inputToken.getAddress())
 
     await positionManager.createAndInitializePoolIfNecessary(

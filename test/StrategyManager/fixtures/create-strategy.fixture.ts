@@ -15,6 +15,8 @@ export const createStrategyFixture = async () => {
         strategyManager,
         dcaStrategyPositions,
         vaultStrategyPosition,
+        liquidityInvestmentPositions,
+        positionManagerUniV3,
         subscriptionSignature,
         ...rest
     } = await baseStrategyManagerFixture()
@@ -40,7 +42,7 @@ export const createStrategyFixture = async () => {
     await strategyManager.connect(account0).createStrategy({
         dcaInvestments: dcaStrategyPositions,
         vaultInvestments: vaultStrategyPosition,
-        liquidityInvestments: [], // todo
+        liquidityInvestments: liquidityInvestmentPositions,
         permit: await subscriptionSignature.signSubscriptionPermit(
             await account0.getAddress(),
             await NetworkService.getBlockTimestamp() + 10_000,
@@ -52,9 +54,9 @@ export const createStrategyFixture = async () => {
     // Create strategy for swap and deposit test//
     //////////////////////////////////////////////
     await strategyManager.connect(account0).createStrategy({
-        dcaInvestments: [{ poolId: 2, swaps: 10, percentage: 66 }],
+        dcaInvestments: [{ poolId: 2, swaps: 10, percentage: 50 }],
         vaultInvestments: vaultStrategyPosition,
-        liquidityInvestments: [], // todo
+        liquidityInvestments: liquidityInvestmentPositions,
         permit: await subscriptionSignature.signSubscriptionPermit(
             await account0.getAddress(),
             await NetworkService.getBlockTimestamp() + 10_000,
@@ -71,6 +73,8 @@ export const createStrategyFixture = async () => {
         strategyManager,
         dcaStrategyPositions,
         vaultStrategyPosition,
+        liquidityInvestmentPositions,
+        positionManagerUniV3,
         subscriptionSignature,
 
         ...rest,
