@@ -263,7 +263,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
 
             if (
                 !liquidityManager.positionManagerWhitelist(liquidityStrategy.positionManager) ||
-            liquidityStrategy.token0 > liquidityStrategy.token1
+            liquidityStrategy.token0 >= liquidityStrategy.token1
             )
                 revert InvalidInvestment();
 
