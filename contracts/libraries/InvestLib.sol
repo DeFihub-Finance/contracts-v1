@@ -239,7 +239,7 @@ library InvestLib {
             LiquidityInvestment memory investment = _params.liquidityInvestments[i];
             LiquidityZapParams memory zap = _params.zaps[i];
 
-            _params.liquidityManager.investUniswapV3UsingStrategy(
+            (uint tokenId, uint128 liquidity) = _params.liquidityManager.investUniswapV3UsingStrategy(
                 LiquidityManager.InvestUniswapV3Params({
                     positionManager: investment.positionManager,
                     inputToken: _params.inputToken,
@@ -256,6 +256,12 @@ library InvestLib {
                     amount0Min: zap.amount0Min,
                     amount1Min: zap.amount1Min
                 })
+            );
+
+            liquidityPositions[i] = LiquidityPosition(
+                investment.positionManager,
+                tokenId,
+                liquidity
             );
         }
 
