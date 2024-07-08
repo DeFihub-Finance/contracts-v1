@@ -4,7 +4,7 @@ import { getBytes, ZeroHash } from 'ethers'
 export const createDepositFixture = async () =>  {
     const baseFixtureResult = await baseDcaFixture()
 
-    await baseFixtureResult.dca.connect(baseFixtureResult.account0).deposit(
+    await baseFixtureResult.dca.connect(baseFixtureResult.account0).invest(
         baseFixtureResult.positionParams.poolId,
         baseFixtureResult.positionParams.swaps,
         baseFixtureResult.positionParams.depositAmount,

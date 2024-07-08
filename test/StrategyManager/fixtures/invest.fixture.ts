@@ -34,6 +34,8 @@ export async function investFixture() {
         inputTokenSwap: '0x',
         dcaSwaps: ['0x', '0x'],
         vaultSwaps: ['0x'],
+        tokenSwaps: [],
+        liquidityZaps: [],
         investorPermit: await subscriptionSignature
             .signSubscriptionPermit(await account1.getAddress(), deadline),
         strategistPermit: await subscriptionSignature

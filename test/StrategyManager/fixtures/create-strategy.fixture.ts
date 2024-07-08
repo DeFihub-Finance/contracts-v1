@@ -40,6 +40,8 @@ export const createStrategyFixture = async () => {
     await strategyManager.connect(account0).createStrategy({
         dcaInvestments: dcaStrategyPositions,
         vaultInvestments: vaultStrategyPosition,
+        liquidityInvestments: [], // todo
+        tokenInvestments: [],
         permit: await subscriptionSignature.signSubscriptionPermit(
             await account0.getAddress(),
             await NetworkService.getBlockTimestamp() + 10_000,
@@ -53,6 +55,8 @@ export const createStrategyFixture = async () => {
     await strategyManager.connect(account0).createStrategy({
         dcaInvestments: [{ poolId: 2, swaps: 10, percentage: 66 }],
         vaultInvestments: vaultStrategyPosition,
+        liquidityInvestments: [], // todo
+        tokenInvestments: [],
         permit: await subscriptionSignature.signSubscriptionPermit(
             await account0.getAddress(),
             await NetworkService.getBlockTimestamp() + 10_000,

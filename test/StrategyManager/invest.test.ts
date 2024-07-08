@@ -89,6 +89,8 @@ describe('StrategyManager#invest', () => {
             inputTokenSwap: '0x',
             dcaSwaps: _dcaSwaps,
             vaultSwaps: _vaultSwaps,
+            tokenSwaps: [],
+            liquidityZaps: [],
             investorPermit: await subscriptionSignature
                 .signSubscriptionPermit(await account.getAddress(), _deadlineInvestor),
             strategistPermit: await subscriptionSignature
@@ -358,6 +360,8 @@ describe('StrategyManager#invest', () => {
                             ),
                         ],
                     ],
+                    [],
+                    [],
                 )
         })
     })

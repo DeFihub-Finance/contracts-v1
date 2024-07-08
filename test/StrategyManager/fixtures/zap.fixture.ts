@@ -4,7 +4,7 @@ import { BigNumber } from '@ryze-blockchain/ethereum'
 import { UniswapV2, UniswapV2ZapHelper, UniswapV3, UniswapV3ZapHelper } from '@src/helpers'
 import { NetworkService } from '@src/NetworkService'
 import { ProjectDeployer } from '@src/ProjectDeployer'
-import { TestERC20__factory, UniswapV2Pair__factory } from '@src/typechain'
+import { TestERC20__factory, UniswapV2Pair__factory, UniswapV3Pool__factory } from '@src/typechain'
 import { parseEther } from 'ethers'
 import hre from 'hardhat'
 
@@ -44,7 +44,9 @@ export async function zapFixture() {
         strategyManager,
         dca,
         vaultManager,
+        liquidityManager,
         subscriptionManager,
+        exchangeManager,
         zapManager,
 
         // external test contracts
@@ -60,18 +62,8 @@ export async function zapFixture() {
         subscriptionSignerAccount,
     )
 
-    const uniswapV2ZapHelper = new UniswapV2ZapHelper(
-        zapManager,
-        strategyManager,
-        subscriptionManager,
-        subscriptionSignerAccount,
-    )
-    const uniswapV3ZapHelper = new UniswapV3ZapHelper(
-        zapManager,
-        strategyManager,
-        subscriptionManager,
-        subscriptionSignerAccount,
-    )
+    const uniswapV2ZapHelper = new UniswapV2ZapHelper()
+    const uniswapV3ZapHelper = new UniswapV3ZapHelper()
     const permitAccount0 = await subscriptionSignerHelper
         .signSubscriptionPermit(account0, deadline, chainId)
 
@@ -143,13 +135,23 @@ export async function zapFixture() {
         account0,
     )
 
+    const stableBtcLpUniV3 = UniswapV3Pool__factory.connect(
+        await factoryUniV3.getPool(stablecoin, wbtc, 3000),
+        account0,
+    )
+
+    const btcEthLpUniV3 = UniswapV3Pool__factory.connect(
+        await factoryUniV3.getPool(weth, wbtc, 3000),
+        account0,
+    )
+
     const stableBtcPoolId = await dca.getPoolsLength()
 
     await dca.createPool(
         stablecoin,
         wbtc,
         routerUniV3,
-        await new PathUniswapV3(stablecoin, [{ token: wbtc, fee : 3000 }]).encodedPath(),
+        await new PathUniswapV3(stablecoin, [{ token: wbtc, fee: 3000 }]).encodedPath(),
         60 * 60 * 24, // 24h
     )
 
@@ -159,12 +161,14 @@ export async function zapFixture() {
         wbtc,
         weth,
         routerUniV3,
-        await new PathUniswapV3(wbtc, [{ token: weth, fee : 3000 }]).encodedPath(),
+        await new PathUniswapV3(wbtc, [{ token: weth, fee: 3000 }]).encodedPath(),
         60 * 60 * 24, // 24h
     )
 
     const strategyId = await strategyManager.getStrategiesLength()
     const initialTreasuryBalance = await stablecoin.balanceOf(treasury)
+
+    await liquidityManager.setPositionManagerWhitelist(positionManagerUniV3, true)
 
     return {
         // accounts
@@ -182,7 +186,9 @@ export async function zapFixture() {
         strategyManager,
         dca,
         vaultManager,
+        liquidityManager,
         subscriptionManager,
+        exchangeManager,
         zapManager,
 
         // external test contracts
@@ -199,6 +205,8 @@ export async function zapFixture() {
         initialTreasuryBalance,
         permitAccount0,
         btcEthLpUniV2,
+        stableBtcLpUniV3,
+        btcEthLpUniV3,
 
         // helpers
         uniswapV2ZapHelper,
