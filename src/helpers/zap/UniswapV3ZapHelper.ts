@@ -6,7 +6,7 @@ import { SwapRouter__factory } from '@src/typechain'
 import { mockToken } from '@src/helpers/mock-token'
 
 export class UniswapV3ZapHelper {
-    public async encodeExactInputSingle(
+    public static async encodeExactInputSingle(
         amount: bigint,
         inputToken: AddressLike,
         outputToken: AddressLike,
@@ -47,7 +47,7 @@ export class UniswapV3ZapHelper {
     }
 
     // encodes swap and wraps into a zap manager call
-    public async encodeExactInput(
+    public static async encodeExactInput(
         amount: bigint,
         path: PathUniswapV3,
         inputPrice: BigNumber,

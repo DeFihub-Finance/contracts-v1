@@ -55,10 +55,6 @@ describe('LiquidityManager#invest', () => {
     // global data
     let permitAccount0: SubscriptionManager.PermitStruct
 
-    // helpers
-    let uniswapV2ZapHelper: UniswapV2ZapHelper
-    let uniswapV3ZapHelper: UniswapV3ZapHelper
-
     async function deductFees(amount: bigint) {
         return Fees.deductProductFee(
             liquidityManager,
@@ -87,7 +83,7 @@ describe('LiquidityManager#invest', () => {
             return '0x'
 
         return protocol === 'uniswapV2'
-            ? uniswapV2ZapHelper.encodeSwap(
+            ? UniswapV2ZapHelper.encodeSwap(
                 amount,
                 stablecoin,
                 outputToken.address,
@@ -96,7 +92,7 @@ describe('LiquidityManager#invest', () => {
                 SLIPPAGE_BN,
                 liquidityManager,
             )
-            : uniswapV3ZapHelper.encodeExactInputSingle(
+            : UniswapV3ZapHelper.encodeExactInputSingle(
                 amount,
                 stablecoin,
                 outputToken.address,
@@ -226,10 +222,6 @@ describe('LiquidityManager#invest', () => {
             positionManagerUniV3,
             stableBtcLpUniV3,
             btcEthLpUniV3,
-
-            // helpers
-            uniswapV2ZapHelper,
-            uniswapV3ZapHelper,
         } = await loadFixture(zapFixture))
 
         await stablecoin.connect(account0).mint(account0, amount)
