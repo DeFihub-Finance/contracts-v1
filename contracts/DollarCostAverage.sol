@@ -6,7 +6,6 @@ import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/se
 import {IERC20Upgradeable, SafeERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 
 import {MathHelpers} from "./helpers/MathHelpers.sol";
-import {TokenHelpers} from "./helpers/TokenHelpers.sol";
 import {HubOwnable} from "./abstract/HubOwnable.sol";
 import {OnlyStrategyManager} from "./abstract/OnlyStrategyManager.sol";
 import {UseFee} from "./abstract/UseFee.sol";
@@ -76,7 +75,7 @@ contract DollarCostAverage is HubOwnable, UseFee, OnlyStrategyManager, Reentranc
     address public swapper;
 
     error InvalidPoolId();
-    error InvalidDepositAmount();
+    error InvalidAmount();
     error InvalidNumberOfSwaps();
     error TooEarlyToSwap(uint timeRemaining);
     error NoTokensToSwap();
@@ -151,7 +150,7 @@ contract DollarCostAverage is HubOwnable, UseFee, OnlyStrategyManager, Reentranc
         emit PoolCreated(poolId, _inputToken, _outputToken, _router, _path, _interval);
     }
 
-    function deposit(
+    function invest(
         uint208 _poolId,
         uint16 _swaps,
         uint _amount,
@@ -160,46 +159,39 @@ contract DollarCostAverage is HubOwnable, UseFee, OnlyStrategyManager, Reentranc
         if (_poolId >= poolInfo.length)
             revert InvalidPoolId();
 
+        if (_swaps == 0)
+            revert InvalidNumberOfSwaps();
+
         PoolInfo memory pool = poolInfo[_poolId];
 
-        uint depositFee = _collectProtocolFees(
-            pool.inputToken,
-            _amount,
-            abi.encode(_poolId),
-            _subscriptionPermit
+        _invest(
+            _poolId,
+            _swaps,
+            _pullFunds(
+                pool.inputToken,
+                _amount,
+                abi.encode(_poolId),
+                _subscriptionPermit
+            )
         );
-
-        _deposit(_poolId, _swaps, _amount - depositFee);
     }
 
-    function depositUsingStrategy(
+    function investUsingStrategy(
         uint208 _poolId,
         uint16 _swaps,
         uint _amount
     ) external virtual onlyStrategyManager {
-        _deposit(_poolId, _swaps, _amount);
+        _invest(_poolId, _swaps, _amount);
     }
 
-    function _deposit(uint208 _poolId, uint16 _swaps, uint _amount) internal virtual {
-        if (_poolId >= poolInfo.length)
-            revert InvalidPoolId();
-
+    function _invest(uint208 _poolId, uint16 _swaps, uint _amount) internal virtual {
         if (_amount == 0)
-            revert InvalidDepositAmount();
-
-        if (_swaps == 0)
-            revert InvalidNumberOfSwaps();
+            revert InvalidAmount();
 
         PoolInfo storage pool = poolInfo[_poolId];
 
         uint amountPerSwap = _amount / _swaps;
         uint16 finalSwap = pool.performedSwaps + _swaps;
-
-        IERC20Upgradeable(pool.inputToken).safeTransferFrom(
-            msg.sender,
-            address(this),
-            amountPerSwap * _swaps
-        );
 
         pool.nextSwapAmount += amountPerSwap;
         endingPositionDeduction[_poolId][finalSwap + 1] += amountPerSwap;
@@ -241,9 +233,9 @@ contract DollarCostAverage is HubOwnable, UseFee, OnlyStrategyManager, Reentranc
             if (inputTokenAmount == 0)
                 revert NoTokensToSwap();
 
-            uint contractBalanceBeforeSwap = tokenBalance(pool.outputToken);
+            uint contractBalanceBeforeSwap = IERC20Upgradeable(pool.outputToken).balanceOf(address(this));
 
-            TokenHelpers.approveIfNeeded(pool.inputToken, pool.router, type(uint).max);
+            IERC20Upgradeable(pool.inputToken).safeApprove(pool.router, inputTokenAmount);
             ISwapRouter(pool.router).exactInput(ISwapRouter.ExactInputParams({
                 path: pool.path,
                 recipient: address(this),
@@ -252,7 +244,7 @@ contract DollarCostAverage is HubOwnable, UseFee, OnlyStrategyManager, Reentranc
                 amountOutMinimum: swapInfo[i].minOutputAmount
             }));
 
-            uint outputTokenAmount = tokenBalance(pool.outputToken) - contractBalanceBeforeSwap;
+            uint outputTokenAmount = IERC20Upgradeable(pool.outputToken).balanceOf(address(this)) - contractBalanceBeforeSwap;
             uint swapQuote = (outputTokenAmount * SWAP_QUOTE_PRECISION) / inputTokenAmount;
             mapping(uint16 => uint) storage poolAccruedQuotes = accruedSwapQuoteByPool[poolId];
 
@@ -399,10 +391,6 @@ contract DollarCostAverage is HubOwnable, UseFee, OnlyStrategyManager, Reentranc
         poolInfo[_poolId].router = _router;
 
         emit SetPoolRouter(_poolId, oldRouter, _router);
-    }
-
-    function tokenBalance(address _token) public virtual view returns (uint balance) {
-        return TokenHelpers.currentBalance(_token);
     }
 
     function _closePosition(uint _positionId) internal virtual {

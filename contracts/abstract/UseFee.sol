@@ -42,6 +42,12 @@ abstract contract UseFee is OwnableUpgradeable, UseTreasury {
         );
     }
 
+    function getFeePercentage(
+        bool _subscribed
+    ) external view returns (uint) {
+        return _subscribed ? baseFeeBP : baseFeeBP + nonSubscriberFeeBP;
+    }
+
     function _getBaseFee(
         uint _amount
     ) private view returns (uint) {
@@ -58,20 +64,22 @@ abstract contract UseFee is OwnableUpgradeable, UseTreasury {
             : _amount * nonSubscriberFeeBP / 10_000;
     }
 
-    function _collectProtocolFees(
+    function _pullFunds(
         address _token,
         uint _depositAmount,
         bytes memory _eventData,
         SubscriptionManager.Permit calldata _subscriptionPermit
-    ) internal returns (uint) {
+    ) internal returns (uint remainingAmount) {
         (uint baseFee, uint nonSubscriberFee) = calculateFee(msg.sender, _depositAmount, _subscriptionPermit);
         uint depositFee = baseFee + nonSubscriberFee;
+        uint initialBalance = IERC20Upgradeable(_token).balanceOf(address(this));
 
         IERC20Upgradeable(_token).safeTransferFrom(msg.sender, treasury, depositFee);
+        IERC20Upgradeable(_token).safeTransferFrom(msg.sender, address(this), _depositAmount - depositFee);
 
         emit Fee(msg.sender, treasury, depositFee, _eventData);
 
-        return depositFee;
+        return IERC20Upgradeable(_token).balanceOf(address(this)) - initialBalance;
     }
 
     function setFee(uint32 _baseFeeBP, uint32 _nonSubscriberFeeBP) external onlyOwner {
