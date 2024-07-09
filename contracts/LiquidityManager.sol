@@ -9,9 +9,10 @@ import {OnlyStrategyManager} from "./abstract/OnlyStrategyManager.sol";
 import {UseFee} from "./abstract/UseFee.sol";
 import {UseTreasury} from "./abstract/UseTreasury.sol";
 import {UseDust} from "./abstract/UseDust.sol";
+import {ZapLib} from "./libraries/ZapLib.sol";
+import {ZapManager} from "./zap/ZapManager.sol";
 import {StrategyManager} from "./StrategyManager.sol";
 import {SubscriptionManager} from "./SubscriptionManager.sol";
-import {ZapManager} from "./zap/ZapManager.sol";
 
 contract LiquidityManager is HubOwnable, UseFee, UseDust, OnlyStrategyManager {
     using SafeERC20Upgradeable for IERC20Upgradeable;
@@ -105,22 +106,17 @@ contract LiquidityManager is HubOwnable, UseFee, UseDust, OnlyStrategyManager {
         if (!positionManagerWhitelist[_params.positionManager] || _params.token0 > _params.token1)
             revert InvalidInvestment();
 
-        if (_params.swapToken0.length > 0 && _params.swapToken1.length > 0)
-            _params.inputToken.safeTransfer(address(zapManager), _params.swapAmountToken0 + _params.swapAmountToken1);
-        else if (_params.swapToken0.length > 0)
-            _params.inputToken.safeTransfer(address(zapManager), _params.swapAmountToken0);
-        else if (_params.swapToken1.length > 0)
-            _params.inputToken.safeTransfer(address(zapManager), _params.swapAmountToken1);
-
-        uint amountToken0 = _zap(
+        uint amountToken0 = ZapLib.zap(
             zapManager,
             _params.swapToken0,
+            _params.inputToken,
             _params.token0,
             _params.swapAmountToken0
         );
-        uint amountToken1 = _zap(
+        uint amountToken1 = ZapLib.zap(
             zapManager,
             _params.swapToken1,
+            _params.inputToken,
             _params.token1,
             _params.swapAmountToken1
         );
@@ -143,22 +139,6 @@ contract LiquidityManager is HubOwnable, UseFee, UseDust, OnlyStrategyManager {
                 deadline: block.timestamp
             })
         );
-    }
-
-    function _zap(
-        ZapManager _zapManager,
-        bytes memory _encodedProtocolCall,
-        IERC20Upgradeable _outputToken,
-        uint _amount
-    ) internal returns (uint outputAmount) {
-        if (_encodedProtocolCall.length == 0)
-            return _amount;
-
-        uint initialOutputBalance = _outputToken.balanceOf(address(this));
-
-        _zapManager.callProtocol(abi.decode(_encodedProtocolCall, (ZapManager.ProtocolCall)));
-
-        return _outputToken.balanceOf(address(this)) - initialOutputBalance;
     }
 
     function setPositionManagerWhitelist(

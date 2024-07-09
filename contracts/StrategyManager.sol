@@ -113,7 +113,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
     mapping(address => mapping(uint => InvestLib.VaultPosition[])) internal _vaultPositionsPerPosition;
     // @dev investor => strategy position id => liquidity positions
     mapping(address => mapping(uint => InvestLib.LiquidityPosition[])) internal _liquidityPositionsPerPosition;
-    // @dev investor => strategy position id => liquidity positions
+    // @dev investor => strategy position id => token positions
     mapping(address => mapping(uint => InvestLib.TokenPosition[])) internal _tokenPositionsPerPosition;
 
     address public investLib;
@@ -263,7 +263,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
 
             if (
                 !liquidityManager.positionManagerWhitelist(liquidityStrategy.positionManager) ||
-            liquidityStrategy.token0 > liquidityStrategy.token1
+            liquidityStrategy.token0 >= liquidityStrategy.token1
             )
                 revert InvalidInvestment();
 
