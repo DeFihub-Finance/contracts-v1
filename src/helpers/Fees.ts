@@ -92,7 +92,7 @@ export class Fees {
         const {
             protocolFee,
             strategistFee,
-        } = await this.getStrategyFeePercentage(
+        } = await Fees.getStrategyFeePercentage(
             strategyManager,
             strategyId,
             subscribedUser,
@@ -135,7 +135,7 @@ export class Fees {
         liquidityManager: UseFee,
         exchangeManager: UseFee,
     ) {
-        const { protocolFee, strategistFee } = await this.getStrategyFeeAmount(
+        const { protocolFee, strategistFee } = await Fees.getStrategyFeeAmount(
             amount,
             strategyManager,
             strategyId,
