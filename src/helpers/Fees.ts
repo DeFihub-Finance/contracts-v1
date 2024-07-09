@@ -14,7 +14,8 @@ export class Fees {
         exchangeManager: UseFee,
     ) {
         const [
-            isHottestDeal, {
+            isHottestDeal,
+            {
                 dcaInvestments,
                 vaultInvestments,
                 liquidityInvestments,
@@ -25,22 +26,10 @@ export class Fees {
             strategyManager.getStrategyInvestments(strategyId),
         ])
 
-        const dcaPercentage = dcaInvestments.reduce(
-            (acc, investment) => acc + investment.percentage,
-            BigInt(0),
-        )
-        const vaultPercentage = vaultInvestments.reduce(
-            (acc, investment) => acc + investment.percentage,
-            BigInt(0),
-        )
-        const liquidityPercentage = liquidityInvestments.reduce(
-            (acc, investment) => acc + investment.percentage,
-            BigInt(0),
-        )
-        const tokensPercentage = tokenInvestments.reduce(
-            (acc, investment) => acc + investment.percentage,
-            BigInt(0),
-        )
+        const dcaPercentage = Fees._sumInvestmentPercentages(dcaInvestments)
+        const vaultPercentage = Fees._sumInvestmentPercentages(vaultInvestments)
+        const liquidityPercentage = Fees._sumInvestmentPercentages(liquidityInvestments)
+        const tokensPercentage = Fees._sumInvestmentPercentages(tokenInvestments)
 
         const [
             strategistPercentage,
@@ -125,7 +114,10 @@ export class Fees {
         subscribedUser: boolean,
         product: UseFee,
     ) {
-        const [baseFeeBP, nonSubscriberFeeBP] = await Promise.all([
+        const [
+            baseFeeBP,
+            nonSubscriberFeeBP,
+        ] = await Promise.all([
             product.baseFeeBP(),
             subscribedUser ? BigInt(0) : product.nonSubscriberFeeBP(),
         ])
@@ -155,5 +147,12 @@ export class Fees {
         )
 
         return amount - protocolFee - strategistFee
+    }
+
+    private static _sumInvestmentPercentages(product: { percentage: bigint }[]) {
+        return product.reduce(
+            (acc, curr) => acc + curr.percentage,
+            BigInt(0),
+        )
     }
 }
