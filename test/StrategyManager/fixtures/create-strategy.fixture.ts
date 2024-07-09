@@ -2,7 +2,7 @@ import { keccak256, parseEther } from 'ethers'
 import { NetworkService } from '@src/NetworkService'
 import { baseStrategyManagerFixture } from './base.fixture'
 
-export const createStrategyFixture = async () => {
+export async function createStrategyFixture() {
     /////////////////////////////////////
     // Initializing contracts and EOA //
     ///////////////////////////////////

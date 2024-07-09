@@ -14,7 +14,7 @@ import { deployVaultFixture } from '../../VaultManager/fixtures/deploy-vault.fix
 import { Signer, parseEther } from 'ethers'
 import { UniswapV3 } from '@src/helpers'
 
-export const baseStrategyManagerFixture = async () => {
+export async function baseStrategyManagerFixture() {
     const [deployer] = await ethers.getSigners()
     const anotherToken = await new TestERC20__factory(deployer).deploy()
 
@@ -38,7 +38,7 @@ export const baseStrategyManagerFixture = async () => {
     } = await new ProjectDeployer().deployProjectFixture()
 
     /////////////////////////////////////
-    // Initialize investment contrats //
+    // Initialize investment contracts //
     ////////////////////////////////////
     const vault = await deployVaultFixture(await stablecoin.getAddress())
 

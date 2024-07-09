@@ -1,5 +1,4 @@
 import { PathUniswapV3, SubscriptionSigner } from '@defihub/shared'
-import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import { BigNumber } from '@ryze-blockchain/ethereum'
 import { UniswapV2, UniswapV2ZapHelper, UniswapV3, UniswapV3ZapHelper } from '@src/helpers'
 import { NetworkService } from '@src/NetworkService'
@@ -18,10 +17,6 @@ export async function zapFixture() {
     // global data
     const chainId = await NetworkService.getChainId()
     const deadline = await NetworkService.getBlockTimestamp() + 10_000
-
-    function deployProjectFixture() {
-        return new ProjectDeployer().deployProjectFixture()
-    }
 
     const {
         // accounts
@@ -50,7 +45,7 @@ export async function zapFixture() {
         factoryUniV3,
         routerUniV3,
         positionManagerUniV3,
-    } = await loadFixture(deployProjectFixture)
+    } = await new ProjectDeployer().deployProjectFixture()
 
     const subscriptionSignerHelper = new SubscriptionSigner(
         subscriptionManager,

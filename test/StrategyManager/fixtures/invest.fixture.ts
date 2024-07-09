@@ -1,4 +1,3 @@
-import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import { createStrategyFixture } from './create-strategy.fixture'
 import { parseEther } from 'ethers'
 import { NetworkService } from '@src/NetworkService'
@@ -14,7 +13,7 @@ export async function investFixture() {
         subscriptionSignature,
         stablecoin,
         ...rest
-    } = await loadFixture(createStrategyFixture)
+    } = await createStrategyFixture()
     const strategistAddress = await account0.getAddress()
     const deadline = await NetworkService.getBlockTimestamp() + 10_000
 
