@@ -30,10 +30,6 @@ export const baseUseFeeFixture = async () => {
         useFee,
         subscriptionManager,
         subscriptionSigner,
-        subscriptionSignature: new SubscriptionSignature(
-            subscriptionManager,
-            subscriptionSigner,
-        ),
         ...rest,
     }
 }

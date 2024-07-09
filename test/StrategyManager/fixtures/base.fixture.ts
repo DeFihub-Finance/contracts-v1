@@ -137,10 +137,6 @@ export const baseStrategyManagerFixture = async () => {
         dcaStrategyPositions,
         vaultStrategyPosition,
         subscriptionSigner,
-        subscriptionSignature: new SubscriptionSignature(
-            subscriptionManager,
-            subscriptionSigner,
-        ),
         weth,
         stablecoin,
         routerUniV3,
@@ -160,7 +156,10 @@ async function bootstrapDcaPoolLiquidity(
     fee: bigint,
 ) {
     const thousand = parseEther('1000')
-    const [token0, token1] = [
+    const [
+        token0,
+        token1,
+    ] = [
         await inputToken.getAddress(),
         await outputToken.getAddress(),
     ].sort((a, b) => parseInt(a, 16) - parseInt(b, 16))
