@@ -5,8 +5,6 @@ import { SubscriptionSignature } from '@src/SubscriptionSignature'
 
 export const baseSubscriptionMangerFixture = async () => {
     const [deployer] = await ethers.getSigners()
-    const subscriptionToken = await new TestERC20__factory(deployer).deploy()
-    const subscriptionTokenAddress = await subscriptionToken.getAddress()
 
     const {
         treasury,
@@ -14,13 +12,11 @@ export const baseSubscriptionMangerFixture = async () => {
         subscriptionManager,
         subscriptionSigner,
         subscriptionMonthlyPrice,
-    } = await new ProjectDeployer(
-        subscriptionTokenAddress,
-        subscriptionTokenAddress,
-    ).deployProjectFixture()
+        stablecoin,
+    } = await new ProjectDeployer().deployProjectFixture()
 
-    await subscriptionToken.mint(account0.address, ethers.parseEther('100'))
-    await subscriptionToken.connect(account0).approve(
+    await stablecoin.mint(account0.address, ethers.parseEther('100'))
+    await stablecoin.connect(account0).approve(
         await subscriptionManager.getAddress(),
         subscriptionMonthlyPrice * 12n,
     )
@@ -31,7 +27,7 @@ export const baseSubscriptionMangerFixture = async () => {
         subscriptionManager,
         subscriptionSigner,
         deployer,
-        subscriptionToken,
+        subscriptionToken: stablecoin,
         subscriptionMonthlyPrice,
         subscriptionSignature: new SubscriptionSignature(
             subscriptionManager,

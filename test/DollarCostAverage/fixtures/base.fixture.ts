@@ -1,8 +1,6 @@
 import { parseEther } from 'ethers'
 import { ProjectDeployer } from '@src/ProjectDeployer'
 import { PathUniswapV3 } from '@defihub/shared'
-import { TestERC20__factory } from '@src/typechain'
-import { ethers } from 'hardhat'
 import { BigNumber } from '@ryze-blockchain/ethereum'
 import { UniswapV3 } from '@src/helpers'
 
@@ -22,10 +20,8 @@ export const baseDcaFixture = async () => {
     const ONE_BILLION_ETH = parseEther('1000000000')
     const ONE_MILLION = parseEther('1000000')
 
-    const [deployer] = await ethers.getSigners()
-    const stablecoin = await new TestERC20__factory(deployer).deploy()
-
     const {
+        stablecoin,
         dca,
         weth,
         treasury,
@@ -37,10 +33,7 @@ export const baseDcaFixture = async () => {
         factoryUniV3,
         positionManagerUniV3,
         ...rest
-    } = (await new ProjectDeployer(
-        stablecoin,
-        stablecoin,
-    ).deployProjectFixture())
+    } = (await new ProjectDeployer().deployProjectFixture())
 
     await Promise.all([
         stablecoin.mint(account0, ONE_MILLION),

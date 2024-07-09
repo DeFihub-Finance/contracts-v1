@@ -12,7 +12,6 @@ export async function investFixture() {
         account1,
         strategyManager,
         subscriptionSignature,
-        token,
         stablecoin,
         ...rest
     } = await loadFixture(createStrategyFixture)
@@ -20,8 +19,8 @@ export async function investFixture() {
     const deadline = await NetworkService.getBlockTimestamp() + 10_000
 
     await Promise.all([
-        token.mint(await account1.getAddress(), amountToInvest),
-        token.connect(account1).approve(
+        stablecoin.mint(await account1.getAddress(), amountToInvest),
+        stablecoin.connect(account1).approve(
             await strategyManager.getAddress(),
             amountToInvest,
         ),
@@ -49,7 +48,7 @@ export async function investFixture() {
         strategyManager,
         strategyId,
         amountToInvest,
-        rewardToken: token,
+        stablecoin,
         ...rest,
     }
 }

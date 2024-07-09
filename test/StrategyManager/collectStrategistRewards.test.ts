@@ -19,10 +19,10 @@ describe('StrategyManager#collectStrategistRewards', () => {
     let account1: Signer
     let strategyManager: StrategyManager
     let zapManager: ZapManager
-    let rewardToken: ERC20
+    let stablecoin: ERC20
     let strategistAddress: string
 
-    const strategistBalance = async () => rewardToken.balanceOf(await account0.getAddress())
+    const strategistBalance = async () => stablecoin.balanceOf(await account0.getAddress())
 
     beforeEach(async () => {
         ({
@@ -31,7 +31,7 @@ describe('StrategyManager#collectStrategistRewards', () => {
             strategyManager,
             strategistAddress,
             zapManager,
-            rewardToken,
+            stablecoin,
         } = await loadFixture(investFixture))
     })
 
@@ -65,8 +65,8 @@ describe('StrategyManager#collectStrategistRewards', () => {
             it('calculates rewards properly', async () => {
                 expect(
                     await strategyManager.getStrategistRewards(account0) +
-                    await rewardToken.balanceOf(zapManager) -
-                    await rewardToken.balanceOf(strategyManager),
+                    await stablecoin.balanceOf(zapManager) -
+                    await stablecoin.balanceOf(strategyManager),
                 ).to.equal(0)
 
                 await strategyManager.connect(account0).collectStrategistRewards()
@@ -75,8 +75,8 @@ describe('StrategyManager#collectStrategistRewards', () => {
                     .to.equal(0)
 
                 expect(
-                    await rewardToken.balanceOf(zapManager) -
-                    await rewardToken.balanceOf(strategyManager),
+                    await stablecoin.balanceOf(zapManager) -
+                    await stablecoin.balanceOf(strategyManager),
                 )
                     .to.equal(0)
             })
