@@ -14,7 +14,7 @@
     "license": "ISC",
     "devDependencies": {
         "@openzeppelin/hardhat-upgrades": "^2.4.1",
-        "@ryze-blockchain/eslint-config": "^0.0.22",
+        "@ryze-blockchain/eslint-config": "^0.0.23",
         "@typechain/ethers-v6": "^0.4.0",
         "@typechain/hardhat": "^8.0.3",
         "@uniswap/sdk-core": "^5.3.1",
