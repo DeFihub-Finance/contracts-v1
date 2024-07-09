@@ -1,4 +1,4 @@
-import { sendLocalTransaction, sendLocalDeploymentTransaction } from '@src/helpers'
+import { sendLocalDeploymentTransaction } from '@src/helpers'
 import { ethers } from 'hardhat'
 import {
     ProjectDeployer__factory,
@@ -74,46 +74,14 @@ export class ProjectDeployer {
         const zapManagerDeployParams = this.getDeploymentInfo(ZapManager__factory)
         const exchangeManagerDeployParams = this.getDeploymentInfo(ExchangeManager__factory)
 
-        await sendLocalTransaction(
-            await projectDeployer.deployInvestLib
-                .populateTransaction(InvestLib__factory.bytecode, ZeroHash),
-            deployer,
-        )
-        await sendLocalTransaction(
-            await projectDeployer.deploySubscriptionManager
-                .populateTransaction(subscriptionManagerDeployParams),
-            deployer,
-        )
-        await sendLocalTransaction(
-            await projectDeployer.deployStrategyManager
-                .populateTransaction(strategyManagerDeployParams),
-            deployer,
-        )
-        await sendLocalTransaction(
-            await projectDeployer.deployDca
-                .populateTransaction(dcaDeployParams),
-            deployer,
-        )
-        await sendLocalTransaction(
-            await projectDeployer.deployVaultManager
-                .populateTransaction(vaultManagerDeployParams),
-            deployer,
-        )
-        await sendLocalTransaction(
-            await projectDeployer.deployLiquidityManager
-                .populateTransaction(liquidityManagerDeployParams),
-            deployer,
-        )
-        await sendLocalTransaction(
-            await projectDeployer.deployZapManager
-                .populateTransaction(zapManagerDeployParams),
-            deployer,
-        )
-        await sendLocalTransaction(
-            await projectDeployer.deployExchangeManager
-                .populateTransaction(exchangeManagerDeployParams),
-            deployer,
-        )
+        await projectDeployer.deployInvestLib(InvestLib__factory.bytecode, ZeroHash)
+        await projectDeployer.deploySubscriptionManager(subscriptionManagerDeployParams)
+        await projectDeployer.deployStrategyManager(strategyManagerDeployParams)
+        await projectDeployer.deployDca(dcaDeployParams)
+        await projectDeployer.deployVaultManager(vaultManagerDeployParams)
+        await projectDeployer.deployLiquidityManager(liquidityManagerDeployParams)
+        await projectDeployer.deployZapManager(zapManagerDeployParams)
+        await projectDeployer.deployExchangeManager(exchangeManagerDeployParams)
 
         const investLib = await projectDeployer.investLib()
         const [
@@ -212,17 +180,14 @@ export class ProjectDeployer {
             },
         }
 
-        await sendLocalTransaction(
-            await projectDeployer.initializeProject.populateTransaction(
-                subscriptionManagerInitParams,
-                strategyManagerInitParams,
-                dcaInitParams,
-                vaultManagerInit,
-                liquidityManagerInit,
-                exchangeManagerInit,
-                zapManagerInit,
-            ),
-            deployer,
+        await projectDeployer.initializeProject(
+            subscriptionManagerInitParams,
+            strategyManagerInitParams,
+            dcaInitParams,
+            vaultManagerInit,
+            liquidityManagerInit,
+            exchangeManagerInit,
+            zapManagerInit,
         )
 
         const subscriptionSignature= new SubscriptionSignature(
