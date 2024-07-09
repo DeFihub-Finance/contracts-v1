@@ -33,26 +33,18 @@ export class Fees {
 
         const [
             strategistPercentage,
-            dcaBaseFeeBP,
-            vaultBaseFeeBP,
-            liquidityBaseFeeBP,
-            exchangeBaseFeeBP,
-            dcaNonSubscriberFeeBP,
-            vaultNonSubscriberFeeBP,
-            liquidityNonSubscriberFeeBP,
-            exchangeNonSubscriberFeeBP,
+            { baseFeeBP: dcaBaseFeeBP, nonSubscriberFeeBP: dcaNonSubscriberFeeBP },
+            { baseFeeBP: vaultBaseFeeBP, nonSubscriberFeeBP: vaultNonSubscriberFeeBP },
+            { baseFeeBP: liquidityBaseFeeBP, nonSubscriberFeeBP: liquidityNonSubscriberFeeBP },
+            { baseFeeBP: exchangeBaseFeeBP, nonSubscriberFeeBP: exchangeNonSubscriberFeeBP },
         ] = await Promise.all([
             isHottestDeal
                 ? strategyManager.hotStrategistPercentage()
                 : strategyManager.strategistPercentage(),
-            dca.baseFeeBP(),
-            vaultManager.baseFeeBP(),
-            liquidityManager.baseFeeBP(),
-            exchangeManager.baseFeeBP(),
-            subscribedUser ? BigInt(0) : dca.nonSubscriberFeeBP(),
-            subscribedUser ? BigInt(0) : vaultManager.nonSubscriberFeeBP(),
-            subscribedUser ? BigInt(0) : liquidityManager.nonSubscriberFeeBP(),
-            subscribedUser ? BigInt(0) : exchangeManager.nonSubscriberFeeBP(),
+            Fees._getProductFees(dca, subscribedUser),
+            Fees._getProductFees(vaultManager, subscribedUser),
+            Fees._getProductFees(liquidityManager, subscribedUser),
+            Fees._getProductFees(exchangeManager, subscribedUser),
         ])
 
         const baseFee = new BigNumber(
@@ -74,7 +66,8 @@ export class Fees {
         const strategistFee = baseFee.times(strategistPercentage.toString()).div(100)
 
         return {
-            protocolFee: baseFee.minus(strategistFee).plus(nonSubscriberFee),
+            protocolFee: baseFee.minus(strategistFee),
+            nonSubscriberFee,
             strategistFee,
         }
     }
@@ -91,6 +84,7 @@ export class Fees {
     ) {
         const {
             protocolFee,
+            nonSubscriberFee,
             strategistFee,
         } = await Fees.getStrategyFeePercentage(
             strategyManager,
@@ -104,7 +98,7 @@ export class Fees {
         const amountBN = new BigNumber(amount.toString())
 
         return {
-            protocolFee: BigInt(amountBN.times(protocolFee.div(100)).toString()),
+            protocolFee: BigInt(amountBN.times(protocolFee.plus(nonSubscriberFee).div(100)).toString()),
             strategistFee: BigInt(amountBN.times(strategistFee.div(100)).toString()),
         }
     }
@@ -154,5 +148,20 @@ export class Fees {
             (acc, curr) => acc + curr.percentage,
             BigInt(0),
         )
+    }
+
+    private static async _getProductFees(product: UseFee, subscribedUser: boolean) {
+        const [
+            baseFeeBP,
+            nonSubscriberFeeBP,
+        ] = await Promise.all([
+            product.baseFeeBP(),
+            subscribedUser ? BigInt(0) : product.nonSubscriberFeeBP(),
+        ])
+
+        return {
+            baseFeeBP,
+            nonSubscriberFeeBP,
+        }
     }
 }
