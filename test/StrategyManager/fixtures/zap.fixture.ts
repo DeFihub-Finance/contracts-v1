@@ -1,6 +1,6 @@
 import { PathUniswapV3, SubscriptionSigner } from '@defihub/shared'
 import { BigNumber } from '@ryze-blockchain/ethereum'
-import { UniswapV2, UniswapV2ZapHelper, UniswapV3, UniswapV3ZapHelper } from '@src/helpers'
+import { UniswapV2, UniswapV3 } from '@src/helpers'
 import { NetworkService } from '@src/NetworkService'
 import { ProjectDeployer } from '@src/ProjectDeployer'
 import { UniswapV2Pair__factory, UniswapV3Pool__factory } from '@src/typechain'
@@ -52,8 +52,6 @@ export async function zapFixture() {
         subscriptionSignerAccount,
     )
 
-    const uniswapV2ZapHelper = new UniswapV2ZapHelper()
-    const uniswapV3ZapHelper = new UniswapV3ZapHelper()
     const permitAccount0 = await subscriptionSignerHelper
         .signSubscriptionPermit(account0, deadline, chainId)
 
@@ -197,10 +195,6 @@ export async function zapFixture() {
         btcEthLpUniV2,
         stableBtcLpUniV3,
         btcEthLpUniV3,
-
-        // helpers
-        uniswapV2ZapHelper,
-        uniswapV3ZapHelper,
 
         // constants,
         USD_PRICE_BN,

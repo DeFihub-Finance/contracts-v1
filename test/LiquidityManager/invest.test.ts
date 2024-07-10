@@ -70,10 +70,7 @@ describe('LiquidityManager#invest', () => {
     }
 
     async function isSameToken(tokenA: AddressLike, tokenB: AddressLike) {
-        const [
-            addressTokenA,
-            addressTokenB,
-        ] = await Promise.all([
+        const [addressTokenA, addressTokenB] = await Promise.all([
             unwrapAddressLike(tokenA),
             unwrapAddressLike(tokenB),
         ])
@@ -90,7 +87,7 @@ describe('LiquidityManager#invest', () => {
             return '0x'
 
         return protocol === 'uniswapV2'
-            ? uniswapV2ZapHelper.encodeSwap(
+            ? UniswapV2ZapHelper.encodeSwap(
                 amount,
                 stablecoin,
                 outputToken.address,
@@ -99,7 +96,7 @@ describe('LiquidityManager#invest', () => {
                 SLIPPAGE_BN,
                 liquidityManager,
             )
-            : uniswapV3ZapHelper.encodeExactInputSingle(
+            : UniswapV3ZapHelper.encodeExactInputSingle(
                 amount,
                 stablecoin,
                 outputToken.address,
@@ -258,10 +255,7 @@ describe('LiquidityManager#invest', () => {
             10, // 10% upper
         )
 
-        const [
-            swapToken0,
-            swapToken1,
-        ] = await Promise.all([
+        const [swapToken0, swapToken1] = await Promise.all([
             getEncodedSwap(mintPositionInfo.swapAmountToken0, token0),
             getEncodedSwap(mintPositionInfo.swapAmountToken1, token1),
         ])
@@ -301,10 +295,7 @@ describe('LiquidityManager#invest', () => {
             10, // 10% upper
         )
 
-        const [
-            swapToken0,
-            swapToken1,
-        ] = await Promise.all([
+        const [swapToken0, swapToken1] = await Promise.all([
             getEncodedSwap(mintPositionInfo.swapAmountToken0, token0),
             getEncodedSwap(mintPositionInfo.swapAmountToken1, token1, 'uniswapV3'),
         ])
@@ -344,10 +335,7 @@ describe('LiquidityManager#invest', () => {
             -20, // -20% upper
         )
 
-        const [
-            swapToken0,
-            swapToken1,
-        ] = await Promise.all([
+        const [swapToken0, swapToken1] = await Promise.all([
             getEncodedSwap(mintPositionInfo.swapAmountToken0, token0),
             getEncodedSwap(mintPositionInfo.swapAmountToken1, token1),
         ])
