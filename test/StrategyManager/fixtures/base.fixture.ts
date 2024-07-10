@@ -150,6 +150,12 @@ export const baseStrategyManagerFixture = async () => {
         },
     ]
 
+    //////////////////////////////
+    // Mock ERC20Priced tokens //
+    ////////////////////////////
+    const stablecoinPriced = await mockTokenWithAddress(USD_PRICE_BN, 18, stablecoin)
+    const wethPriced = await mockTokenWithAddress(ETH_PRICE_BN, 18, weth)
+
     return {
         // accounts
         account0,
@@ -168,6 +174,8 @@ export const baseStrategyManagerFixture = async () => {
         token,
         stablecoin,
         anotherToken,
+        stablecoinPriced,
+        wethPriced,
 
         // external test contracts
         routerUniV3,
