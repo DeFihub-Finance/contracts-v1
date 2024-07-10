@@ -2,6 +2,7 @@
 
 pragma solidity 0.8.26;
 
+import "hardhat/console.sol";
 import {IERC20Upgradeable, SafeERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import {INonfungiblePositionManager} from "./interfaces/INonfungiblePositionManager.sol";
 import {HubOwnable} from "./abstract/HubOwnable.sol";
@@ -132,6 +133,36 @@ contract LiquidityManager is HubOwnable, UseFee, UseDust, OnlyStrategyManager {
         // TODO test gas savings with infinite approval if safe
         _params.token0.safeIncreaseAllowance(address(_params.positionManager), amountToken0);
         _params.token1.safeIncreaseAllowance(address(_params.positionManager), amountToken1);
+
+        console.log(
+            "\namount0Desired: %s \namount0Minimum: %s",
+            amountToken0,
+            _params.amount0Min
+        );
+
+        console.log(
+            "\namount1Desired: %s \namount1Minimum: %s",
+            amountToken1,
+            _params.amount1Min
+        );
+
+        console.log(
+            "\ntoken0: %s, \ntoken1: %s",
+            address(_params.token0),
+            address(_params.token1)
+        );
+
+        console.log("\nticks (lower and upper respectively):");
+        console.logInt(_params.tickLower);
+        console.logInt(_params.tickUpper);
+
+        console.log("\nPool fee: %s", _params.fee);
+
+        console.log(
+            "\npositionManager: %s \nsender: %s,",
+            _params.positionManager,
+            msg.sender
+        );
 
         (tokenId, liquidity,,) = INonfungiblePositionManager(_params.positionManager).mint(
             INonfungiblePositionManager.MintParams({
