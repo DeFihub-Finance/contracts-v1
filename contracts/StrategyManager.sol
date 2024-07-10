@@ -485,11 +485,15 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         uint _positionId
     ) external virtual view returns (
         uint[] memory dcaPositions,
-        InvestLib.VaultPosition[] memory vaultPositions
+        InvestLib.VaultPosition[] memory vaultPositions,
+        InvestLib.LiquidityPosition[] memory liquidityPositions,
+        InvestLib.TokenPosition[] memory tokenPositions
     ) {
         return (
             _dcaPositionsPerPosition[_investor][_positionId],
-            _vaultPositionsPerPosition[_investor][_positionId]
+            _vaultPositionsPerPosition[_investor][_positionId],
+            _liquidityPositionsPerPosition[_investor][_positionId],
+            _tokenPositionsPerPosition[_investor][_positionId]
         );
     }
 
