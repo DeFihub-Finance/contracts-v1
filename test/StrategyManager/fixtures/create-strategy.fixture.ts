@@ -15,6 +15,7 @@ export async function createStrategyFixture() {
         strategyManager,
         dcaStrategyPositions,
         vaultStrategyPosition,
+        positionManagerUniV3,
         subscriptionSignature,
         ...rest
     } = await baseStrategyManagerFixture()
@@ -26,12 +27,12 @@ export async function createStrategyFixture() {
     // Approve StrategyManager to spend tokens //
     /////////////////////////////////////////////
     await Promise.all([
-        stablecoin.mint(await account1.getAddress(), parseEther('1000')),
-        stablecoin.connect(account1).approve(await strategyManager.getAddress(), parseEther('1000')),
-        stablecoin.mint(await account2.getAddress(), parseEther('1000')),
-        stablecoin.connect(account2).approve(await strategyManager.getAddress(), parseEther('1000')),
-        anotherToken.connect(account1).mint(await account1.getAddress(), parseEther('1000')),
-        anotherToken.connect(account1).approve(await strategyManager.getAddress(), parseEther('1000')),
+        stablecoin.mint(account1, parseEther('1000')),
+        stablecoin.mint(account2, parseEther('1000')),
+        stablecoin.connect(account1).approve(strategyManager, parseEther('1000')),
+        stablecoin.connect(account2).approve(strategyManager, parseEther('1000')),
+        anotherToken.connect(account1).mint(account1, parseEther('1000')),
+        anotherToken.connect(account1).approve(strategyManager, parseEther('1000')),
     ])
 
     /////////////////////////////////////////
@@ -40,7 +41,7 @@ export async function createStrategyFixture() {
     await strategyManager.connect(account0).createStrategy({
         dcaInvestments: dcaStrategyPositions,
         vaultInvestments: vaultStrategyPosition,
-        liquidityInvestments: [], // todo
+        liquidityInvestments: [],
         tokenInvestments: [],
         permit: await subscriptionSignature.signSubscriptionPermit(
             await account0.getAddress(),
@@ -55,7 +56,7 @@ export async function createStrategyFixture() {
     await strategyManager.connect(account0).createStrategy({
         dcaInvestments: [{ poolId: 2, swaps: 10, percentage: 66 }],
         vaultInvestments: vaultStrategyPosition,
-        liquidityInvestments: [], // todo
+        liquidityInvestments: [],
         tokenInvestments: [],
         permit: await subscriptionSignature.signSubscriptionPermit(
             await account0.getAddress(),
@@ -68,13 +69,13 @@ export async function createStrategyFixture() {
         account0,
         account1,
         account2,
-        stablecoin,
         anotherToken,
         strategyManager,
         dcaStrategyPositions,
         vaultStrategyPosition,
+        positionManagerUniV3,
         subscriptionSignature,
-
+        stablecoin,
         ...rest,
     }
 }

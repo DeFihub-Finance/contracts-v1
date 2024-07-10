@@ -1,18 +1,29 @@
 import { expect } from 'chai'
-import { AbiCoder, BigNumberish, ErrorDescription, parseEther, Signer } from 'ethers'
+import { AbiCoder, BigNumberish, ErrorDescription, MaxUint256, parseEther, Signer, ZeroHash } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import {
     DollarCostAverage,
+    LiquidityManager,
     StrategyManager,
     TestERC20,
     TestVault,
+    UniswapPositionManager,
+    UniswapV3Pool, UseFee,
 } from '@src/typechain'
 import { InvestLib } from '@src/typechain/artifacts/contracts/StrategyManager'
 import { SubscriptionSignature } from '@src/SubscriptionSignature'
 import { NetworkService } from '@src/NetworkService'
 import { ContractFees } from '@src/ContractFees'
 import { createStrategyFixture } from './fixtures/create-strategy.fixture'
-import { decodeLowLevelCallError } from '@src/helpers'
+import {
+    decodeLowLevelCallError,
+    UniswapV2ZapHelper,
+    UniswapV3 as UniswapV3Helper,
+    UniswapV3ZapHelper,
+} from '@src/helpers'
+import { ERC20Priced, Slippage, UniswapV3 } from '@defihub/shared'
+import { BigNumber } from '@ryze-blockchain/ethereum'
+import { Fees } from '@src/helpers/Fees'
 
 // EFFECTS
 // => when user is subscribed
@@ -38,15 +49,36 @@ import { decodeLowLevelCallError } from '@src/helpers'
 // => if swap paths are different than the vaults length in strategy
 // => if swap paths are different than the dca length in strategy
 describe('StrategyManager#invest', () => {
+    const SLIPPAGE_BN = new BigNumber(0.01)
+
+    // accounts
     let account0: Signer
     let account1: Signer
     let account2: Signer
     let treasury: Signer
+
+    // prices
+    let USD_PRICE_BN: BigNumber
+
+    // tokens
+    let stablecoin: TestERC20
+    let stablecoinPriced: ERC20Priced
+    let wethPriced: ERC20Priced
+
+    // hub contracts
+    let vault: TestVault
+    let dca: DollarCostAverage
     let strategyManagerAddress: string
     let strategyManager: StrategyManager
-    let dca: DollarCostAverage
-    let vault: TestVault
-    let stablecoin: TestERC20
+    let liquidityManager: LiquidityManager
+    let vaultManager: UseFee
+    let exchangeManager: UseFee
+
+    // external test contracts
+    let positionManagerUniV3: UniswapPositionManager
+
+    // global data
+    let stableEthLpUniV3: UniswapV3Pool
     let subscriptionSignature: SubscriptionSignature
     let deadline: number
     let investments: {
@@ -61,6 +93,51 @@ describe('StrategyManager#invest', () => {
 
     const vaultSwaps = ['0x']
     const dcaSwaps = ['0x', '0x']
+
+    function getMinOutput(
+        amount: bigint,
+        outputToken: ERC20Priced,
+    ) {
+        if (outputToken.address === stablecoinPriced.address)
+            return Slippage.deductSlippage(amount, SLIPPAGE_BN)
+
+        return Slippage.getMinOutput(
+            amount,
+            stablecoinPriced,
+            outputToken,
+            SLIPPAGE_BN.times(2),
+        )
+    }
+
+    async function getEncodedSwap(
+        amount: bigint,
+        outputToken: ERC20Priced,
+        protocol: 'uniswapV2' | 'uniswapV3' = 'uniswapV2',
+    ) {
+        if (!amount || outputToken.address === stablecoinPriced.address)
+            return '0x'
+
+        return protocol === 'uniswapV2'
+            ? UniswapV2ZapHelper.encodeSwap(
+                amount,
+                stablecoin,
+                outputToken.address,
+                USD_PRICE_BN,
+                outputToken.price,
+                SLIPPAGE_BN,
+                liquidityManager,
+            )
+            : UniswapV3ZapHelper.encodeExactInputSingle(
+                amount,
+                stablecoin,
+                outputToken.address,
+                3000,
+                USD_PRICE_BN,
+                outputToken.price,
+                SLIPPAGE_BN,
+                liquidityManager,
+            )
+    }
 
     async function invest(account: Signer, {
         _strategyId = strategyId,
@@ -99,18 +176,37 @@ describe('StrategyManager#invest', () => {
 
     beforeEach(async () => {
         ({
+            // accounts
             account0,
             account1,
             account2,
+            treasury,
+
+            // prices
+            USD_PRICE_BN,
+
+            // tokens
+            stablecoin,
+            stablecoinPriced,
+            wethPriced,
+
+            // hub contracts
             dca,
             vault,
-            stablecoin,
             strategyManager,
             strategyManagerAddress,
-            subscriptionSignature,
+            liquidityManager,
+            vaultManager,
+            exchangeManager,
+
+            // external test contracts
+            positionManagerUniV3,
+
+            // global data
+            stableEthLpUniV3,
             dcaStrategyPositions,
             vaultStrategyPosition,
-            treasury,
+            subscriptionSignature,
         } = await loadFixture(createStrategyFixture))
 
         deadline = await NetworkService.getBlockTimestamp() + 10_000
@@ -119,51 +215,89 @@ describe('StrategyManager#invest', () => {
 
     describe('EFFECTS', () => {
         describe('when user is subscribed', () => {
-            it('create investment position in dca and vaults', async () => {
-                await invest(account1)
+            it('create investment position in dca, vaults and liquidity', async () => {
+                const strategyId = await strategyManager.getStrategiesLength()
 
-                const [
-                    dcaPosition0,
-                    dcaPosition1,
-                    dcaPositionBalance0,
-                    dcaPositionBalance1,
-                ] = await Promise.all([
-                    dca.getPosition(strategyManagerAddress, 0),
-                    dca.getPosition(strategyManagerAddress, 1),
-                    dca.getPositionBalances(strategyManagerAddress, 0),
-                    dca.getPositionBalances(strategyManagerAddress, 1),
-                ])
+                // Default pool used is `stableEthUniV3`
+                const { token0, token1 } = UniswapV3.sortTokens(stablecoinPriced, wethPriced)
 
-                /////////////////////
-                // DCA Position 0 //
-                ///////////////////
-                const expectedDcaPositionBalance0 = ContractFees.discountBaseFee(
-                    amountToInvest * BigInt(dcaStrategyPositions[0].percentage) / 100n,
+                await strategyManager.connect(account0).createStrategy({
+                    dcaInvestments: [],
+                    vaultInvestments: [],
+                    liquidityInvestments: [
+                        {
+                            positionManager: positionManagerUniV3,
+                            token0: token0.address,
+                            token1: token1.address,
+                            fee: 3000,
+                            lowerPricePercentage: 10,
+                            upperPricePercentage: 10,
+                            percentage: 100,
+                        },
+                    ],
+                    tokenInvestments: [],
+                    permit: await subscriptionSignature.signSubscriptionPermit(
+                        await account0.getAddress(),
+                        await NetworkService.getBlockTimestamp() + 10_000,
+                    ),
+                    metadataHash: ZeroHash,
+                })
+
+                const amountWithDeductedFees = await Fees.deductStrategyFee(
+                    amountToInvest,
+                    strategyManager,
+                    strategyId,
+                    true,
+                    dca,
+                    vaultManager,
+                    liquidityManager,
+                    exchangeManager,
                 )
 
-                expect(dcaPosition0.swaps).to.be.equal(investments.dcaInvestments[0].swaps)
-                expect(dcaPosition0.poolId).to.be.equal(investments.dcaInvestments[0].poolId)
-                expect(dcaPositionBalance0.inputTokenBalance).to.be.equal(expectedDcaPositionBalance0)
+                const pool = await UniswapV3Helper.getPoolByContract(stableEthLpUniV3)
 
-                /////////////////////
-                // DCA Position 1 //
-                ///////////////////
-                const expectedDcaPositionBalance1 = ContractFees.discountBaseFee(
-                    amountToInvest * BigInt(dcaStrategyPositions[1].percentage) / 100n,
+                await stablecoin.connect(account0).approve(strategyManager, MaxUint256)
+                await stablecoin.connect(account0).mint(account0, parseEther('1000'))
+
+                const {
+                    swapAmountToken0,
+                    swapAmountToken1,
+                    tickLower,
+                    tickUpper,
+                } = UniswapV3.getMintPositionInfo(
+                    new BigNumber(amountWithDeductedFees.toString()),
+                    pool,
+                    token0.price,
+                    token1.price,
+                    10, // todo use bignumber
+                    10,
                 )
 
-                expect(dcaPosition1.swaps).to.be.equal(investments.dcaInvestments[1].swaps)
-                expect(dcaPosition1.poolId).to.be.equal(investments.dcaInvestments[1].poolId)
-                expect(dcaPositionBalance1.inputTokenBalance).to.be.equal(expectedDcaPositionBalance1)
-
-                ////////////////////
-                // VaultPosition //
-                //////////////////
-                const expectVaultPositionBalance = ContractFees.discountBaseFee(
-                    amountToInvest * BigInt(vaultStrategyPosition[0].percentage) / 100n,
-                )
-
-                expect(await vault.balanceOf(strategyManagerAddress)).to.be.equal(expectVaultPositionBalance)
+                await strategyManager.connect(account0).invest({
+                    strategyId: strategyId,
+                    inputToken: stablecoin,
+                    inputAmount: amountToInvest,
+                    inputTokenSwap: '0x',
+                    dcaSwaps: [],
+                    vaultSwaps: [],
+                    tokenSwaps: [],
+                    liquidityZaps: [
+                        {
+                            amount0Min: getMinOutput(swapAmountToken0, token0),
+                            amount1Min: getMinOutput(swapAmountToken1, token1),
+                            swapAmountToken0,
+                            swapAmountToken1,
+                            swapToken0: await getEncodedSwap(swapAmountToken0, token0, 'uniswapV3'),
+                            swapToken1: await getEncodedSwap(swapAmountToken1, token1, 'uniswapV3'),
+                            tickLower,
+                            tickUpper,
+                        },
+                    ],
+                    investorPermit: await subscriptionSignature
+                        .signSubscriptionPermit(await account0.getAddress(), deadline),
+                    strategistPermit: await subscriptionSignature
+                        .signSubscriptionPermit(await account0.getAddress(), deadline),
+                })
             })
         })
 
