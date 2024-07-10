@@ -1,20 +1,14 @@
 import { PathUniswapV3, unwrapAddressLike } from '@defihub/shared'
 import { ethers } from 'hardhat'
 import { ProjectDeployer } from '@src/ProjectDeployer'
-import {
-    TestERC20__factory,
-    UniswapV3Factory,
-    UniswapV3Pool__factory,
-    NonFungiblePositionManager,
-    TestERC20,
-} from '@src/typechain'
+import { TestERC20__factory, UniswapV3Pool__factory } from '@src/typechain'
 import { InvestLib } from '@src/typechain/artifacts/contracts/StrategyManager' // typechain doesn't generate lib properly so we must import it this way
-import { NetworkService } from '@src/NetworkService'
 import { SubscriptionSignature } from '@src/SubscriptionSignature'
 import { deployVaultFixture } from '../../VaultManager/fixtures/deploy-vault.fixture'
-import { Signer, parseEther } from 'ethers'
+import { parseEther } from 'ethers'
 import { UniswapV3 } from '@src/helpers'
 import { BigNumber } from '@ryze-blockchain/ethereum'
+import { mockTokenWithAddress } from '@src/helpers/mock-token'
 
 export const baseStrategyManagerFixture = async () => {
     const [deployer] = await ethers.getSigners()
@@ -25,6 +19,7 @@ export const baseStrategyManagerFixture = async () => {
     const USD_PRICE_BN = new BigNumber(1)
     const ETH_PRICE = 3_000n
     const ETH_PRICE_BN = new BigNumber(ETH_PRICE.toString())
+    const ONE_BILLION_ETH = parseEther('1000000000')
 
     /////////////////////////////////////
     // Initializing contracts and EOA //
@@ -61,14 +56,21 @@ export const baseStrategyManagerFixture = async () => {
 
     const path = new PathUniswapV3(TOKEN_IN, [{ token: TOKEN_OUT, fee: 3000 }])
 
-    const stableEthLpUniV3 = await bootstrapDcaPoolLiquidity(
-        deployer,
+    await UniswapV3.mintAndAddLiquidity(
         factoryUniV3,
         positionManagerUniV3,
-        token,
         weth,
-        1,
-        ETH_PRICE,
+        stablecoin,
+        ONE_BILLION_ETH / ETH_PRICE,
+        ONE_BILLION_ETH,
+        ETH_PRICE_BN,
+        USD_PRICE_BN,
+        account0,
+    )
+
+    const stableEthLpUniV3 = UniswapV3Pool__factory.connect(
+        await factoryUniV3.getPool(stablecoin, weth, 3000),
+        account0,
     )
 
     const routerAddress = await routerUniV3.getAddress()
@@ -159,6 +161,7 @@ export const baseStrategyManagerFixture = async () => {
         vaultManager,
         strategyManager,
         subscriptionManager,
+        liquidityManager,
 
         // tokens
         weth,
@@ -189,55 +192,4 @@ export const baseStrategyManagerFixture = async () => {
 
         ...rest,
     }
-}
-
-async function bootstrapDcaPoolLiquidity(
-    liquidityProvider: Signer,
-    factory: UniswapV3Factory,
-    positionManager: NonFungiblePositionManager,
-    inputToken: TestERC20,
-    outputToken: TestERC20,
-    inputPerOutputTokenPrice: number,
-    fee: bigint,
-) {
-    const thousand = parseEther('1000')
-    const { token0, token1 } = UniswapV3.sortTokens(
-        await unwrapAddressLike(inputToken),
-        await unwrapAddressLike(outputToken),
-    )
-
-    const inputTokenIsToken0 = token0 === (await inputToken.getAddress())
-
-    await positionManager.createAndInitializePoolIfNecessary(
-        token0,
-        token1,
-        fee,
-        UniswapV3.calculateSqrtPriceX96(
-            inputTokenIsToken0 ? inputPerOutputTokenPrice : 1,
-            inputTokenIsToken0 ? 1 : inputPerOutputTokenPrice,
-        ),
-    )
-
-    await Promise.all([
-        inputToken.mint(liquidityProvider, thousand),
-        inputToken.connect(liquidityProvider).approve(positionManager, thousand),
-        outputToken.mint(liquidityProvider, thousand),
-        outputToken.connect(liquidityProvider).approve(positionManager, thousand),
-    ])
-
-    await positionManager.mint({
-        token0,
-        token1,
-        fee,
-        tickLower: -887220,
-        tickUpper: 887220,
-        amount0Desired: thousand,
-        amount1Desired: thousand,
-        amount0Min: 0,
-        amount1Min: 0,
-        recipient: positionManager, // For this case, doesn't matter who holds the liquidity
-        deadline: await NetworkService.getBlockTimestamp() + 60 * 60 * 24, // 24 hours in seconds
-    })
-
-    return UniswapV3Pool__factory.connect(await factory.getPool(token0, token1, fee))
 }
