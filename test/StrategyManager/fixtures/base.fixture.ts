@@ -10,15 +10,12 @@ import {
 } from '@src/typechain'
 import { InvestLib } from '@src/typechain/artifacts/contracts/StrategyManager' // typechain doesn't generate lib properly so we must import it this way
 import { NetworkService } from '@src/NetworkService'
-import { SubscriptionSignature } from '@src/SubscriptionSignature'
 import { deployVaultFixture } from '../../VaultManager/fixtures/deploy-vault.fixture'
 import { Signer, parseEther } from 'ethers'
 import { UniswapV3 } from '@src/helpers'
 
-export const baseStrategyManagerFixture = async () => {
+export async function baseStrategyManagerFixture() {
     const [deployer] = await ethers.getSigners()
-    const stablecoin = await new TestERC20__factory(deployer).deploy()
-    const token = stablecoin // alias
     const anotherToken = await new TestERC20__factory(deployer).deploy()
 
     /////////////////////////////////////
@@ -32,24 +29,22 @@ export const baseStrategyManagerFixture = async () => {
         subscriptionMonthlyPrice,
         strategyManager,
         vaultManager,
+        stablecoin,
         weth,
         factoryUniV3,
         routerUniV3,
         positionManagerUniV3,
         ...rest
-    } = await new ProjectDeployer(
-        stablecoin,
-        stablecoin,
-    ).deployProjectFixture()
+    } = await new ProjectDeployer().deployProjectFixture()
 
     /////////////////////////////////////
-    // Initialize investment contrats //
+    // Initialize investment contracts //
     ////////////////////////////////////
-    const vault = await deployVaultFixture(await token.getAddress())
+    const vault = await deployVaultFixture(await stablecoin.getAddress())
 
-    await vaultManager.setVaultWhitelistStatus(await vault.getAddress(), true)
+    await vaultManager.setVaultWhitelistStatus(vault, true)
 
-    const TOKEN_IN = await token.getAddress()
+    const TOKEN_IN = await stablecoin.getAddress()
     const TOKEN_OUT = await weth.getAddress()
 
     const path = new PathUniswapV3(TOKEN_IN, [{ token: TOKEN_OUT, fee: 3000 }])
@@ -58,19 +53,17 @@ export const baseStrategyManagerFixture = async () => {
         deployer,
         factoryUniV3,
         positionManagerUniV3,
-        token,
+        stablecoin,
         weth,
         1,
         3000n,
     )
 
-    const routerAddress = await routerUniV3.getAddress()
-
     await Promise.all([
         dca.createPool(
             TOKEN_IN,
             TOKEN_OUT,
-            routerAddress,
+            routerUniV3,
             await path.encodedPath(),
             60 * 60 * 24, // 24 hours in seconds
         ),
@@ -78,17 +71,17 @@ export const baseStrategyManagerFixture = async () => {
         dca.createPool(
             TOKEN_IN,
             TOKEN_OUT,
-            routerAddress,
+            routerUniV3,
             await path.encodedPath(),
             60 * 60 * 24, // 24 hours in seconds
         ),
 
         dca.createPool(
-            await anotherToken.getAddress(),
+            anotherToken,
             TOKEN_OUT,
-            routerAddress,
+            routerUniV3,
             await new PathUniswapV3(
-                await anotherToken.getAddress(),
+                anotherToken,
                 [{ token: TOKEN_OUT, fee: 3000 }],
             ).encodedPath(),
             60 * 60 * 24, // 24 hours in seconds
@@ -101,8 +94,8 @@ export const baseStrategyManagerFixture = async () => {
     const yearlySubscriptionPrice = subscriptionMonthlyPrice * 12n
 
     await Promise.all([
-        token.mint(account0, yearlySubscriptionPrice),
-        token.connect(account0).approve(subscriptionManager, yearlySubscriptionPrice),
+        stablecoin.mint(account0, yearlySubscriptionPrice),
+        stablecoin.connect(account0).approve(subscriptionManager, yearlySubscriptionPrice),
         anotherToken.mint(account0, yearlySubscriptionPrice),
         anotherToken.connect(account0).approve(subscriptionManager, yearlySubscriptionPrice),
     ])
@@ -118,7 +111,7 @@ export const baseStrategyManagerFixture = async () => {
     ]
     const vaultStrategyPosition: InvestLib.VaultInvestmentStruct[] = [
         {
-            vault: await vault.getAddress(),
+            vault,
             percentage: 34,
         },
     ]
@@ -126,7 +119,6 @@ export const baseStrategyManagerFixture = async () => {
     return {
         account0,
         dca,
-        token,
         anotherToken,
         vault,
         subscriptionManager,

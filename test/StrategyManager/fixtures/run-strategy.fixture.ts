@@ -1,4 +1,3 @@
-import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import { investFixture } from './invest.fixture'
 import { NetworkService } from '@src/NetworkService'
 
@@ -10,7 +9,7 @@ export async function runStrategy() {
         strategyManager,
         account1,
         ...rest
-    } = await loadFixture(investFixture)
+    } = await investFixture()
 
     await Promise.all([
         // Swap to generate rewards for DCA

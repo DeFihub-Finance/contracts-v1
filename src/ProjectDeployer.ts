@@ -26,18 +26,12 @@ import {
     ExchangeManager__factory,
     ExchangeManager,
 } from '@src/typechain'
-import { ZeroHash, ZeroAddress, Signer, AddressLike } from 'ethers'
+import { ZeroHash, ZeroAddress, Signer } from 'ethers'
 import { NetworkService } from '@src/NetworkService'
 import { SubscriptionSignature } from '@src/SubscriptionSignature'
 
 export class ProjectDeployer {
     private hashCount = 0
-
-    constructor(
-        private subscriptionDepositToken: AddressLike,
-        private strategyDepositToken: AddressLike,
-    ) {
-    }
 
     public async deployProjectFixture() {
         const [
@@ -56,6 +50,7 @@ export class ProjectDeployer {
         const projectDeployerFactory = new ProjectDeployer__factory(deployer)
         const projectDeployer = await projectDeployerFactory.deploy()
 
+        const stablecoin = await new TestERC20__factory(deployer).deploy()
         const weth = await new TestERC20__factory(deployer).deploy()
         const wbtc = await new TestERC20__factory(account0).deploy()
         const { factoryUniV2, routerUniV2 } = await this.deployUniV2(deployer, weth)
@@ -111,7 +106,7 @@ export class ProjectDeployer {
             owner: owner.address,
             treasury: treasury.address,
             subscriptionSigner: subscriptionSigner.address,
-            token: this.subscriptionDepositToken,
+            token: stablecoin,
             pricePerMonth: subscriptionMonthlyPrice,
         }
 
@@ -119,7 +114,7 @@ export class ProjectDeployer {
             owner,
             treasury,
             investLib,
-            stable: this.strategyDepositToken,
+            stable: stablecoin,
             subscriptionManager,
             dca,
             vaultManager,
@@ -226,6 +221,7 @@ export class ProjectDeployer {
             vaultManagerInit,
 
             // Test contracts
+            stablecoin,
             weth,
             wbtc,
             factoryUniV2,

@@ -7,7 +7,7 @@ import { mockToken } from '@src/helpers/mock-token'
 
 export class UniswapV2ZapHelper {
     // encodes swap and wraps into a zap manager call
-    public async encodeSwap(
+    public static async encodeSwap(
         amount: bigint,
         inputToken: AddressLike,
         outputToken: AddressLike,
@@ -21,7 +21,7 @@ export class UniswapV2ZapHelper {
             inputToken,
             outputToken,
             ZapperFunctionSignatures.SWAP,
-            await this.encodeInternalSwapBytes(
+            await UniswapV2ZapHelper.encodeInternalSwapBytes(
                 amount,
                 inputToken,
                 outputToken,
@@ -34,7 +34,7 @@ export class UniswapV2ZapHelper {
     }
 
     // encodes swap to execute inside the Zapper implementation
-    private async encodeInternalSwapBytes(
+    private static async encodeInternalSwapBytes(
         amount: bigint,
         inputToken: AddressLike,
         outputToken: AddressLike,
@@ -65,7 +65,7 @@ export class UniswapV2ZapHelper {
         return Zapper.encodeSwap(inputToken, amount, swapBytes)
     }
 
-    public async encodeZap(
+    public static async encodeZap(
         amount: bigint,
         inputToken: AddressLike,
         tokenA: AddressLike,
@@ -78,7 +78,7 @@ export class UniswapV2ZapHelper {
         uniswapFactory: UniswapV2Factory,
     ) {
         const amountPerSwap = amount / 2n
-        const swapA = await this.encodeInternalSwapBytes(
+        const swapA = await UniswapV2ZapHelper.encodeInternalSwapBytes(
             amountPerSwap,
             inputToken,
             tokenA,
@@ -87,7 +87,7 @@ export class UniswapV2ZapHelper {
             slippage,
             zapManager,
         )
-        const swapB = await this.encodeInternalSwapBytes(
+        const swapB = await UniswapV2ZapHelper.encodeInternalSwapBytes(
             amountPerSwap,
             inputToken,
             tokenB,

@@ -41,7 +41,7 @@ describe('DCA#setters', () => {
 
     describe('EFFECTS', () => {
         it('sets a new treasury address', async () => {
-            await dca.setTreasury(await account2.getAddress())
+            await dca.setTreasury(account2)
 
             const newTreasuryAddress = await dca.treasury()
 
@@ -49,7 +49,7 @@ describe('DCA#setters', () => {
         })
 
         it('emits SetTreasury event when treasury gets updated', async () => {
-            const tx = dca.setTreasury(await account1.getAddress())
+            const tx = dca.setTreasury(account1)
 
             await expect(tx).to.emit(dca, 'TreasuryUpdated').withArgs(await account1.getAddress())
         })
@@ -73,22 +73,19 @@ describe('DCA#setters', () => {
         })
 
         it('sets a new router to pool', async () => {
-            const newRouter = await account2.getAddress()
-
-            await dca.setPoolRouter(positionParams.poolId, newRouter)
+            await dca.setPoolRouter(positionParams.poolId, account2)
 
             const { router } = await dca.getPool(positionParams.poolId)
 
-            expect(router).to.be.equal(newRouter)
+            expect(router).to.be.equal(account2)
         })
 
         it('emits SetPoolRouter event after a new router is set', async () => {
-            const newRouter = await account2.getAddress()
             const oldRouter = (await dca.getPool(positionParams.poolId)).router
 
-            const tx = dca.setPoolRouter(positionParams.poolId, newRouter)
+            const tx = dca.setPoolRouter(positionParams.poolId, account2)
 
-            await expect(tx).to.emit(dca, 'SetPoolRouter').withArgs(positionParams.poolId, oldRouter, newRouter)
+            await expect(tx).to.emit(dca, 'SetPoolRouter').withArgs(positionParams.poolId, oldRouter, account2)
         })
 
         it('sets a new swapper address', async () => {
@@ -102,12 +99,11 @@ describe('DCA#setters', () => {
         })
 
         it('emits SetSwapper after a new swapper is set', async () => {
-            const newSwapper = await account2.getAddress()
-            const oldSwppper = await dca.swapper()
+            const oldSwapper = await dca.swapper()
 
-            const tx = dca.setSwapper(newSwapper)
+            const tx = dca.setSwapper(account2)
 
-            await expect(tx).to.emit(dca, 'SetSwapper').withArgs(oldSwppper, newSwapper)
+            await expect(tx).to.emit(dca, 'SetSwapper').withArgs(oldSwapper, account2)
         })
     })
 

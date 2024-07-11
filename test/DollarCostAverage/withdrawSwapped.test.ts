@@ -37,7 +37,7 @@ describe('DCA#withdrawSwapped', () => {
     let POOL_FEE: bigint
     let TWENTY_FOUR_HOURS_IN_SECONDS: number
 
-    const tokenOutBalance = async () => weth.balanceOf(await account0.getAddress())
+    const tokenOutBalance = async () => weth.balanceOf(account0)
 
     beforeEach(async () => {
         ({
@@ -133,7 +133,7 @@ describe('DCA#withdrawSwapped', () => {
             const {
                 outputTokenBalance,
             } = await dca.getPositionBalances(
-                await account0.getAddress(),
+                account0,
                 positionParams.positionId,
             )
 
@@ -143,7 +143,7 @@ describe('DCA#withdrawSwapped', () => {
 
     describe('SIDE EFFECTS', () => {
         it('updates positions lastUpdateSwap', async () => {
-            const lastUpdateSwap = async () => (await dca.getPosition(await account0.getAddress(), positionParams.poolId)).lastUpdateSwap
+            const lastUpdateSwap = async () => (await dca.getPosition(account0, positionParams.poolId)).lastUpdateSwap
             const lastUpdateSwapBefore = await lastUpdateSwap()
 
             await dca.connect(account0).withdrawSwapped(positionParams.poolId)

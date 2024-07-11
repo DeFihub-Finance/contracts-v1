@@ -1,16 +1,12 @@
 import { PathUniswapV3, SubscriptionSigner } from '@defihub/shared'
-import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import { BigNumber } from '@ryze-blockchain/ethereum'
-import { UniswapV2, UniswapV2ZapHelper, UniswapV3, UniswapV3ZapHelper } from '@src/helpers'
+import { UniswapV2, UniswapV3 } from '@src/helpers'
 import { NetworkService } from '@src/NetworkService'
 import { ProjectDeployer } from '@src/ProjectDeployer'
-import { TestERC20__factory, UniswapV2Pair__factory, UniswapV3Pool__factory } from '@src/typechain'
+import { UniswapV2Pair__factory, UniswapV3Pool__factory } from '@src/typechain'
 import { parseEther } from 'ethers'
-import hre from 'hardhat'
 
 export async function zapFixture() {
-    const [deployer] = await hre.ethers.getSigners()
-    const stablecoin = await new TestERC20__factory(deployer).deploy()
     const USD_PRICE_BN = new BigNumber(1)
     const BTC_PRICE = 70_000n
     const BTC_PRICE_BN = new BigNumber(BTC_PRICE.toString())
@@ -22,13 +18,6 @@ export async function zapFixture() {
     const chainId = await NetworkService.getChainId()
     const deadline = await NetworkService.getBlockTimestamp() + 10_000
 
-    function deployProjectFixture() {
-        return new ProjectDeployer(
-            stablecoin,
-            stablecoin,
-        ).deployProjectFixture()
-    }
-
     const {
         // accounts
         account0,
@@ -37,6 +26,7 @@ export async function zapFixture() {
         treasury,
 
         // tokens
+        stablecoin,
         weth,
         wbtc,
 
@@ -55,15 +45,13 @@ export async function zapFixture() {
         factoryUniV3,
         routerUniV3,
         positionManagerUniV3,
-    } = await loadFixture(deployProjectFixture)
+    } = await new ProjectDeployer().deployProjectFixture()
 
     const subscriptionSignerHelper = new SubscriptionSigner(
         subscriptionManager,
         subscriptionSignerAccount,
     )
 
-    const uniswapV2ZapHelper = new UniswapV2ZapHelper()
-    const uniswapV3ZapHelper = new UniswapV3ZapHelper()
     const permitAccount0 = await subscriptionSignerHelper
         .signSubscriptionPermit(account0, deadline, chainId)
 
@@ -207,10 +195,6 @@ export async function zapFixture() {
         btcEthLpUniV2,
         stableBtcLpUniV3,
         btcEthLpUniV3,
-
-        // helpers
-        uniswapV2ZapHelper,
-        uniswapV3ZapHelper,
 
         // constants,
         USD_PRICE_BN,
