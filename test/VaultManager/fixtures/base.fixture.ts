@@ -10,7 +10,7 @@ export const baseVaultManagerFixture = async () => {
         ...rest
     } = await new ProjectDeployer().deployProjectFixture()
 
-    const vault =  await deployVaultFixture(await stablecoin.getAddress())
+    const vault = await deployVaultFixture(await stablecoin.getAddress())
 
     await vaultManager.setVaultWhitelistStatus(vault, true)
 
