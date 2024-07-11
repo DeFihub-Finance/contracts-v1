@@ -124,14 +124,15 @@ describe('StrategyManager#createStrategy', () => {
         })
 
         it('if strategy uses more than 20 dca investments', async () => {
-            const investments: InvestLib.DcaInvestmentStruct[] = new Array(21)
-                .fill(0)
-                .map(() => ({
+            const investments: InvestLib.DcaInvestmentStruct[] = Array.from(
+                { length: 21 },
+                () => ({
                     // @dev percentage doesn't matter here, the investmentCount check happens before
                     percentage: 0,
                     poolId: 0,
                     swaps: 10,
-                }))
+                }),
+            )
 
             const tx = strategyManager.connect(account0).createStrategy({
                 dcaInvestments: investments,
@@ -149,13 +150,14 @@ describe('StrategyManager#createStrategy', () => {
         })
 
         it('if strategy uses more than 20 vault investments', async () => {
-            const investments: InvestLib.VaultInvestmentStruct[] = new Array(21)
-                .fill(0)
-                .map(() => ({
+            const investments: InvestLib.VaultInvestmentStruct[] = Array.from(
+                { length: 21 },
+                () => ({
                     // @dev percentage doesn't matter here, the investmentCount check happens before
                     percentage: 0,
                     vault: ZeroAddress,
-                }))
+                }),
+            )
 
             const tx = strategyManager.connect(account0).createStrategy({
                 dcaInvestments: [],
@@ -173,22 +175,23 @@ describe('StrategyManager#createStrategy', () => {
         })
 
         it('if strategy uses more than 20 investments total', async () => {
-            const vaultInvestments: InvestLib.VaultInvestmentStruct[] = new Array(10)
-                .fill(0)
-                .map(() => ({
+            const vaultInvestments: InvestLib.VaultInvestmentStruct[] = Array.from(
+                { length: 10 },
+                () => ({
                     // @dev percentage doesn't matter here, the investmentCount check happens before
                     percentage: 0,
                     vault: ZeroAddress,
-                }))
-
-            const dcaInvestments: InvestLib.DcaInvestmentStruct[] = new Array(11)
-                .fill(0)
-                .map(() => ({
+                }),
+            )
+            const dcaInvestments: InvestLib.DcaInvestmentStruct[] = Array.from(
+                { length: 11 },
+                () => ({
                     // @dev percentage doesn't matter here, the investmentCount check happens before
                     percentage: 0,
                     poolId: 0,
                     swaps: 10,
-                }))
+                }),
+            )
 
             const tx = strategyManager.connect(account0).createStrategy({
                 dcaInvestments,
