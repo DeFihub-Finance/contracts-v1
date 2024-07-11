@@ -55,10 +55,6 @@ describe('LiquidityManager#invest', () => {
     // global data
     let permitAccount0: SubscriptionManager.PermitStruct
 
-    // helpers
-    let uniswapV2ZapHelper: UniswapV2ZapHelper
-    let uniswapV3ZapHelper: UniswapV3ZapHelper
-
     async function deductFees(amount: bigint) {
         return Fees.deductProductFee(
             liquidityManager,
@@ -70,7 +66,10 @@ describe('LiquidityManager#invest', () => {
     }
 
     async function isSameToken(tokenA: AddressLike, tokenB: AddressLike) {
-        const [addressTokenA, addressTokenB] = await Promise.all([
+        const [
+            addressTokenA,
+            addressTokenB,
+        ] = await Promise.all([
             unwrapAddressLike(tokenA),
             unwrapAddressLike(tokenB),
         ])
@@ -226,10 +225,6 @@ describe('LiquidityManager#invest', () => {
             positionManagerUniV3,
             stableBtcLpUniV3,
             btcEthLpUniV3,
-
-            // helpers
-            uniswapV2ZapHelper,
-            uniswapV3ZapHelper,
         } = await loadFixture(zapFixture))
 
         await stablecoin.connect(account0).mint(account0, amount)
@@ -255,7 +250,10 @@ describe('LiquidityManager#invest', () => {
             10, // 10% upper
         )
 
-        const [swapToken0, swapToken1] = await Promise.all([
+        const [
+            swapToken0,
+            swapToken1,
+        ] = await Promise.all([
             getEncodedSwap(mintPositionInfo.swapAmountToken0, token0),
             getEncodedSwap(mintPositionInfo.swapAmountToken1, token1),
         ])
@@ -295,7 +293,10 @@ describe('LiquidityManager#invest', () => {
             10, // 10% upper
         )
 
-        const [swapToken0, swapToken1] = await Promise.all([
+        const [
+            swapToken0,
+            swapToken1,
+        ] = await Promise.all([
             getEncodedSwap(mintPositionInfo.swapAmountToken0, token0),
             getEncodedSwap(mintPositionInfo.swapAmountToken1, token1, 'uniswapV3'),
         ])
@@ -335,7 +336,10 @@ describe('LiquidityManager#invest', () => {
             -20, // -20% upper
         )
 
-        const [swapToken0, swapToken1] = await Promise.all([
+        const [
+            swapToken0,
+            swapToken1,
+        ] = await Promise.all([
             getEncodedSwap(mintPositionInfo.swapAmountToken0, token0),
             getEncodedSwap(mintPositionInfo.swapAmountToken1, token1),
         ])
