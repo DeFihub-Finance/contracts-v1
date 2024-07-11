@@ -59,7 +59,7 @@ describe('DCA#deposit', () => {
             )
 
             const pool = await dca.getPool(positionParams.poolId)
-            const position = await dca.getPosition(await account0.getAddress(), positionParams.positionId)
+            const position = await dca.getPosition(account0, positionParams.positionId)
 
             expect(position.swaps).to.be.equals(positionParams.swaps)
             expect(position.finalSwap).to.be.equals(pool.performedSwaps + positionParams.swaps)
@@ -71,7 +71,7 @@ describe('DCA#deposit', () => {
         })
 
         it('transfer deposit fee to treasury for non-subscriber', async () => {
-            const treasuryBalanceBefore = await stablecoin.balanceOf(await treasury.getAddress())
+            const treasuryBalanceBefore = await stablecoin.balanceOf(treasury)
 
             await dca.connect(account0).invest(
                 positionParams.poolId,
@@ -80,7 +80,7 @@ describe('DCA#deposit', () => {
                 fakePermit,
             )
 
-            const treasuryOutputTokenBalanceDelta = (await stablecoin.balanceOf(await treasury.getAddress())) - treasuryBalanceBefore
+            const treasuryOutputTokenBalanceDelta = (await stablecoin.balanceOf(treasury)) - treasuryBalanceBefore
 
             expect(treasuryOutputTokenBalanceDelta)
                 .to.be.equal(ContractFees.getNonSubscriberFee(positionParams.depositAmount))
@@ -93,7 +93,7 @@ describe('DCA#deposit', () => {
                     await NetworkService.getBlockTimestamp() + 10_000,
                 )
 
-            const treasuryBalanceBefore = await stablecoin.balanceOf(await treasury.getAddress())
+            const treasuryBalanceBefore = await stablecoin.balanceOf(treasury)
 
             await dca.connect(account0).invest(
                 positionParams.poolId,
@@ -102,7 +102,7 @@ describe('DCA#deposit', () => {
                 signature,
             )
 
-            const treasuryOutputTokenBalanceDelta = (await stablecoin.balanceOf(await treasury.getAddress())) - treasuryBalanceBefore
+            const treasuryOutputTokenBalanceDelta = (await stablecoin.balanceOf(treasury)) - treasuryBalanceBefore
 
             expect(treasuryOutputTokenBalanceDelta)
                 .to.be.equal(ContractFees.getBaseFee(positionParams.depositAmount))

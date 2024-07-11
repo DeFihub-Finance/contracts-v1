@@ -62,7 +62,7 @@ describe('VaultManager#deposit', () => {
             })
 
             it('then base fee is transferred to the treasury', async () => {
-                const balanceBefore = await stablecoin.balanceOf(await treasury.getAddress())
+                const balanceBefore = await stablecoin.balanceOf(treasury)
 
                 await vaultManager.connect(account0).invest(
                     await vault.getAddress(),
@@ -70,7 +70,7 @@ describe('VaultManager#deposit', () => {
                     await subscriptionSignature.signSubscriptionPermit(await account0.getAddress(), deadline),
                 )
 
-                const balanceDelta = (await stablecoin.balanceOf(await treasury.getAddress())) - balanceBefore
+                const balanceDelta = (await stablecoin.balanceOf(treasury)) - balanceBefore
                 const expectedBalanceDelta = ContractFees.getBaseFee(amountToDeposit)
 
                 expect(balanceDelta).to.equal(expectedBalanceDelta)
@@ -156,7 +156,7 @@ describe('VaultManager#deposit', () => {
             })
 
             it('then base + non-subscriber fees are transferred to the treasury', async () => {
-                const balanceBefore = await stablecoin.balanceOf(await treasury.getAddress())
+                const balanceBefore = await stablecoin.balanceOf(treasury)
 
                 await vaultManager.connect(account0).invest(
                     await vault.getAddress(),
@@ -164,7 +164,7 @@ describe('VaultManager#deposit', () => {
                     await subscriptionSignature.signSubscriptionPermit(await account0.getAddress(), 0),
                 )
 
-                const balanceDelta = (await stablecoin.balanceOf(await treasury.getAddress())) - balanceBefore
+                const balanceDelta = (await stablecoin.balanceOf(treasury)) - balanceBefore
                 const expectedBalanceDelta = ContractFees.getNonSubscriberFee(amountToDeposit)
 
                 expect(balanceDelta).to.equal(expectedBalanceDelta)

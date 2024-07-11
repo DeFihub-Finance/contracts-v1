@@ -79,11 +79,11 @@ export async function baseStrategyManagerFixture() {
         ),
 
         dca.createPool(
-            await anotherToken.getAddress(),
+            anotherToken,
             TOKEN_OUT,
             routerAddress,
             await new PathUniswapV3(
-                await anotherToken.getAddress(),
+                anotherToken,
                 [{ token: TOKEN_OUT, fee: 3000 }],
             ).encodedPath(),
             60 * 60 * 24, // 24 hours in seconds
@@ -113,7 +113,7 @@ export async function baseStrategyManagerFixture() {
     ]
     const vaultStrategyPosition: InvestLib.VaultInvestmentStruct[] = [
         {
-            vault: await vault.getAddress(),
+            vault,
             percentage: 34,
         },
     ]

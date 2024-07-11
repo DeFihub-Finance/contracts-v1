@@ -107,10 +107,7 @@ describe('VaultManager#investUsingStrategy', () => {
                 await expect(
                     vaultManager
                         .connect(account0)
-                        .investUsingStrategy(
-                            await vault.getAddress(),
-                            amountToDeposit,
-                        ),
+                        .investUsingStrategy(vault, amountToDeposit),
                 ).to.be.revertedWithCustomError(vaultManager, 'Unauthorized')
             })
         })

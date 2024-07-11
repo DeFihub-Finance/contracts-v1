@@ -41,7 +41,7 @@ describe('DCA#setters', () => {
 
     describe('EFFECTS', () => {
         it('sets a new treasury address', async () => {
-            await dca.setTreasury(await account2.getAddress())
+            await dca.setTreasury(account2)
 
             const newTreasuryAddress = await dca.treasury()
 
@@ -49,7 +49,7 @@ describe('DCA#setters', () => {
         })
 
         it('emits SetTreasury event when treasury gets updated', async () => {
-            const tx = dca.setTreasury(await account1.getAddress())
+            const tx = dca.setTreasury(account1)
 
             await expect(tx).to.emit(dca, 'TreasuryUpdated').withArgs(await account1.getAddress())
         })

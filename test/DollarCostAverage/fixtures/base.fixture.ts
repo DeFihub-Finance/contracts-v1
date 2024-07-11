@@ -72,10 +72,7 @@ export const baseDcaFixture = async () => {
     }
 
     await Promise.all([account0, account1].map(async account => {
-        await stablecoin.connect(account).approve(
-            await dca.getAddress(),
-            positionParams.depositAmount,
-        )
+        await stablecoin.connect(account).approve(dca, positionParams.depositAmount)
     }))
 
     return {
