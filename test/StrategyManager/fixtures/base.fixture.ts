@@ -1,4 +1,4 @@
-import { PathUniswapV3, unwrapAddressLike } from '@defihub/shared'
+import { ERC20Priced, PathUniswapV3 } from '@defihub/shared'
 import { ethers } from 'hardhat'
 import { ProjectDeployer } from '@src/ProjectDeployer'
 import { TestERC20__factory, UniswapV3Pool__factory } from '@src/typechain'
@@ -32,7 +32,6 @@ export async function baseStrategyManagerFixture() {
         stablecoin,
         liquidityManager,
         weth,
-        wbtc,
         factoryUniV3,
         routerUniV3,
         positionManagerUniV3,
@@ -134,6 +133,11 @@ export async function baseStrategyManagerFixture() {
     const stablecoinPriced = await mockTokenWithAddress(USD_PRICE_BN, 18, stablecoin)
     const wethPriced = await mockTokenWithAddress(ETH_PRICE_BN, 18, weth)
 
+    const tokenMap = new Map<string, ERC20Priced>([
+        [stablecoinPriced.address, stablecoinPriced],
+        [wethPriced.address, wethPriced],
+    ])
+
     return {
         // accounts
         account0,
@@ -170,6 +174,7 @@ export async function baseStrategyManagerFixture() {
         USD_PRICE_BN,
         ETH_PRICE_BN,
 
+        tokenMap,
         ...rest,
     }
 }

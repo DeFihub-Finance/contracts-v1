@@ -1,14 +1,14 @@
 import { expect } from 'chai'
-import { AbiCoder, BigNumberish, ErrorDescription, MaxUint256, parseEther, Signer, ZeroHash } from 'ethers'
+import { AbiCoder, BigNumberish, ErrorDescription, parseEther, Signer, ZeroHash } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import {
     DollarCostAverage,
-    LiquidityManager,
     StrategyManager,
     TestERC20,
     TestVault,
     UniswapPositionManager,
-    UniswapV3Pool, UseFee,
+    UniswapV3Factory,
+    UseFee,
 } from '@src/typechain'
 import { InvestLib } from '@src/typechain/artifacts/contracts/StrategyManager'
 import { SubscriptionSignature } from '@src/SubscriptionSignature'
@@ -50,6 +50,9 @@ import { Fees } from '@src/helpers/Fees'
 // => if swap paths are different than the dca length in strategy
 describe('StrategyManager#invest', () => {
     const SLIPPAGE_BN = new BigNumber(0.01)
+    const amountToInvest = parseEther('10')
+
+    let amountWithDeductedFees: bigint
 
     // accounts
     let account0: Signer
@@ -70,29 +73,48 @@ describe('StrategyManager#invest', () => {
     let dca: DollarCostAverage
     let strategyManagerAddress: string
     let strategyManager: StrategyManager
-    let liquidityManager: LiquidityManager
+    let liquidityManager: UseFee
     let vaultManager: UseFee
     let exchangeManager: UseFee
 
     // external test contracts
     let positionManagerUniV3: UniswapPositionManager
+    let factoryUniV3: UniswapV3Factory
 
     // global data
-    let stableEthLpUniV3: UniswapV3Pool
-    let subscriptionSignature: SubscriptionSignature
     let deadline: number
-    let investments: {
-        dcaInvestments: InvestLib.DcaInvestmentStruct[],
-        vaultInvestments: InvestLib.VaultInvestmentStruct[],
-    }
+    let subscriptionSignature: SubscriptionSignature
     let dcaStrategyPositions: InvestLib.DcaInvestmentStruct[]
     let vaultStrategyPosition: InvestLib.VaultInvestmentStruct[]
+    let investments: {
+        dcaInvestments: InvestLib.DcaInvestmentStructOutput[],
+        vaultInvestments: InvestLib.VaultInvestmentStructOutput[],
+        liquidityInvestments: InvestLib.LiquidityInvestmentStructOutput[]
+        tokenInvestments: InvestLib.TokenInvestmentStructOutput[]
+    }
 
-    const strategyId = 0
-    const amountToInvest = parseEther('10')
+    let strategyId = 0n
+    let tokenMap: Map<string, ERC20Priced>
 
     const vaultSwaps = ['0x']
     const dcaSwaps = ['0x', '0x']
+
+    function deductFees(
+        amount: bigint,
+        _strategyId: bigint = strategyId,
+        isSubscribed = true,
+    ) {
+        return Fees.deductStrategyFee(
+            amount,
+            strategyManager,
+            _strategyId,
+            isSubscribed,
+            dca,
+            vaultManager,
+            liquidityManager,
+            exchangeManager,
+        )
+    }
 
     function getMinOutput(
         amount: bigint,
@@ -137,6 +159,117 @@ describe('StrategyManager#invest', () => {
                 SLIPPAGE_BN,
                 liquidityManager,
             )
+    }
+
+    async function getLiquidityZaps(
+        amount: bigint,
+        liquidityInvestments: InvestLib.LiquidityInvestmentStructOutput[],
+    ): Promise<InvestLib.LiquidityInvestZapParamsStruct[]> {
+        return Promise.all(liquidityInvestments.map(async investment => {
+            const [token0, token1] = [
+                tokenMap.get(investment.token0),
+                tokenMap.get(investment.token1),
+            ]
+
+            if (!token0 || !token1)
+                throw new Error('Unable to get ERC20Priced token(s) from Map')
+
+            const pool = await UniswapV3Helper.getPoolByFactoryContract(
+                factoryUniV3,
+                token0.address,
+                token1.address,
+                investment.fee,
+            )
+
+            const {
+                swapAmountToken0,
+                swapAmountToken1,
+                tickLower,
+                tickUpper,
+            } = UniswapV3.getMintPositionInfo(
+                new BigNumber((amount * investment.percentage / 100n).toString()),
+                pool,
+                token0.price,
+                token1.price,
+                Number(investment.lowerPricePercentage),
+                Number(investment.upperPricePercentage),
+            )
+
+            return {
+                amount0Min: getMinOutput(swapAmountToken0, token0),
+                amount1Min: getMinOutput(swapAmountToken1, token1),
+                swapAmountToken0,
+                swapAmountToken1,
+                swapToken0: await getEncodedSwap(swapAmountToken0, token0, 'uniswapV3'),
+                swapToken1: await getEncodedSwap(swapAmountToken1, token1, 'uniswapV3'),
+                tickLower,
+                tickUpper,
+            }
+        }))
+    }
+
+    async function createStrategy({
+        dcaInvestments,
+        vaultInvestments,
+        liquidityInvestments,
+        tokenInvestments,
+    }: {
+        dcaInvestments: InvestLib.DcaInvestmentStruct[]
+        vaultInvestments: InvestLib.VaultInvestmentStruct[]
+        liquidityInvestments: InvestLib.LiquidityInvestmentStruct[]
+        tokenInvestments: InvestLib.TokenInvestmentStruct[]
+    }) {
+        const [
+            strategyId,
+            strategiestAddress,
+            blockTimestamp,
+        ] = await Promise.all([
+            strategyManager.getStrategiesLength(),
+            account0.getAddress(),
+            NetworkService.getBlockTimestamp(),
+        ])
+
+        await strategyManager.connect(account0).createStrategy({
+            dcaInvestments,
+            vaultInvestments,
+            liquidityInvestments,
+            tokenInvestments,
+            permit: await subscriptionSignature.signSubscriptionPermit(
+                strategiestAddress,
+                blockTimestamp + 10_000,
+            ),
+            metadataHash: ZeroHash, // TODO use encoded text
+        })
+
+        return strategyId
+    }
+
+    async function _invest(
+        amount: bigint,
+        strategyId: bigint,
+        investor: Signer,
+    ) {
+        const {
+            dcaInvestments,
+            vaultInvestments,
+            liquidityInvestments,
+        } = await strategyManager.getStrategyInvestments(strategyId)
+        const liquidityZaps = await getLiquidityZaps(amount, liquidityInvestments)
+
+        return strategyManager.connect(investor).invest({
+            strategyId,
+            inputToken: stablecoin,
+            inputAmount: amountToInvest,
+            inputTokenSwap: '0x',
+            dcaSwaps: dcaInvestments.map(_ => '0x'),
+            vaultSwaps: vaultInvestments.map(_ => '0x'),
+            liquidityZaps,
+            tokenSwaps: [], // TODO
+            investorPermit: await subscriptionSignature
+                .signSubscriptionPermit(await investor.getAddress(), deadline),
+            strategistPermit: await subscriptionSignature
+                .signSubscriptionPermit(await account0.getAddress(), deadline),
+        })
     }
 
     async function invest(account: Signer, {
@@ -201,103 +334,108 @@ describe('StrategyManager#invest', () => {
 
             // external test contracts
             positionManagerUniV3,
+            factoryUniV3,
 
             // global data
-            stableEthLpUniV3,
             dcaStrategyPositions,
             vaultStrategyPosition,
             subscriptionSignature,
+
+            tokenMap,
         } = await loadFixture(createStrategyFixture))
 
-        deadline = await NetworkService.getBlockTimestamp() + 10_000
-        investments = await strategyManager.getStrategyInvestments(0)
+        const { token0, token1 } = UniswapV3.sortTokens(stablecoinPriced, wethPriced)
+
+        // Default strategy with all investments
+        strategyId = await createStrategy({
+            dcaInvestments: [
+                { poolId: 0, swaps: 10, percentage: 25 },
+                { poolId: 1, swaps: 10, percentage: 25 },
+            ],
+            vaultInvestments: [
+                {
+                    vault: await vault.getAddress(),
+                    percentage: 25,
+                },
+            ],
+            liquidityInvestments: [
+                {
+                    positionManager: positionManagerUniV3,
+                    token0: token0.address,
+                    token1: token1.address,
+                    fee: 3000,
+                    lowerPricePercentage: 10,
+                    upperPricePercentage: 10,
+                    percentage: 25,
+                },
+            ],
+            tokenInvestments: [],
+        })
+
+        ;[
+            amountWithDeductedFees,
+            investments,
+            deadline,
+        ] = await Promise.all([
+            deductFees(amountToInvest),
+            strategyManager.getStrategyInvestments(strategyId),
+            NetworkService.getBlockTimestamp().then(val => val + 10_000),
+        ])
     })
 
     describe('EFFECTS', () => {
         describe('when user is subscribed', () => {
-            it('create investment position in dca, vaults and liquidity', async () => {
-                const strategyId = await strategyManager.getStrategiesLength()
+            it.only('create investment position in dca, vaults and liquidity', async () => {
+                await _invest(amountWithDeductedFees, strategyId, account1)
 
-                // Default pool used is `stableEthUniV3`
-                const { token0, token1 } = UniswapV3.sortTokens(stablecoinPriced, wethPriced)
+                const [
+                    dcaPosition0,
+                    dcaPosition1,
+                    dcaPositionBalance0,
+                    dcaPositionBalance1,
+                ] = await Promise.all([
+                    dca.getPosition(strategyManagerAddress, 0),
+                    dca.getPosition(strategyManagerAddress, 1),
+                    dca.getPositionBalances(strategyManagerAddress, 0),
+                    dca.getPositionBalances(strategyManagerAddress, 1),
+                ])
 
-                await strategyManager.connect(account0).createStrategy({
-                    dcaInvestments: [],
-                    vaultInvestments: [],
-                    liquidityInvestments: [
-                        {
-                            positionManager: positionManagerUniV3,
-                            token0: token0.address,
-                            token1: token1.address,
-                            fee: 3000,
-                            lowerPricePercentage: 10,
-                            upperPricePercentage: 10,
-                            percentage: 100,
-                        },
-                    ],
-                    tokenInvestments: [],
-                    permit: await subscriptionSignature.signSubscriptionPermit(
-                        await account0.getAddress(),
-                        await NetworkService.getBlockTimestamp() + 10_000,
-                    ),
-                    metadataHash: ZeroHash,
-                })
-
-                const amountWithDeductedFees = await Fees.deductStrategyFee(
-                    amountToInvest,
-                    strategyManager,
-                    strategyId,
+                /////////////////////
+                // DCA Position 0 //
+                ///////////////////
+                const expectedDcaPositionBalance0 = await Fees.deductProductFee(
+                    amountToInvest * investments.dcaInvestments[0].percentage / 100n,
                     true,
                     dca,
+                )
+
+                expect(dcaPosition0.swaps).to.be.equal(investments.dcaInvestments[0].swaps)
+                expect(dcaPosition0.poolId).to.be.equal(investments.dcaInvestments[0].poolId)
+                expect(dcaPositionBalance0.inputTokenBalance).to.be.equal(expectedDcaPositionBalance0)
+
+                /////////////////////
+                // DCA Position 1 //
+                ///////////////////
+                const expectedDcaPositionBalance1 = await Fees.deductProductFee(
+                    amountToInvest * investments.dcaInvestments[1].percentage / 100n,
+                    true,
+                    dca,
+                )
+
+                expect(dcaPosition1.swaps).to.be.equal(investments.dcaInvestments[1].swaps)
+                expect(dcaPosition1.poolId).to.be.equal(investments.dcaInvestments[1].poolId)
+                expect(dcaPositionBalance1.inputTokenBalance).to.be.equal(expectedDcaPositionBalance1)
+
+                ////////////////////
+                // VaultPosition //
+                //////////////////
+                const expectVaultPositionBalance = await Fees.deductProductFee(
+                    amountToInvest * BigInt(investments.vaultInvestments[0].percentage) / 100n,
+                    true,
                     vaultManager,
-                    liquidityManager,
-                    exchangeManager,
                 )
 
-                const pool = await UniswapV3Helper.getPoolByContract(stableEthLpUniV3)
-
-                await stablecoin.connect(account0).approve(strategyManager, MaxUint256)
-                await stablecoin.connect(account0).mint(account0, parseEther('1000'))
-
-                const {
-                    swapAmountToken0,
-                    swapAmountToken1,
-                    tickLower,
-                    tickUpper,
-                } = UniswapV3.getMintPositionInfo(
-                    new BigNumber(amountWithDeductedFees.toString()),
-                    pool,
-                    token0.price,
-                    token1.price,
-                    10, // todo use bignumber
-                    10,
-                )
-
-                await strategyManager.connect(account0).invest({
-                    strategyId: strategyId,
-                    inputToken: stablecoin,
-                    inputAmount: amountToInvest,
-                    inputTokenSwap: '0x',
-                    dcaSwaps: [],
-                    vaultSwaps: [],
-                    tokenSwaps: [],
-                    liquidityZaps: [
-                        {
-                            amount0Min: getMinOutput(swapAmountToken0, token0),
-                            amount1Min: getMinOutput(swapAmountToken1, token1),
-                            swapAmountToken0,
-                            swapAmountToken1,
-                            swapToken0: await getEncodedSwap(swapAmountToken0, token0, 'uniswapV3'),
-                            swapToken1: await getEncodedSwap(swapAmountToken1, token1, 'uniswapV3'),
-                            tickLower,
-                            tickUpper,
-                        },
-                    ],
-                    investorPermit: await subscriptionSignature
-                        .signSubscriptionPermit(await account0.getAddress(), deadline),
-                    strategistPermit: await subscriptionSignature
-                        .signSubscriptionPermit(await account0.getAddress(), deadline),
-                })
+                expect(await vault.balanceOf(strategyManagerAddress)).to.be.equal(expectVaultPositionBalance)
             })
         })
 
