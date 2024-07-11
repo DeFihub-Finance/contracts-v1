@@ -1,5 +1,5 @@
 import { expect } from 'chai'
-import { Signer, keccak256, ContractTransactionResponse } from 'ethers'
+import { Signer, keccak256, ContractTransactionResponse, ZeroAddress } from 'ethers'
 import { StrategyManager } from '@src/typechain'
 import { InvestLib } from '@src/typechain/artifacts/contracts/StrategyManager'
 import { SubscriptionSignature } from '@src/SubscriptionSignature'
@@ -15,7 +15,7 @@ import { baseStrategyManagerFixture } from './fixtures/base.fixture'
 // => increases strategy count
 //
 // REVERTS
-// => if msg.sender doens't have an active subscription
+// => if msg.sender doesn't have an active subscription
 // => if strategy uses more than 20 investments
 // => if vault used by strategy doesn't belong to DefiHub
 describe('StrategyManager#createStrategy', () => {
@@ -107,7 +107,7 @@ describe('StrategyManager#createStrategy', () => {
     })
 
     describe('REVERTS', () => {
-        it('if msg.sender doenst have an active subscription', async () => {
+        it('if msg.sender doesn\'t have an active subscription', async () => {
             const tx = strategyManager.connect(account1).createStrategy({
                 dcaInvestments: dcaStrategyPositions,
                 vaultInvestments: vaultStrategyPosition,
@@ -115,16 +115,17 @@ describe('StrategyManager#createStrategy', () => {
                 tokenInvestments: [],
                 permit: await subscriptionSignature.signSubscriptionPermit(
                     await account1.getAddress(),
-                    deadline,
+                    0,
                 ),
                 metadataHash: nameBioHash,
             })
 
-            expect(tx).to.be.revertedWithCustomError(strategyManager, 'Unauthorized')
+            await expect(tx).to.be.revertedWithCustomError(strategyManager, 'Unauthorized')
         })
 
         it('if strategy uses more than 20 dca investments', async () => {
             const investments: InvestLib.DcaInvestmentStruct[] = new Array(21)
+                .fill(0)
                 .map(() => ({
                     // @dev percentage doesn't matter here, the investmentCount check happens before
                     percentage: 0,
@@ -144,15 +145,16 @@ describe('StrategyManager#createStrategy', () => {
                 metadataHash: nameBioHash,
             })
 
-            expect(tx).to.be.revertedWithCustomError(strategyManager, 'TooManyInvestments')
+            await expect(tx).to.be.revertedWithCustomError(strategyManager, 'LimitExceeded')
         })
 
         it('if strategy uses more than 20 vault investments', async () => {
             const investments: InvestLib.VaultInvestmentStruct[] = new Array(21)
+                .fill(0)
                 .map(() => ({
                     // @dev percentage doesn't matter here, the investmentCount check happens before
                     percentage: 0,
-                    vault: '',
+                    vault: ZeroAddress,
                 }))
 
             const tx = strategyManager.connect(account0).createStrategy({
@@ -167,18 +169,20 @@ describe('StrategyManager#createStrategy', () => {
                 metadataHash: nameBioHash,
             })
 
-            expect(tx).to.be.revertedWithCustomError(strategyManager, 'TooManyInvestments')
+            await expect(tx).to.be.revertedWithCustomError(strategyManager, 'LimitExceeded')
         })
 
         it('if strategy uses more than 20 investments total', async () => {
             const vaultInvestments: InvestLib.VaultInvestmentStruct[] = new Array(10)
+                .fill(0)
                 .map(() => ({
                     // @dev percentage doesn't matter here, the investmentCount check happens before
                     percentage: 0,
-                    vault: '',
+                    vault: ZeroAddress,
                 }))
 
-            const dcaInvestments: InvestLib.DcaInvestmentStruct[] = new Array(21)
+            const dcaInvestments: InvestLib.DcaInvestmentStruct[] = new Array(11)
+                .fill(0)
                 .map(() => ({
                     // @dev percentage doesn't matter here, the investmentCount check happens before
                     percentage: 0,
@@ -198,7 +202,7 @@ describe('StrategyManager#createStrategy', () => {
                 metadataHash: nameBioHash,
             })
 
-            expect(tx).to.be.revertedWithCustomError(strategyManager, 'TooManyInvestments')
+            await expect(tx).to.be.revertedWithCustomError(strategyManager, 'LimitExceeded')
         })
 
         it('if total percentage is different than 100', async () => {
@@ -214,6 +218,8 @@ describe('StrategyManager#createStrategy', () => {
                 metadataHash: nameBioHash,
             })
 
+            await expect(tx0).to.be.revertedWithCustomError(strategyManager, 'InvalidTotalPercentage')
+
             const tx1 = strategyManager.connect(account0).createStrategy({
                 // 122%
                 dcaInvestments: [...dcaStrategyPositions, ...dcaStrategyPositions],
@@ -227,8 +233,7 @@ describe('StrategyManager#createStrategy', () => {
                 metadataHash: nameBioHash,
             })
 
-            expect(tx0).to.be.revertedWithCustomError(strategyManager, 'InvalidTotalPercentage')
-            expect(tx1).to.be.revertedWithCustomError(strategyManager, 'InvalidTotalPercentage')
+            await expect(tx1).to.be.revertedWithCustomError(strategyManager, 'InvalidTotalPercentage')
         })
     })
 })

@@ -169,8 +169,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
     event MaxHotStrategiesUpdated(uint8 max);
 
     error Unauthorized();
-    error TooManyInvestments();
-    error TooManyUsers();
+    error LimitExceeded();
     error InvalidTotalPercentage();
     error InvalidInvestment();
     error PercentageTooHigh();
@@ -205,7 +204,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
             revert Unauthorized();
 
         if (investmentCount > 20)
-            revert TooManyInvestments();
+            revert LimitExceeded();
 
         uint8 dcaPercentage;
         uint8 vaultPercentage;
@@ -639,7 +638,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
 
     function setHottestStrategies(uint[] calldata _strategyIds) external virtual onlyOwner {
         if (_strategyIds.length > maxHottestStrategies)
-            revert TooManyUsers();
+            revert LimitExceeded();
 
         for (uint i; i < _hottestStrategiesArray.length; ++i)
             _hottestStrategiesMapping[_hottestStrategiesArray[i]] = false;
