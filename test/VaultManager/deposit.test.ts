@@ -27,7 +27,7 @@ describe('VaultManager#deposit', () => {
     let vault: TestVault
     let subscriptionSignature: SubscriptionSignature
     let deadline: number
-    let token: TestERC20
+    let stablecoin: TestERC20
 
     const amountToDeposit = parseEther('10')
 
@@ -38,7 +38,7 @@ describe('VaultManager#deposit', () => {
             vaultManager,
             vault,
             subscriptionSignature,
-            token,
+            stablecoin,
         } = await loadFixture(baseVaultManagerFixture))
 
         deadline = await NetworkService.getBlockTimestamp() + 10_000
@@ -62,7 +62,7 @@ describe('VaultManager#deposit', () => {
             })
 
             it('then base fee is transferred to the treasury', async () => {
-                const balanceBefore = await token.balanceOf(await treasury.getAddress())
+                const balanceBefore = await stablecoin.balanceOf(await treasury.getAddress())
 
                 await vaultManager.connect(account0).invest(
                     await vault.getAddress(),
@@ -70,14 +70,14 @@ describe('VaultManager#deposit', () => {
                     await subscriptionSignature.signSubscriptionPermit(await account0.getAddress(), deadline),
                 )
 
-                const balanceDelta = (await token.balanceOf(await treasury.getAddress())) - balanceBefore
+                const balanceDelta = (await stablecoin.balanceOf(await treasury.getAddress())) - balanceBefore
                 const expectedBalanceDelta = ContractFees.getBaseFee(amountToDeposit)
 
                 expect(balanceDelta).to.equal(expectedBalanceDelta)
             })
 
             it('then want tokens are deducted from the user', async () => {
-                const balanceBefore = await token.balanceOf(await account0.getAddress())
+                const balanceBefore = await stablecoin.balanceOf(await account0.getAddress())
 
                 await vaultManager.connect(account0).invest(
                     await vault.getAddress(),
@@ -85,10 +85,9 @@ describe('VaultManager#deposit', () => {
                     await subscriptionSignature.signSubscriptionPermit(await account0.getAddress(), deadline),
                 )
 
-                const balanceDelta = balanceBefore - (await token.balanceOf(await account0.getAddress()))
-                const expectedBalanceDelta = amountToDeposit
+                const balanceDelta = balanceBefore - (await stablecoin.balanceOf(await account0.getAddress()))
 
-                expect(balanceDelta).to.equal(expectedBalanceDelta)
+                expect(balanceDelta).to.equal(amountToDeposit)
             })
 
             it('then emits a Deposit event', async () => {
@@ -157,7 +156,7 @@ describe('VaultManager#deposit', () => {
             })
 
             it('then base + non-subscriber fees are transferred to the treasury', async () => {
-                const balanceBefore = await token.balanceOf(await treasury.getAddress())
+                const balanceBefore = await stablecoin.balanceOf(await treasury.getAddress())
 
                 await vaultManager.connect(account0).invest(
                     await vault.getAddress(),
@@ -165,7 +164,7 @@ describe('VaultManager#deposit', () => {
                     await subscriptionSignature.signSubscriptionPermit(await account0.getAddress(), 0),
                 )
 
-                const balanceDelta = (await token.balanceOf(await treasury.getAddress())) - balanceBefore
+                const balanceDelta = (await stablecoin.balanceOf(await treasury.getAddress())) - balanceBefore
                 const expectedBalanceDelta = ContractFees.getNonSubscriberFee(amountToDeposit)
 
                 expect(balanceDelta).to.equal(expectedBalanceDelta)

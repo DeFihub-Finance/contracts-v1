@@ -19,7 +19,7 @@ describe('VaultManager#investUsingStrategy', () => {
     let account0: Signer
     let vaultManager: VaultManager
     let vault: TestVault
-    let token: TestERC20
+    let stablecoin: TestERC20
     let strategyManager: StrategyManager
     let strategyId: bigint
     let permit: SubscriptionManager.PermitStruct
@@ -32,7 +32,7 @@ describe('VaultManager#investUsingStrategy', () => {
             vaultManager,
             vault,
             strategyManager,
-            token,
+            stablecoin,
             permit,
         } = await loadFixture(baseVaultManagerFixture))
     })
@@ -57,7 +57,7 @@ describe('VaultManager#investUsingStrategy', () => {
                     metadataHash: ZeroHash,
                 })
 
-            await token.connect(account0).approve(strategyManager, amountToDeposit)
+            await stablecoin.connect(account0).approve(strategyManager, amountToDeposit)
         })
 
         describe('when investUsingStrategy is called', () => {
@@ -68,7 +68,7 @@ describe('VaultManager#investUsingStrategy', () => {
                     .connect(account0)
                     .invest({
                         strategyId,
-                        inputToken: token,
+                        inputToken: stablecoin,
                         inputAmount: amountToDeposit,
                         inputTokenSwap: '0x',
                         dcaSwaps: [],

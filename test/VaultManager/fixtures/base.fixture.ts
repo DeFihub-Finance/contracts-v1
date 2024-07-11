@@ -12,21 +12,18 @@ export const baseVaultManagerFixture = async () => {
 
     const vault =  await deployVaultFixture(await stablecoin.getAddress())
 
-    await vaultManager.setVaultWhitelistStatus(await vault.getAddress(), true)
+    await vaultManager.setVaultWhitelistStatus(vault, true)
 
     await Promise.all([
         stablecoin.mint(account0, parseEther('10000')),
-        stablecoin.connect(account0).approve(
-            await vaultManager.getAddress(),
-            parseEther('10000'),
-        ),
+        stablecoin.connect(account0).approve(vaultManager, parseEther('10000')),
     ])
 
     return {
         account0,
         vault,
         vaultManager,
-        token: stablecoin,
+        stablecoin,
         ...rest,
     }
 }
