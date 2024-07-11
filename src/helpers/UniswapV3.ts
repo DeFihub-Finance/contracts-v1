@@ -12,10 +12,12 @@ import {
     Quoter,
     TestERC20,
     UniswapV3Factory,
+    UniswapV3Pool__factory,
     type UniswapV3Pool,
 } from '@src/typechain'
 import { NetworkService } from '@src/NetworkService'
 import { PathUniswapV3 } from '@defihub/shared'
+import { ethers } from 'hardhat'
 
 export class UniswapV3 {
     public static async getOutputTokenAmount(
@@ -121,6 +123,32 @@ export class UniswapV3 {
             new Token(ChainIds.ETH, token0, 18),
             new Token(ChainIds.ETH, token1, 18),
             3000,
+            sqrtPriceX96.toString(),
+            liquidity.toString(),
+            Number(tick),
+        )
+    }
+
+    public static async getPoolByFactoryContract(
+        factory: UniswapV3Factory,
+        tokenA: string,
+        tokenB: string,
+        fee: bigint,
+    ) {
+        const pool = UniswapV3Pool__factory.connect(
+            await factory.getPool(tokenA, tokenB, fee),
+            ethers.provider,
+        )
+
+        const [liquidity, { sqrtPriceX96, tick }] = await Promise.all([
+            pool.liquidity(),
+            pool.slot0(),
+        ])
+
+        return new Pool(
+            new Token(ChainIds.ETH, tokenA, 18),
+            new Token(ChainIds.ETH, tokenB, 18),
+            Number(fee),
             sqrtPriceX96.toString(),
             liquidity.toString(),
             Number(tick),
