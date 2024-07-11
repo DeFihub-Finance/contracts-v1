@@ -70,7 +70,10 @@ describe('LiquidityManager#invest', () => {
     }
 
     async function isSameToken(tokenA: AddressLike, tokenB: AddressLike) {
-        const [addressTokenA, addressTokenB] = await Promise.all([
+        const [
+            addressTokenA,
+            addressTokenB,
+        ] = await Promise.all([
             unwrapAddressLike(tokenA),
             unwrapAddressLike(tokenB),
         ])
@@ -167,9 +170,9 @@ describe('LiquidityManager#invest', () => {
     function validateInvestTransaction(
         receipt: ContractTransactionReceipt | null,
         amount0: bigint,
-        token0Price: BigNumber,
+        price0: BigNumber,
         amount1: bigint,
-        token1Price: BigNumber,
+        price1: BigNumber,
     ) {
         expect(receipt).to.be.an.instanceof(ContractTransactionReceipt)
 
@@ -181,23 +184,23 @@ describe('LiquidityManager#invest', () => {
         Compare.almostEqualPercentage({
             target: amount0,
             value: mintedAmount0,
-            tolerance: new BigNumber('0.1'),
+            tolerance: new BigNumber('0.01'),
         })
 
         Compare.almostEqualPercentage({
             target: amount1,
             value: mintedAmount1,
-            tolerance: new BigNumber('0.1'),
+            tolerance: new BigNumber('0.01'),
         })
 
         Compare.almostEqualPercentage({
             target: amount,
             value: BigInt(
-                new BigNumber(amount0.toString()).times(token0Price)
-                    .plus(new BigNumber(amount1.toString()).times(token1Price))
+                new BigNumber(amount0.toString()).times(price0)
+                    .plus(new BigNumber(amount1.toString()).times(price1))
                     .toString(),
             ),
-            tolerance: new BigNumber('0.1'),
+            tolerance: new BigNumber('0.01'),
         })
     }
 
@@ -255,7 +258,10 @@ describe('LiquidityManager#invest', () => {
             10, // 10% upper
         )
 
-        const [swapToken0, swapToken1] = await Promise.all([
+        const [
+            swapToken0,
+            swapToken1,
+        ] = await Promise.all([
             getEncodedSwap(mintPositionInfo.swapAmountToken0, token0),
             getEncodedSwap(mintPositionInfo.swapAmountToken1, token1),
         ])
@@ -295,7 +301,10 @@ describe('LiquidityManager#invest', () => {
             10, // 10% upper
         )
 
-        const [swapToken0, swapToken1] = await Promise.all([
+        const [
+            swapToken0,
+            swapToken1,
+        ] = await Promise.all([
             getEncodedSwap(mintPositionInfo.swapAmountToken0, token0),
             getEncodedSwap(mintPositionInfo.swapAmountToken1, token1, 'uniswapV3'),
         ])
@@ -335,7 +344,10 @@ describe('LiquidityManager#invest', () => {
             -20, // -20% upper
         )
 
-        const [swapToken0, swapToken1] = await Promise.all([
+        const [
+            swapToken0,
+            swapToken1,
+        ] = await Promise.all([
             getEncodedSwap(mintPositionInfo.swapAmountToken0, token0),
             getEncodedSwap(mintPositionInfo.swapAmountToken1, token1),
         ])
