@@ -1,6 +1,5 @@
 import { ethers } from 'hardhat'
 import { ProjectDeployer } from '@src/ProjectDeployer'
-import { SubscriptionSignature } from '@src/SubscriptionSignature'
 import { TestERC20__factory, TestFee__factory } from '@src/typechain'
 
 export const baseUseFeeFixture = async () => {
@@ -30,10 +29,6 @@ export const baseUseFeeFixture = async () => {
         useFee,
         subscriptionManager,
         subscriptionSigner,
-        subscriptionSignature: new SubscriptionSignature(
-            subscriptionManager,
-            subscriptionSigner,
-        ),
         ...rest,
     }
 }

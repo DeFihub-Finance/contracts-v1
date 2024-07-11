@@ -21,9 +21,14 @@ import {
     UniswapV2Router02__factory,
     Quoter__factory,
     InvestLib__factory,
+    LiquidityManager,
+    LiquidityManager__factory,
+    ExchangeManager__factory,
+    ExchangeManager,
 } from '@src/typechain'
 import { ZeroHash, ZeroAddress, Signer, AddressLike } from 'ethers'
-import { sendLocalTransaction } from '@src/helpers/transaction'
+import { NetworkService } from '@src/NetworkService'
+import { SubscriptionSignature } from '@src/SubscriptionSignature'
 
 export class ProjectDeployer {
     private hashCount = 0
@@ -60,38 +65,46 @@ export class ProjectDeployer {
             positionManagerUniV3,
             quoterUniV3,
         } = await this.deployUniV3(deployer, weth)
-        const investmentLib = await new InvestLib__factory(deployer).deploy()
 
         const subscriptionManagerDeployParams = this.getDeploymentInfo(SubscriptionManager__factory)
         const strategyManagerDeployParams = this.getDeploymentInfo(StrategyManager__factory)
         const dcaDeployParams = this.getDeploymentInfo(DollarCostAverage__factory)
         const vaultManagerDeployParams = this.getDeploymentInfo(VaultManager__factory)
+        const liquidityManagerDeployParams = this.getDeploymentInfo(LiquidityManager__factory)
         const zapManagerDeployParams = this.getDeploymentInfo(ZapManager__factory)
+        const exchangeManagerDeployParams = this.getDeploymentInfo(ExchangeManager__factory)
 
-        await sendLocalTransaction(
-            await projectDeployer.deploySubscriptionManager
-                .populateTransaction(subscriptionManagerDeployParams),
-            deployer,
-        )
-        await sendLocalTransaction(
-            await projectDeployer.deployStrategyManager
-                .populateTransaction(strategyManagerDeployParams),
-            deployer,
-        )
-        await sendLocalTransaction(
-            await projectDeployer.deployDca
-                .populateTransaction(dcaDeployParams),
-            deployer,
-        )
-        await sendLocalTransaction(
-            await projectDeployer.deployVaultManager
-                .populateTransaction(vaultManagerDeployParams),
-            deployer,
-        )
-        await sendLocalTransaction(
-            await projectDeployer.deployZapManager
-                .populateTransaction(zapManagerDeployParams),
-            deployer,
+        await projectDeployer.deployInvestLib(InvestLib__factory.bytecode, ZeroHash)
+        await projectDeployer.deploySubscriptionManager(subscriptionManagerDeployParams)
+        await projectDeployer.deployStrategyManager(strategyManagerDeployParams)
+        await projectDeployer.deployDca(dcaDeployParams)
+        await projectDeployer.deployVaultManager(vaultManagerDeployParams)
+        await projectDeployer.deployLiquidityManager(liquidityManagerDeployParams)
+        await projectDeployer.deployZapManager(zapManagerDeployParams)
+        await projectDeployer.deployExchangeManager(exchangeManagerDeployParams)
+
+        const investLib = await projectDeployer.investLib()
+        const [
+            strategyManager,
+            subscriptionManagerAddress,
+            dca,
+            vaultManager,
+            liquidityManager,
+            exchangeManager,
+            zapManager,
+        ] = (await Promise.all([
+            projectDeployer.strategyManager(),
+            projectDeployer.subscriptionManager(),
+            projectDeployer.dca(),
+            projectDeployer.vaultManager(),
+            projectDeployer.liquidityManager(),
+            projectDeployer.exchangeManager(),
+            projectDeployer.zapManager(),
+        ])).map(({ proxy }) => proxy)
+
+        const subscriptionManager = SubscriptionManager__factory.connect(
+            subscriptionManagerAddress,
+            owner,
         )
 
         const subscriptionManagerInitParams: SubscriptionManager.InitializeParamsStruct = {
@@ -105,12 +118,14 @@ export class ProjectDeployer {
         const strategyManagerInitParams: StrategyManager.InitializeParamsStruct = {
             owner,
             treasury,
-            investmentLib,
+            investLib,
             stable: this.strategyDepositToken,
-            subscriptionManager: ZeroAddress,
-            dca: ZeroAddress,
-            vaultManager: ZeroAddress,
-            zapManager: ZeroAddress,
+            subscriptionManager,
+            dca,
+            vaultManager,
+            liquidityManager,
+            exchangeManager,
+            zapManager,
             maxHottestStrategies: 10n,
             strategistPercentage: 20n,
             hotStrategistPercentage: 40n,
@@ -120,8 +135,8 @@ export class ProjectDeployer {
             owner: owner.address,
             treasury: treasury.address,
             swapper: swapper.address,
-            strategyManager: ZeroAddress,
-            subscriptionManager: ZeroAddress,
+            strategyManager,
+            subscriptionManager,
             baseFeeBP: 70n,
             nonSubscriberFeeBP: 30n,
         }
@@ -129,9 +144,27 @@ export class ProjectDeployer {
         const vaultManagerInit: VaultManager.InitializeParamsStruct = {
             owner: owner.address,
             treasury: treasury.address,
-            strategyManager: ZeroAddress,
-            subscriptionManager: ZeroAddress,
+            strategyManager,
+            subscriptionManager,
             baseFeeBP: 70n,
+            nonSubscriberFeeBP: 30n,
+        }
+
+        const liquidityManagerInit: LiquidityManager.InitializeParamsStruct = {
+            owner: owner.address,
+            treasury: treasury.address,
+            strategyManager,
+            subscriptionManager,
+            zapManager,
+            baseFeeBP: 30n,
+            nonSubscriberFeeBP: 30n,
+        }
+
+        const exchangeManagerInit: ExchangeManager.InitializeParamsStruct = {
+            owner: owner.address,
+            treasury: treasury.address,
+            subscriptionManager,
+            baseFeeBP: 30n,
             nonSubscriberFeeBP: 30n,
         }
 
@@ -147,38 +180,31 @@ export class ProjectDeployer {
             },
         }
 
-        await sendLocalTransaction(
-            await projectDeployer.initializeProject.populateTransaction(
-                subscriptionManagerInitParams,
-                strategyManagerInitParams,
-                dcaInitParams,
-                vaultManagerInit,
-                zapManagerInit,
-            ),
-            deployer,
+        await projectDeployer.initializeProject(
+            subscriptionManagerInitParams,
+            strategyManagerInitParams,
+            dcaInitParams,
+            vaultManagerInit,
+            liquidityManagerInit,
+            exchangeManagerInit,
+            zapManagerInit,
         )
 
-        const [
-            strategyManager,
+        const subscriptionSignature= new SubscriptionSignature(
             subscriptionManager,
-            dca,
-            vaultManager,
-            zapManager,
-        ] = (await Promise.all([
-            projectDeployer.strategyManager(),
-            projectDeployer.subscriptionManager(),
-            projectDeployer.dca(),
-            projectDeployer.vaultManager(),
-            projectDeployer.zapManager(),
-        ])).map(({ proxy }) => proxy)
+            subscriptionSigner,
+        )
+        const deadline = await NetworkService.getBlockTimestamp() + 10_000
 
         return {
             // Contracts
             strategyManager: StrategyManager__factory.connect(strategyManager, owner),
-            subscriptionManager: SubscriptionManager__factory.connect(subscriptionManager, owner),
+            subscriptionManager,
             dca: DollarCostAverage__factory.connect(dca, owner),
             vaultManager: VaultManager__factory.connect(vaultManager, owner),
             zapManager: ZapManager__factory.connect(zapManager, owner),
+            exchangeManager: ExchangeManager__factory.connect(exchangeManager, owner),
+            liquidityManager: LiquidityManager__factory.connect(liquidityManager, owner),
 
             // EOA with contract roles
             deployer,
@@ -208,6 +234,11 @@ export class ProjectDeployer {
             routerUniV3,
             positionManagerUniV3,
             quoterUniV3,
+
+            subscriptionSignature,
+            deadline,
+            permit: await subscriptionSignature
+                .signSubscriptionPermit(await account0.getAddress(), deadline),
         }
     }
 

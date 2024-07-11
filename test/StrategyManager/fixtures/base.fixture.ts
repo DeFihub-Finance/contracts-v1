@@ -8,7 +8,7 @@ import {
     NonFungiblePositionManager,
     TestERC20,
 } from '@src/typechain'
-import { InvestLib } from '@src/typechain/artifacts/contracts/StrategyManager'
+import { InvestLib } from '@src/typechain/artifacts/contracts/StrategyManager' // typechain doesn't generate lib properly so we must import it this way
 import { NetworkService } from '@src/NetworkService'
 import { SubscriptionSignature } from '@src/SubscriptionSignature'
 import { deployVaultFixture } from '../../VaultManager/fixtures/deploy-vault.fixture'
@@ -137,10 +137,6 @@ export const baseStrategyManagerFixture = async () => {
         dcaStrategyPositions,
         vaultStrategyPosition,
         subscriptionSigner,
-        subscriptionSignature: new SubscriptionSignature(
-            subscriptionManager,
-            subscriptionSigner,
-        ),
         weth,
         stablecoin,
         routerUniV3,
@@ -160,7 +156,10 @@ async function bootstrapDcaPoolLiquidity(
     fee: bigint,
 ) {
     const thousand = parseEther('1000')
-    const [token0, token1] = [
+    const [
+        token0,
+        token1,
+    ] = [
         await inputToken.getAddress(),
         await outputToken.getAddress(),
     ].sort((a, b) => parseInt(a, 16) - parseInt(b, 16))

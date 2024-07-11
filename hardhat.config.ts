@@ -9,6 +9,7 @@ import 'hardhat-abi-exporter'
 import 'hardhat-gas-reporter'
 import 'tsconfig-paths/register'
 import 'solidity-coverage'
+import 'solidity-docgen'
 import 'hardhat-contract-sizer'
 import explorerKeys from './.explorer-keys.json'
 import { HardhatUserConfig } from 'hardhat/config'
@@ -68,6 +69,13 @@ const config: HardhatUserConfig = {
         currency: 'USD',
         gasPrice: 20,
         coinmarketcap: process.env.CMC_API_KEY,
+    },
+    docgen: {
+        pages: 'files',
+        exclude: [
+            'test',
+            'interfaces',
+        ],
     },
 }
 

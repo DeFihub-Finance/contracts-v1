@@ -1,4 +1,4 @@
-import { DollarCostAverage, SubscriptionManager } from '@src/typechain'
+import { DollarCostAverage, ERC20__factory, SubscriptionManager } from '@src/typechain'
 import { expect } from 'chai'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import { PositionParams, baseDcaFixture } from './fixtures/base.fixture'
@@ -51,7 +51,7 @@ describe('DCA#deposit', () => {
 
     describe('EFFECT', () => {
         it('deposit and create new position', async () => {
-            await dca.connect(account0).deposit(
+            await dca.connect(account0).invest(
                 positionParams.poolId,
                 positionParams.swaps,
                 positionParams.depositAmount,
@@ -73,7 +73,7 @@ describe('DCA#deposit', () => {
         it('transfer deposit fee to treasury for non-subscriber', async () => {
             const treasuryBalanceBefore = await stablecoin.balanceOf(await treasury.getAddress())
 
-            await dca.connect(account0).deposit(
+            await dca.connect(account0).invest(
                 positionParams.poolId,
                 positionParams.swaps,
                 positionParams.depositAmount,
@@ -95,7 +95,7 @@ describe('DCA#deposit', () => {
 
             const treasuryBalanceBefore = await stablecoin.balanceOf(await treasury.getAddress())
 
-            await dca.connect(account0).deposit(
+            await dca.connect(account0).invest(
                 positionParams.poolId,
                 positionParams.swaps,
                 positionParams.depositAmount,
@@ -112,7 +112,7 @@ describe('DCA#deposit', () => {
             const amountPerSwap = ContractFees.discountNonSubscriberFee(positionParams.depositAmount) / positionParams.swaps
             const pool = await dca.getPool(positionParams.poolId)
 
-            const tx = dca.connect(account0).deposit(
+            const tx = dca.connect(account0).invest(
                 positionParams.poolId,
                 positionParams.swaps,
                 positionParams.depositAmount,
@@ -131,18 +131,19 @@ describe('DCA#deposit', () => {
 
         it('transfers the amount of tokens specified by the user', async () => {
             const pool = await dca.getPool(positionParams.poolId)
-            const balanceBefore = await dca.tokenBalance(pool.inputToken)
-            const treasuryBalanceBefore = await stablecoin.balanceOf(await treasury.getAddress())
+            const inputToken = ERC20__factory.connect(pool.inputToken, account0)
+            const balanceBefore = await inputToken.balanceOf(dca)
+            const treasuryBalanceBefore = await stablecoin.balanceOf(treasury)
 
-            await dca.connect(account0).deposit(
+            await dca.connect(account0).invest(
                 positionParams.poolId,
                 positionParams.swaps,
                 positionParams.depositAmount,
                 fakePermit,
             )
 
-            const balanceAfter = await dca.tokenBalance(pool.inputToken)
-            const treasuryBalanceAfter = await stablecoin.balanceOf(await treasury.getAddress())
+            const balanceAfter = await inputToken.balanceOf(dca)
+            const treasuryBalanceAfter = await stablecoin.balanceOf(treasury)
 
             expect(balanceAfter - balanceBefore).to.be.equals(ContractFees.discountNonSubscriberFee(
                 positionParams.depositAmount,
@@ -158,7 +159,7 @@ describe('DCA#deposit', () => {
             const nextSwapAmount = async () => (await dca.getPool(positionParams.poolId)).nextSwapAmount
             const nextSwapAmountBefore = await nextSwapAmount()
 
-            await dca.connect(account0).deposit(
+            await dca.connect(account0).invest(
                 positionParams.poolId,
                 positionParams.swaps,
                 positionParams.depositAmount,
@@ -175,7 +176,7 @@ describe('DCA#deposit', () => {
 
     describe('REVERTS', () => {
         it('if poolId >= number of pools', async () => {
-            const tx = dca.connect(account0).deposit(
+            const tx = dca.connect(account0).invest(
                 31,
                 positionParams.swaps,
                 positionParams.depositAmount,
@@ -186,18 +187,18 @@ describe('DCA#deposit', () => {
         })
 
         it('if amount is zero', async () => {
-            const tx = dca.connect(account0).deposit(
+            const tx = dca.connect(account0).invest(
                 positionParams.poolId,
                 positionParams.swaps,
                 0n,
                 fakePermit,
             )
 
-            await expect(tx).to.be.revertedWithCustomError(dca, 'InvalidDepositAmount')
+            await expect(tx).to.be.revertedWithCustomError(dca, 'InvalidAmount')
         })
 
         it('if swaps is zero', async () => {
-            const tx = dca.connect(account0).deposit(
+            const tx = dca.connect(account0).invest(
                 positionParams.poolId,
                 0,
                 positionParams.depositAmount,

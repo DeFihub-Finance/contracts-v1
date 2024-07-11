@@ -1,4 +1,6 @@
-import { BigNumber } from '@ryze-blockchain/ethereum'
+import { Pool } from '@uniswap/v3-sdk'
+import { Token } from '@uniswap/sdk-core'
+import { BigNumber, ChainIds } from '@ryze-blockchain/ethereum'
 import {
     Signer,
     MaxUint256,
@@ -10,6 +12,7 @@ import {
     Quoter,
     TestERC20,
     UniswapV3Factory,
+    type UniswapV3Pool,
 } from '@src/typechain'
 import { NetworkService } from '@src/NetworkService'
 import { PathUniswapV3 } from '@defihub/shared'
@@ -99,5 +102,28 @@ export class UniswapV3 {
         return tokenA.toLowerCase() < tokenB.toLowerCase()
             ? { token0: tokenA, token1: tokenB }
             : { token0: tokenB, token1: tokenA }
+    }
+
+    public static async getPoolByContract(contract: UniswapV3Pool) {
+        const [
+            token0,
+            token1,
+            liquidity,
+            { sqrtPriceX96, tick },
+        ] = await Promise.all([
+            contract.token0(),
+            contract.token1(),
+            contract.liquidity(),
+            contract.slot0(),
+        ])
+
+        return new Pool(
+            new Token(ChainIds.ETH, token0, 18),
+            new Token(ChainIds.ETH, token1, 18),
+            3000,
+            sqrtPriceX96.toString(),
+            liquidity.toString(),
+            Number(tick),
+        )
     }
 }

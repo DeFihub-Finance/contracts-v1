@@ -1,140 +1,113 @@
 import { expect } from 'chai'
-import { Signer, parseEther } from 'ethers'
+import { Signer, parseEther, ZeroHash, ContractTransactionResponse } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
-import { StrategyManager, TestERC20, TestVault, VaultManager } from '@src/typechain'
-import { NetworkService } from '@src/NetworkService'
+import { StrategyManager, SubscriptionManager, TestERC20, TestVault, VaultManager } from '@src/typechain'
 import { baseVaultManagerFixture } from './fixtures/base.fixture'
+import { Fees } from '@src/helpers/Fees'
 
 // given a strategy contract
-//      when depositUsingStrategy is called
+//      when investUsingStrategy is called
 //          then vault tokens are transferred to strategy manger NOT discounting the base fee
 //          then deposit fees are NOT sent to the treasury
 //          then want tokens are deducted from strategyManager
 //          then Deposit event is emitted
 //          then Fee event is NOT emitted
 // given a non-strategy account
-//      when depositUsingStrategy is called
+//      when investUsingStrategy is called
 //          then transaction reverts with Unauthorized
-describe('VaultManager#depositUsingStrategy', () => {
+describe('VaultManager#investUsingStrategy', () => {
     let account0: Signer
-    let treasury: Signer
     let vaultManager: VaultManager
     let vault: TestVault
     let token: TestERC20
     let strategyManager: StrategyManager
+    let strategyId: bigint
+    let permit: SubscriptionManager.PermitStruct
 
     const amountToDeposit = parseEther('10')
 
     beforeEach(async () => {
-        ({ account0, treasury, vaultManager, vault, strategyManager, token } =
-            await loadFixture(baseVaultManagerFixture))
+        ({
+            account0,
+            vaultManager,
+            vault,
+            strategyManager,
+            token,
+            permit,
+        } = await loadFixture(baseVaultManagerFixture))
     })
 
     describe('given a strategy contract', () => {
-        let strategyManagerSigner: Signer
-
         beforeEach(async () => {
-            strategyManagerSigner = await NetworkService.impersonate(
-                await strategyManager.getAddress(),
-            )
+            strategyId = await strategyManager.getStrategiesLength()
 
-            token.mint(await strategyManager.getAddress(), amountToDeposit)
+            await strategyManager
+                .connect(account0)
+                .createStrategy({
+                    dcaInvestments: [],
+                    vaultInvestments: [
+                        {
+                            vault: await vault.getAddress(),
+                            percentage: 100,
+                        },
+                    ],
+                    liquidityInvestments: [],
+                    tokenInvestments: [],
+                    permit,
+                    metadataHash: ZeroHash,
+                })
 
-            await token
-                .connect(strategyManagerSigner)
-                .approve(await vaultManager.getAddress(), amountToDeposit)
+            await token.connect(account0).approve(strategyManager, amountToDeposit)
         })
 
-        describe('when depositUsingStrategy is called', () => {
-            it('then vault tokens are transferred to strategy manger NOT discounting the base fee', async () => {
-                await vaultManager
-                    .connect(strategyManagerSigner)
-                    .depositUsingStrategy(
-                        await vault.getAddress(),
-                        amountToDeposit,
-                    )
+        describe('when investUsingStrategy is called', () => {
+            let tx: ContractTransactionResponse
 
-                expect(
-                    await vault.balanceOf(await strategyManager.getAddress()),
-                ).to.eq(amountToDeposit)
+            beforeEach(async () => {
+                tx = await strategyManager
+                    .connect(account0)
+                    .invest({
+                        strategyId,
+                        inputToken: token,
+                        inputAmount: amountToDeposit,
+                        inputTokenSwap: '0x',
+                        dcaSwaps: [],
+                        vaultSwaps: ['0x'],
+                        tokenSwaps: [],
+                        liquidityZaps: [],
+                        investorPermit: permit,
+                        strategistPermit: permit,
+                    })
             })
 
-            it('then deposit fees are NOT sent to the treasury', async () => {
-                const treasuryBalanceBefore = await token.balanceOf(
-                    await treasury.getAddress(),
-                )
-
-                await vaultManager
-                    .connect(strategyManagerSigner)
-                    .depositUsingStrategy(
-                        await vault.getAddress(),
-                        amountToDeposit,
-                    )
-
-                const treasuryBalanceDelta =
-                    (await token.balanceOf(await treasury.getAddress())) -
-                    treasuryBalanceBefore
-
-                expect(treasuryBalanceDelta).to.eq(0)
-            })
-
-            it('then want tokens are deducted from strategyManager', async () => {
-                const strategyManagerBalanceBefore = await token.balanceOf(
-                    await strategyManager.getAddress(),
-                )
-
-                await vaultManager
-                    .connect(strategyManagerSigner)
-                    .depositUsingStrategy(
-                        await vault.getAddress(),
-                        amountToDeposit,
-                    )
-
-                const strategyManagerBalanceDelta =
-                    (await token.balanceOf(
-                        await strategyManager.getAddress(),
-                    )) - strategyManagerBalanceBefore
-
-                expect(strategyManagerBalanceDelta).to.eq(-amountToDeposit)
-            })
-
-            it('then Deposit event is emitted', async () => {
-                await expect(
-                    vaultManager
-                        .connect(strategyManagerSigner)
-                        .depositUsingStrategy(
-                            await vault.getAddress(),
-                            amountToDeposit,
-                        ),
-                )
-                    .to.emit(vaultManager, 'Deposit')
+            it('Deposit event is emitted', async () => {
+                await expect(tx)
+                    .to
+                    .emit(vaultManager, 'PositionCreated')
                     .withArgs(
                         await vault.getAddress(),
                         await strategyManager.getAddress(),
-                        amountToDeposit,
+                        Fees.deductProductFee(
+                            amountToDeposit,
+                            true,
+                            vaultManager,
+                        ),
                     )
             })
 
-            it('then Fee event is NOT emitted', async () => {
-                await expect(
-                    vaultManager
-                        .connect(strategyManagerSigner)
-                        .depositUsingStrategy(
-                            await vault.getAddress(),
-                            amountToDeposit,
-                        ),
-                ).to.not.emit(vaultManager, 'Fee')
+            it('Fee event is NOT emitted', async () => {
+                await expect(tx).to.not.emit(vaultManager, 'Fee')
             })
         })
     })
 
     describe('given a non-strategy account', () => {
-        describe('when depositUsingStrategy is called', () => {
+        describe('when investUsingStrategy is called', () => {
             it('then transaction reverts with Unauthorized', async () => {
                 await expect(
                     vaultManager
                         .connect(account0)
-                        .depositUsingStrategy(
+                        .investUsingStrategy(
                             await vault.getAddress(),
                             amountToDeposit,
                         ),

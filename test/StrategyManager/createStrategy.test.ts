@@ -48,6 +48,8 @@ describe('StrategyManager#createStrategy', () => {
             tx = strategyManager.connect(account0).createStrategy({
                 dcaInvestments: dcaStrategyPositions,
                 vaultInvestments: vaultStrategyPosition,
+                liquidityInvestments: [],
+                tokenInvestments: [],
                 permit: await subscriptionSignature.signSubscriptionPermit(
                     await account0.getAddress(),
                     await NetworkService.getBlockTimestamp() + 10_000,
@@ -91,6 +93,8 @@ describe('StrategyManager#createStrategy', () => {
             await strategyManager.connect(account0).createStrategy({
                 dcaInvestments: dcaStrategyPositions,
                 vaultInvestments: vaultStrategyPosition,
+                liquidityInvestments: [],
+                tokenInvestments: [],
                 permit: await subscriptionSignature.signSubscriptionPermit(
                     await account0.getAddress(),
                     deadline,
@@ -107,6 +111,8 @@ describe('StrategyManager#createStrategy', () => {
             const tx = strategyManager.connect(account1).createStrategy({
                 dcaInvestments: dcaStrategyPositions,
                 vaultInvestments: vaultStrategyPosition,
+                liquidityInvestments: [],
+                tokenInvestments: [],
                 permit: await subscriptionSignature.signSubscriptionPermit(
                     await account1.getAddress(),
                     deadline,
@@ -129,6 +135,8 @@ describe('StrategyManager#createStrategy', () => {
             const tx = strategyManager.connect(account0).createStrategy({
                 dcaInvestments: investments,
                 vaultInvestments: [],
+                liquidityInvestments: [],
+                tokenInvestments: [],
                 permit: await subscriptionSignature.signSubscriptionPermit(
                     await account0.getAddress(),
                     deadline,
@@ -150,6 +158,8 @@ describe('StrategyManager#createStrategy', () => {
             const tx = strategyManager.connect(account0).createStrategy({
                 dcaInvestments: [],
                 vaultInvestments: investments,
+                liquidityInvestments: [],
+                tokenInvestments: [],
                 permit: await subscriptionSignature.signSubscriptionPermit(
                     await account0.getAddress(),
                     deadline,
@@ -179,6 +189,8 @@ describe('StrategyManager#createStrategy', () => {
             const tx = strategyManager.connect(account0).createStrategy({
                 dcaInvestments,
                 vaultInvestments,
+                liquidityInvestments: [],
+                tokenInvestments: [],
                 permit: await subscriptionSignature.signSubscriptionPermit(
                     await account0.getAddress(),
                     deadline,
@@ -193,6 +205,8 @@ describe('StrategyManager#createStrategy', () => {
             const tx0 = strategyManager.connect(account0).createStrategy({
                 dcaInvestments: [],
                 vaultInvestments: [],
+                liquidityInvestments: [],
+                tokenInvestments: [],
                 permit: await subscriptionSignature.signSubscriptionPermit(
                     await account0.getAddress(),
                     deadline,
@@ -204,6 +218,8 @@ describe('StrategyManager#createStrategy', () => {
                 // 122%
                 dcaInvestments: [...dcaStrategyPositions, ...dcaStrategyPositions],
                 vaultInvestments: [],
+                liquidityInvestments: [],
+                tokenInvestments: [],
                 permit: await subscriptionSignature.signSubscriptionPermit(
                     await account0.getAddress(),
                     deadline,
