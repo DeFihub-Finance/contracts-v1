@@ -26,12 +26,12 @@ export async function createStrategyFixture() {
     // Approve StrategyManager to spend tokens //
     /////////////////////////////////////////////
     await Promise.all([
-        stablecoin.mint(await account1.getAddress(), parseEther('1000')),
-        stablecoin.connect(account1).approve(await strategyManager.getAddress(), parseEther('1000')),
-        stablecoin.mint(await account2.getAddress(), parseEther('1000')),
-        stablecoin.connect(account2).approve(await strategyManager.getAddress(), parseEther('1000')),
-        anotherToken.connect(account1).mint(await account1.getAddress(), parseEther('1000')),
-        anotherToken.connect(account1).approve(await strategyManager.getAddress(), parseEther('1000')),
+        stablecoin.mint(account1, parseEther('1000')),
+        stablecoin.connect(account1).approve(strategyManager, parseEther('1000')),
+        stablecoin.mint(account2, parseEther('1000')),
+        stablecoin.connect(account2).approve(strategyManager, parseEther('1000')),
+        anotherToken.connect(account1).mint(account1, parseEther('1000')),
+        anotherToken.connect(account1).approve(strategyManager, parseEther('1000')),
     ])
 
     /////////////////////////////////////////

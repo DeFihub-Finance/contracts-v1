@@ -54,7 +54,7 @@ describe('UseFee#calculateFee', () => {
         describe('when the user calculates the fee with a valid permit', () => {
             it('then the base fee is calculated correctly', async () => {
                 const { baseFee } = await useFee.calculateFee(
-                    await account0.getAddress(),
+                    account0,
                     amount,
                     permit,
                 )
@@ -64,7 +64,7 @@ describe('UseFee#calculateFee', () => {
 
             it('then non-subscriber fee is zero', async () => {
                 const { nonSubscriberFee } = await useFee.calculateFee(
-                    await account0.getAddress(),
+                    account0,
                     amount,
                     permit,
                 )
@@ -85,7 +85,7 @@ describe('UseFee#calculateFee', () => {
 
             it('then SubscriptionExpired is emitted', async () => {
                 await expect(useFee.calculateFee(
-                    await account0.getAddress(),
+                    account0,
                     amount,
                     permit,
                 )).to.be.revertedWithCustomError(subscriptionManager, 'SubscriptionExpired')
@@ -106,7 +106,7 @@ describe('UseFee#calculateFee', () => {
         describe('when the user calculates the fee', () => {
             it('then the base fee is calculated correctly', async () => {
                 const { baseFee } = await useFee.calculateFee(
-                    await account0.getAddress(),
+                    account0,
                     amount,
                     permit,
                 )
@@ -116,7 +116,7 @@ describe('UseFee#calculateFee', () => {
 
             it('then non-subscriber fee is calculated correctly', async () => {
                 const { nonSubscriberFee } = await useFee.calculateFee(
-                    await account0.getAddress(),
+                    account0,
                     amount,
                     permit,
                 )
@@ -126,7 +126,7 @@ describe('UseFee#calculateFee', () => {
 
             it('then is should not allow to calculate the fee with another users permit', async () => {
                 await expect(useFee.calculateFee(
-                    await account1.getAddress(),
+                    account1,
                     amount,
                     await subscriptionSignature.signSubscriptionPermit(
                         await account0.getAddress(),

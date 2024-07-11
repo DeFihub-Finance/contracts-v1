@@ -109,7 +109,7 @@ describe('SubscriptionManager', () => {
                 )
 
                 const isSubscribed = await subscriptionManager.isSubscribed(
-                    await account0.getAddress(),
+                    account0,
                     signature,
                 )
 
@@ -126,7 +126,7 @@ describe('SubscriptionManager', () => {
                 )
 
                 const isSubscribed = subscriptionManager.isSubscribed(
-                    await account0.getAddress(),
+                    account0,
                     signature,
                 )
 
@@ -142,7 +142,7 @@ describe('SubscriptionManager', () => {
                     )
 
                 const isSubscribed = subscriptionManager.isSubscribed(
-                    await account0.getAddress(),
+                    account0,
                     signature,
                 )
 

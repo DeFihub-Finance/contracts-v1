@@ -22,7 +22,7 @@ describe('StrategyManager#collectStrategistRewards', () => {
     let stablecoin: ERC20
     let strategistAddress: string
 
-    const strategistBalance = async () => stablecoin.balanceOf(await account0.getAddress())
+    const strategistBalance = async () => stablecoin.balanceOf(account0)
 
     beforeEach(async () => {
         ({

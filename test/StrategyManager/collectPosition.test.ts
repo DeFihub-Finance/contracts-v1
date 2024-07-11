@@ -24,8 +24,8 @@ describe('StrategyManager#collectPosition', () => {
     const positionToCollect = 0
     const strategyIdToCollect = 0
 
-    const getDcaOutputTokenBalance = async () => dcaOutputToken.balanceOf(await account1.getAddress())
-    const getDcaPositionBalances = async () => dca.getPositionBalances(await strategyManager.getAddress(), 0)
+    const getDcaOutputTokenBalance = async () => dcaOutputToken.balanceOf(account1)
+    const getDcaPositionBalances = async () => dca.getPositionBalances(strategyManager, 0)
 
     beforeEach(async () => {
         ({

@@ -48,8 +48,8 @@ describe('DCA#withdrawAll', () => {
     let POOL_FEE: bigint
     let TWENTY_FOUR_HOURS_IN_SECONDS: number
 
-    const tokenOutBalance = async () => weth.balanceOf(await account0.getAddress())
-    const tokenInBalance = async () => stablecoin.balanceOf(await account0.getAddress())
+    const tokenOutBalance = async () => weth.balanceOf(account0)
+    const tokenInBalance = async () => stablecoin.balanceOf(account0)
 
     beforeEach(async () => {
         ({
@@ -161,7 +161,7 @@ describe('DCA#withdrawAll', () => {
             ])
 
             const { outputTokenBalance } = await dca.getPositionBalances(
-                await account0.getAddress(),
+                account0,
                 positionParams.positionId,
             )
 
@@ -193,7 +193,7 @@ describe('DCA#withdrawAll', () => {
                 inputTokenBalance,
                 outputTokenBalance,
             } = await dca.getPositionBalances(
-                await account0.getAddress(),
+                account0,
                 positionId,
             )
 
@@ -213,7 +213,7 @@ describe('DCA#withdrawAll', () => {
                 inputTokenBalance,
                 outputTokenBalance,
             } = await dca.getPositionBalances(
-                await account0.getAddress(),
+                account0,
                 positionParams.positionId,
             )
 
@@ -245,7 +245,7 @@ describe('DCA#withdrawAll', () => {
 
         it('updates positions lastUpdateSwap', async () => {
             const lastUpdateSwap = async () => (await dca.getPosition(
-                await account0.getAddress(),
+                account0,
                 positionParams.poolId,
             )).lastUpdateSwap
             const lastUpdateSwapBefore = await lastUpdateSwap()

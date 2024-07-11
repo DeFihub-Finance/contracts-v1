@@ -47,7 +47,7 @@ describe('VaultManager#investUsingStrategy', () => {
                     dcaInvestments: [],
                     vaultInvestments: [
                         {
-                            vault: await vault.getAddress(),
+                            vault,
                             percentage: 100,
                         },
                     ],

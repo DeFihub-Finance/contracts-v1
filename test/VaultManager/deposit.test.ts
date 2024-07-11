@@ -47,15 +47,15 @@ describe('VaultManager#deposit', () => {
     describe('given a subscribed user', () => {
         describe('when a deposit is made', () => {
             it('then vault tokens are transferred to the user discounting the base fee', async () => {
-                const balanceBefore = await vault.balanceOf(await account0.getAddress())
+                const balanceBefore = await vault.balanceOf(account0)
 
                 await vaultManager.connect(account0).invest(
-                    await vault.getAddress(),
+                    vault,
                     amountToDeposit,
                     await subscriptionSignature.signSubscriptionPermit(await account0.getAddress(), deadline),
                 )
 
-                const balanceDelta = (await vault.balanceOf(await account0.getAddress())) - balanceBefore
+                const balanceDelta = (await vault.balanceOf(account0)) - balanceBefore
                 const expectedBalanceDelta = ContractFees.discountBaseFee(amountToDeposit)
 
                 expect(balanceDelta).to.equal(expectedBalanceDelta)
@@ -85,7 +85,7 @@ describe('VaultManager#deposit', () => {
                     await subscriptionSignature.signSubscriptionPermit(await account0.getAddress(), deadline),
                 )
 
-                const balanceDelta = balanceBefore - (await stablecoin.balanceOf(await account0.getAddress()))
+                const balanceDelta = balanceBefore - (await stablecoin.balanceOf(account0))
 
                 expect(balanceDelta).to.equal(amountToDeposit)
             })
