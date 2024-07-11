@@ -107,7 +107,7 @@ describe('StrategyManager#createStrategy', () => {
     })
 
     describe('REVERTS', () => {
-        it('if msg.sender doesn\'t have an active subscription', async () => {
+        it('if msg.sender does not have an active subscription', async () => {
             const tx = strategyManager.connect(account1).createStrategy({
                 dcaInvestments: dcaStrategyPositions,
                 vaultInvestments: vaultStrategyPosition,
