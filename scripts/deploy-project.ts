@@ -1,4 +1,3 @@
-import {  ZeroAddress } from 'ethers'
 import hre, { ethers } from 'hardhat'
 import { CommandBuilder, Salt } from 'hardhat-vanity'
 import {
@@ -11,15 +10,19 @@ import {
     ZapManager__factory,
     UniswapV2Zapper__factory,
     UniswapV3Zapper__factory,
+    InvestLib__factory,
+    LiquidityManager,
+    ExchangeManager,
 } from '@src/typechain'
 import {
+    vanityDeployer,
     getDeploymentInfo,
     getProjectDeployer,
     saveAddress,
-    vanityDeployer,
     sendTransaction,
     verify,
     findAddressOrFail,
+    getImplementationSalt,
 } from '@src/helpers'
 
 const TREASURY_ADDR: string | undefined = '0xb7f74ba999134fbb75285173856a808732d8c888' // wallet 61
@@ -42,12 +45,18 @@ async function deployProject() {
         await projectDeployer.getAddress(),
     )
 
+    const investLibDeploymentInfo = await getImplementationSalt(saltBuilder, 'InvestLib')
     const subscriptionDeploymentInfo = await getDeploymentInfo(saltBuilder, 'SubscriptionManager')
     const strategyDeploymentInfo = await getDeploymentInfo(saltBuilder, 'StrategyManager')
     const dcaDeploymentInfo = await getDeploymentInfo(saltBuilder, 'DollarCostAverage')
     const vaultDeploymentInfo = await getDeploymentInfo(saltBuilder, 'VaultManager')
     const zapManagerInfo = await getDeploymentInfo(saltBuilder, 'ZapManager')
 
+    await sendTransaction(
+        await projectDeployer.deployInvestLib
+            .populateTransaction(InvestLib__factory.bytecode, investLibDeploymentInfo),
+        deployer,
+    )
     await sendTransaction(
         await projectDeployer.deploySubscriptionManager
             .populateTransaction(subscriptionDeploymentInfo),
@@ -74,6 +83,25 @@ async function deployProject() {
         deployer,
     )
 
+    const investLib = await projectDeployer.investLib()
+    const [
+        strategyManager,
+        dca,
+        vaultManager,
+        liquidityManager,
+        exchangeManager,
+        subscriptionManager,
+        zapManager,
+    ] = (await Promise.all([
+        projectDeployer.strategyManager(),
+        projectDeployer.dca(),
+        projectDeployer.vaultManager(),
+        projectDeployer.liquidityManager(),
+        projectDeployer.exchangeManager(),
+        projectDeployer.subscriptionManager(),
+        projectDeployer.zapManager(),
+    ]))
+
     const subscriptionManagerInitParams: SubscriptionManager.InitializeParamsStruct = {
         owner: safe,
         treasury: TREASURY_ADDR || safe,
@@ -86,10 +114,13 @@ async function deployProject() {
         owner: safe,
         treasury: TREASURY_ADDR || safe,
         stable: await stable.getAddress(),
-        subscriptionManager: ZeroAddress,
-        dca: ZeroAddress,
-        vaultManager: ZeroAddress,
-        zapManager: ZeroAddress,
+        investLib,
+        subscriptionManager: subscriptionManager.proxy,
+        dca: dca.proxy,
+        vaultManager: vaultManager.proxy,
+        liquidityManager: liquidityManager.proxy,
+        exchangeManager: exchangeManager.proxy,
+        zapManager: vaultManager.proxy,
         strategistPercentage: 30n,
         hotStrategistPercentage: 50n,
         maxHottestStrategies: 10n,
@@ -99,22 +130,40 @@ async function deployProject() {
         owner: safe,
         treasury: TREASURY_ADDR || safe,
         swapper: DCA_SWAPPER_ADDR || safe,
-        strategyManager: ZeroAddress,
-        subscriptionManager: ZeroAddress,
-        baseFeeBP: 70n,
+        strategyManager: strategyManager.proxy,
+        subscriptionManager: subscriptionManager.proxy,
+        baseFeeBP: 60n,
         nonSubscriberFeeBP: 30n,
     }
 
-    const vaultManagerInit: VaultManager.InitializeParamsStruct = {
+    const vaultManagerInitParams: VaultManager.InitializeParamsStruct = {
         owner: safe,
         treasury: TREASURY_ADDR || safe,
-        strategyManager: ZeroAddress,
-        subscriptionManager: ZeroAddress,
-        baseFeeBP: 70n,
+        strategyManager: strategyManager.proxy,
+        subscriptionManager: subscriptionManager.proxy,
+        baseFeeBP: 20n,
         nonSubscriberFeeBP: 30n,
     }
 
-    const zapManagerInit: ZapManager.InitializeParamsStruct = {
+    const liquidityManagerInitParams: LiquidityManager.InitializeParamsStruct = {
+        owner: safe,
+        treasury: TREASURY_ADDR || safe,
+        subscriptionManager: subscriptionManager.proxy,
+        strategyManager: strategyManager.proxy,
+        zapManager: zapManager.proxy,
+        baseFeeBP: 30n,
+        nonSubscriberFeeBP: 30n,
+    }
+
+    const exchangeManagerInitParams: ExchangeManager.InitializeParamsStruct = {
+        owner: safe,
+        treasury: TREASURY_ADDR || safe,
+        subscriptionManager: subscriptionManager.proxy,
+        baseFeeBP: 30n,
+        nonSubscriberFeeBP: 30n,
+    }
+
+    const zapManagerInitParams: ZapManager.InitializeParamsStruct = {
         owner: safe,
         uniswapV2ZapperConstructor: {
             treasury: TREASURY_ADDR || safe,
@@ -131,28 +180,30 @@ async function deployProject() {
             subscriptionManagerInitParams,
             strategyManagerInitParams,
             dcaInitParams,
-            vaultManagerInit,
-            zapManagerInit,
+            vaultManagerInitParams,
+            liquidityManagerInitParams,
+            exchangeManagerInitParams,
+            zapManagerInitParams,
         ),
         deployer,
     )
 
-    const subscriptionManager = await projectDeployer.subscriptionManager()
-    const strategyManager = await projectDeployer.strategyManager()
-    const dca = await projectDeployer.dca()
-    const vaultManager = await projectDeployer.vaultManager()
-    const zapManager = await projectDeployer.zapManager()
-
     const zapManagerContract = ZapManager__factory.connect(zapManager.proxy, deployer)
-    const [zapperUniV2, zapperUniV3] = await Promise.all([
+    const [
+        zapperUniV2,
+        zapperUniV3,
+    ] = await Promise.all([
         zapManagerContract.protocolImplementations('UniswapV2'),
         zapManagerContract.protocolImplementations('UniswapV3'),
     ])
 
     await saveAddress('SubscriptionManager', subscriptionManager.proxy)
+    await saveAddress('InvestLib', investLib)
     await saveAddress('StrategyManager', strategyManager.proxy)
     await saveAddress('DollarCostAverage', dca.proxy)
     await saveAddress('VaultManager', vaultManager.proxy)
+    await saveAddress('LiquidityManager',liquidityManager.proxy)
+    await saveAddress('ExchangeManager', exchangeManager.proxy)
     await saveAddress('ZapManager', zapManager.proxy)
     await saveAddress('ZapperUniswapV2', zapperUniV2)
     await saveAddress('ZapperUniswapV3', zapperUniV3)
@@ -162,10 +213,15 @@ async function deployProject() {
         strategyManager,
         dca,
         vaultManager,
+        liquidityManager,
+        exchangeManager,
         zapManager,
     ]
 
-    const implementations = contractAddresses.map(({ implementation }) => implementation)
+    const implementations = [
+        ...contractAddresses.map(({ implementation }) => implementation),
+        investLib,
+    ]
 
     await verify(
         zapperUniV2,
