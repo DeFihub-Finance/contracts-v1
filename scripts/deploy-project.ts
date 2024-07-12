@@ -51,6 +51,8 @@ async function deployProject() {
     const strategyDeploymentInfo = await getDeploymentInfo(saltBuilder, 'StrategyManager')
     const dcaDeploymentInfo = await getDeploymentInfo(saltBuilder, 'DollarCostAverage')
     const vaultDeploymentInfo = await getDeploymentInfo(saltBuilder, 'VaultManager')
+    const liquidityDeploymentInfo = await getDeploymentInfo(saltBuilder, 'LiquidityManager')
+    const exchangeDeploymentInfo = await getDeploymentInfo(saltBuilder, 'ExchangeManager')
     const zapManagerInfo = await getDeploymentInfo(saltBuilder, 'ZapManager')
 
     await sendTransaction(
@@ -76,6 +78,16 @@ async function deployProject() {
     await sendTransaction(
         await projectDeployer.deployVaultManager
             .populateTransaction(vaultDeploymentInfo),
+        deployer,
+    )
+    await sendTransaction(
+        await projectDeployer.deployLiquidityManager
+            .populateTransaction(liquidityDeploymentInfo),
+        deployer,
+    )
+    await sendTransaction(
+        await projectDeployer.deployExchangeManager
+            .populateTransaction(exchangeDeploymentInfo),
         deployer,
     )
     await sendTransaction(
