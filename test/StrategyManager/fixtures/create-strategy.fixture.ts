@@ -18,7 +18,7 @@ export async function createStrategyFixture() {
         subscriptionSignature,
         ...rest
     } = await baseStrategyManagerFixture()
-    const nameBioHash = keccak256(new TextEncoder().encode('Name' + 'Bio'))
+    const metadataHash = keccak256(new TextEncoder().encode('Name' + 'Bio'))
 
     await strategyManager.setHotStrategistPercentage(30)
 
@@ -46,7 +46,7 @@ export async function createStrategyFixture() {
             await account0.getAddress(),
             await NetworkService.getBlockTimestamp() + 10_000,
         ),
-        metadataHash: nameBioHash,
+        metadataHash,
     })
 
     //////////////////////////////////////////////
@@ -61,7 +61,7 @@ export async function createStrategyFixture() {
             await account0.getAddress(),
             await NetworkService.getBlockTimestamp() + 10_000,
         ),
-        metadataHash: nameBioHash,
+        metadataHash,
     })
 
     return {
