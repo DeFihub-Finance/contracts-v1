@@ -19,7 +19,7 @@ import { baseStrategyManagerFixture } from './fixtures/base.fixture'
 //          => then emits event HotStrategistPercentageUpdated
 // => setHottestStrategies
 //      => when list of strategies is larger than max hottest strategies
-//          => then reverts with TooManyUsers
+//          => then reverts with LimitExceeded
 //      => when list of strategies is smaller than max hottest strategies
 //          => then sets old strategies to not hot
 //          => then sets the new strategies to hot
@@ -110,12 +110,12 @@ describe('StrategyManager#setters', () => {
 
     describe('#setHottestStrategies', () => {
         describe('when list of strategies is larger than max hottest strategies', () => {
-            it('then revert with TooManyUsers', async () => {
+            it('then revert with LimitExceeded', async () => {
                 const strategyIds = new Array(11).fill(0).map((_, index) => index)
 
                 const tx = strategyManager.setHottestStrategies(strategyIds)
 
-                await expect(tx).to.revertedWithCustomError(strategyManager, 'TooManyUsers')
+                await expect(tx).to.revertedWithCustomError(strategyManager, 'LimitExceeded')
             })
         })
 

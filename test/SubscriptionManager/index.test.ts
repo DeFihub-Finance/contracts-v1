@@ -32,11 +32,11 @@ describe('SubscriptionManager', () => {
     describe('#subscribe', async () => {
         describe('EFFECTS', () => {
             it('transfer the amount of an yearly subscription to treasury', async () => {
-                const balanceBefore = await subscriptionToken.balanceOf(await treasury.getAddress())
+                const balanceBefore = await subscriptionToken.balanceOf(treasury)
 
                 await subscriptionManager.connect(account0).subscribe()
 
-                const balanceAfter = await subscriptionToken.balanceOf(await treasury.getAddress())
+                const balanceAfter = await subscriptionToken.balanceOf(treasury)
                 const yearlySubscriptionPrice = subscriptionMonthlyPrice * 12n
 
                 expect(balanceAfter - balanceBefore).to.be.equals(yearlySubscriptionPrice)
@@ -109,7 +109,7 @@ describe('SubscriptionManager', () => {
                 )
 
                 const isSubscribed = await subscriptionManager.isSubscribed(
-                    await account0.getAddress(),
+                    account0,
                     signature,
                 )
 
@@ -126,7 +126,7 @@ describe('SubscriptionManager', () => {
                 )
 
                 const isSubscribed = subscriptionManager.isSubscribed(
-                    await account0.getAddress(),
+                    account0,
                     signature,
                 )
 
@@ -142,7 +142,7 @@ describe('SubscriptionManager', () => {
                     )
 
                 const isSubscribed = subscriptionManager.isSubscribed(
-                    await account0.getAddress(),
+                    account0,
                     signature,
                 )
 

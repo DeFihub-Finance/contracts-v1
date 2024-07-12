@@ -57,7 +57,8 @@ describe('DCA#createPool', () => {
                     router,
                     nextSwapAmount,
                     performedSwaps,
-                }, poolPath,
+                },
+                poolPath,
             ] = await Promise.all([
                 dca.getPool(poolId),
                 dca.poolPath(poolId),
@@ -104,7 +105,7 @@ describe('DCA#createPool', () => {
                 TWENTY_FOUR_HOURS_IN_SECONDS,
             )
 
-            expect(tx).to.be.revertedWithCustomError(dca, 'InvalidPoolPath')
+            await expect(tx).to.be.revertedWithCustomError(dca, 'InvalidPoolPath')
         })
 
         it('if poolPath[length - 1] is different than tokenOut', async () => {
@@ -119,7 +120,7 @@ describe('DCA#createPool', () => {
                 TWENTY_FOUR_HOURS_IN_SECONDS,
             )
 
-            expect(tx).to.be.revertedWithCustomError(dca, 'InvalidPoolPath')
+            await expect(tx).to.be.revertedWithCustomError(dca, 'InvalidPoolPath')
         })
 
         it('if EOA is not owner', async () => {

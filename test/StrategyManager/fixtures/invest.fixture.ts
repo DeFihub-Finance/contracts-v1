@@ -18,11 +18,8 @@ export async function investFixture() {
     const deadline = await NetworkService.getBlockTimestamp() + 10_000
 
     await Promise.all([
-        stablecoin.mint(await account1.getAddress(), amountToInvest),
-        stablecoin.connect(account1).approve(
-            await strategyManager.getAddress(),
-            amountToInvest,
-        ),
+        stablecoin.mint(account1, amountToInvest),
+        stablecoin.connect(account1).approve(strategyManager, amountToInvest),
     ])
 
     await strategyManager.connect(account1).invest({

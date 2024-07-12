@@ -51,7 +51,7 @@ describe('DCA#swap', () => {
             POOL_FEE,
         } = await loadFixture(createDepositFixture))
 
-        dcaOutputTokenBalanceBefore = await weth.balanceOf(await dca.getAddress())
+        dcaOutputTokenBalanceBefore = await weth.balanceOf(dca)
 
         expectedSwapAmountOut = await UniswapV3.getOutputTokenAmount(
             quoterUniV3,

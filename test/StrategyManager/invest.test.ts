@@ -501,14 +501,13 @@ describe('StrategyManager#invest', () => {
             })
 
             it('send fees to treasury', async () => {
-                const treasuryAddress = await treasury.getAddress()
-                const treasuryBalanceBefore = await stablecoin.balanceOf(treasuryAddress)
+                const treasuryBalanceBefore = await stablecoin.balanceOf(treasury)
                 const baseFee = ContractFees.getBaseFee(amountToInvest)
                 const strategistFee = ContractFees.getStrategistFee(baseFee)
 
                 await invest(account1)
 
-                const treasuryBalanceDelta = (await stablecoin.balanceOf(treasuryAddress)) - treasuryBalanceBefore
+                const treasuryBalanceDelta = (await stablecoin.balanceOf(treasury)) - treasuryBalanceBefore
 
                 expect(treasuryBalanceDelta).to.be.equal(baseFee - strategistFee)
             })
@@ -531,8 +530,7 @@ describe('StrategyManager#invest', () => {
             })
 
             it('send fees to treasury', async () => {
-                const treasuryAddress = await treasury.getAddress()
-                const treasuryBalanceBefore = await stablecoin.balanceOf(treasuryAddress)
+                const treasuryBalanceBefore = await stablecoin.balanceOf(treasury)
 
                 const baseFee = ContractFees.getBaseFee(amountToInvest)
                 const strategistFee = baseFee * 30n / 100n
@@ -540,7 +538,7 @@ describe('StrategyManager#invest', () => {
                 await strategyManager.setHottestStrategies([0])
                 await invest(account1)
 
-                const treasuryBalanceDelta = (await stablecoin.balanceOf(treasuryAddress)) - treasuryBalanceBefore
+                const treasuryBalanceDelta = (await stablecoin.balanceOf(treasury)) - treasuryBalanceBefore
 
                 expect(treasuryBalanceDelta).to.be.equal(baseFee - strategistFee)
             })

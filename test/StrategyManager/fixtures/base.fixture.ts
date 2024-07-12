@@ -43,7 +43,7 @@ export async function baseStrategyManagerFixture() {
     ////////////////////////////////////
     const vault = await deployVaultFixture(await stablecoin.getAddress())
 
-    await vaultManager.setVaultWhitelistStatus(await vault.getAddress(), true)
+    await vaultManager.setVaultWhitelistStatus(vault, true)
 
     const TOKEN_IN = await stablecoin.getAddress()
     const TOKEN_OUT = await weth.getAddress()
@@ -67,13 +67,11 @@ export async function baseStrategyManagerFixture() {
         account0,
     )
 
-    const routerAddress = await routerUniV3.getAddress()
-
     await Promise.all([
         dca.createPool(
             TOKEN_IN,
             TOKEN_OUT,
-            routerAddress,
+            routerUniV3,
             await path.encodedPath(),
             60 * 60 * 24, // 24 hours in seconds
         ),
@@ -81,17 +79,17 @@ export async function baseStrategyManagerFixture() {
         dca.createPool(
             TOKEN_IN,
             TOKEN_OUT,
-            routerAddress,
+            routerUniV3,
             await path.encodedPath(),
             60 * 60 * 24, // 24 hours in seconds
         ),
 
         dca.createPool(
-            await anotherToken.getAddress(),
+            anotherToken,
             TOKEN_OUT,
-            routerAddress,
+            routerUniV3,
             await new PathUniswapV3(
-                await anotherToken.getAddress(),
+                anotherToken,
                 [{ token: TOKEN_OUT, fee: 3000 }],
             ).encodedPath(),
             60 * 60 * 24, // 24 hours in seconds
@@ -122,7 +120,7 @@ export async function baseStrategyManagerFixture() {
     ]
     const vaultStrategyPosition: InvestLib.VaultInvestmentStruct[] = [
         {
-            vault: await vault.getAddress(),
+            vault,
             percentage: 34,
         },
     ]
