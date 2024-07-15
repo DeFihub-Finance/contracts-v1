@@ -131,7 +131,7 @@ export async function baseStrategyManagerFixture() {
     const stablecoinPriced = await mockTokenWithAddress(USD_PRICE_BN, 18, stablecoin)
     const wethPriced = await mockTokenWithAddress(ETH_PRICE_BN, 18, weth)
 
-    const tokenMap = new Map<string, ERC20Priced>([
+    const erc20PricedMap = new Map<string, ERC20Priced>([
         [stablecoinPriced.address, stablecoinPriced],
         [wethPriced.address, wethPriced],
     ])
@@ -172,7 +172,7 @@ export async function baseStrategyManagerFixture() {
         USD_PRICE_BN,
         ETH_PRICE_BN,
 
-        tokenMap,
+        erc20PricedMap,
         ...rest,
     }
 }

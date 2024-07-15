@@ -63,11 +63,14 @@ export class Fees {
                 exchangeNonSubscriberFeeBP * tokensPercentage
             ).toString(),
         ).div(10_000)
-        const strategistFee = baseFee.times(strategistPercentage.toString()).div(100)
+
+        const totalFee = baseFee.plus(nonSubscriberFee)
+        const strategistFee = totalFee
+            .times(strategistPercentage.toString())
+            .div(100)
 
         return {
-            protocolFee: baseFee.minus(strategistFee),
-            nonSubscriberFee,
+            protocolFee: totalFee.minus(strategistFee),
             strategistFee,
         }
     }
@@ -84,7 +87,6 @@ export class Fees {
     ) {
         const {
             protocolFee,
-            nonSubscriberFee,
             strategistFee,
         } = await Fees.getStrategyFeePercentage(
             strategyManager,
@@ -97,8 +99,10 @@ export class Fees {
         )
         const amountBN = new BigNumber(amount.toString())
 
+        console.log({ protocolFee: protocolFee.toNumber(), amount })
+
         return {
-            protocolFee: BigInt(amountBN.times(protocolFee.plus(nonSubscriberFee).div(100)).toString()),
+            protocolFee: BigInt(amountBN.times(protocolFee.div(100)).toString()),
             strategistFee: BigInt(amountBN.times(strategistFee.div(100)).toString()),
         }
     }

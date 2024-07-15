@@ -13,7 +13,6 @@ import {
 import { InvestLib } from '@src/typechain/artifacts/contracts/StrategyManager'
 import { SubscriptionSignature } from '@src/SubscriptionSignature'
 import { NetworkService } from '@src/NetworkService'
-import { ContractFees } from '@src/ContractFees'
 import { createStrategyFixture } from './fixtures/create-strategy.fixture'
 import {
     decodeLowLevelCallError,
@@ -48,15 +47,19 @@ import { Fees } from '@src/helpers/Fees'
 // => if strategyId doesn't exist
 // => if swap paths are different than the vaults length in strategy
 // => if swap paths are different than the dca length in strategy
-describe('StrategyManager#invest', () => {
+describe.only('StrategyManager#invest', () => {
     const SLIPPAGE_BN = new BigNumber(0.01)
     const amountToInvest = parseEther('10')
 
+    // TODO this could be confusing, probably its better to remove it.
     let amountWithDeductedFees: bigint
 
     // accounts
+    /** Strategiest */
     let account0: Signer
+    /** Subscribed Investor */
     let account1: Signer
+    /** Non Subscribed Investor */
     let account2: Signer
     let treasury: Signer
 
@@ -71,7 +74,6 @@ describe('StrategyManager#invest', () => {
     // hub contracts
     let vault: TestVault
     let dca: DollarCostAverage
-    let strategyManagerAddress: string
     let strategyManager: StrategyManager
     let liquidityManager: UseFee
     let vaultManager: UseFee
@@ -84,8 +86,6 @@ describe('StrategyManager#invest', () => {
     // global data
     let deadline: number
     let subscriptionSignature: SubscriptionSignature
-    let dcaStrategyPositions: InvestLib.DcaInvestmentStruct[]
-    let vaultStrategyPosition: InvestLib.VaultInvestmentStruct[]
     let investments: {
         dcaInvestments: InvestLib.DcaInvestmentStructOutput[],
         vaultInvestments: InvestLib.VaultInvestmentStructOutput[],
@@ -94,8 +94,9 @@ describe('StrategyManager#invest', () => {
     }
 
     let strategyId = 0n
-    let tokenMap: Map<string, ERC20Priced>
+    let erc20PricedMap: Map<string, ERC20Priced>
 
+    // TODO remove hardcoded swaps
     const vaultSwaps = ['0x']
     const dcaSwaps = ['0x', '0x']
 
@@ -108,6 +109,23 @@ describe('StrategyManager#invest', () => {
             amount,
             strategyManager,
             _strategyId,
+            isSubscribed,
+            dca,
+            vaultManager,
+            liquidityManager,
+            exchangeManager,
+        )
+    }
+
+    function getStrategyFeeAmount(
+        amount: bigint,
+        strategyId: bigint,
+        isSubscribed = true,
+    ) {
+        return Fees.getStrategyFeeAmount(
+            amount,
+            strategyManager,
+            strategyId,
             isSubscribed,
             dca,
             vaultManager,
@@ -166,9 +184,12 @@ describe('StrategyManager#invest', () => {
         liquidityInvestments: InvestLib.LiquidityInvestmentStructOutput[],
     ): Promise<InvestLib.LiquidityInvestZapParamsStruct[]> {
         return Promise.all(liquidityInvestments.map(async investment => {
-            const [token0, token1] = [
-                tokenMap.get(investment.token0),
-                tokenMap.get(investment.token1),
+            const [
+                token0,
+                token1,
+            ] = [
+                erc20PricedMap.get(investment.token0),
+                erc20PricedMap.get(investment.token1),
             ]
 
             if (!token0 || !token1)
@@ -238,40 +259,67 @@ describe('StrategyManager#invest', () => {
                 strategiestAddress,
                 blockTimestamp + 10_000,
             ),
-            metadataHash: ZeroHash, // TODO use encoded text
+            metadataHash: ZeroHash, // TODO maybe use encoded text
         })
 
         return strategyId
     }
 
-    async function _invest(
-        amount: bigint,
-        strategyId: bigint,
-        investor: Signer,
-    ) {
-        const {
-            dcaInvestments,
-            vaultInvestments,
-            liquidityInvestments,
-        } = await strategyManager.getStrategyInvestments(strategyId)
-        const liquidityZaps = await getLiquidityZaps(amount, liquidityInvestments)
+    // TODO maybe make a separate function to get only invest params
+    async function _invest(investor: Signer, {
+        _amount = amountToInvest,
+        _strategyId = strategyId,
+        _investorSubscribed = true,
+        _strategiestSubscribed = true,
+    }: {
+        _amount?: bigint,
+        _strategyId?: bigint,
+        _investorSubscribed?: boolean,
+        _strategiestSubscribed?: boolean,
+    } = {
+        _amount: amountToInvest,
+        _strategyId: strategyId,
+        _investorSubscribed: true,
+        _strategiestSubscribed: true,
+    }) {
+        const deadlineInvestor = _investorSubscribed ? deadline : 0
+        const deadlineStrategist = _strategiestSubscribed ? deadline : 0
+
+        const [
+            {
+                dcaInvestments,
+                vaultInvestments,
+                liquidityInvestments,
+            },
+            amountWithDeductedFees,
+            investorPermit,
+            strategistPermit,
+        ] = await Promise.all([
+            strategyManager.getStrategyInvestments(_strategyId),
+            deductFees(_amount, _strategyId, _investorSubscribed /* _strategiestSubscribed */),
+            subscriptionSignature
+                .signSubscriptionPermit(await investor.getAddress(), deadlineInvestor),
+            subscriptionSignature
+                .signSubscriptionPermit(await account0.getAddress(), deadlineStrategist),
+        ])
+
+        const liquidityZaps = await getLiquidityZaps(amountWithDeductedFees, liquidityInvestments)
 
         return strategyManager.connect(investor).invest({
-            strategyId,
+            strategyId: _strategyId,
             inputToken: stablecoin,
-            inputAmount: amountToInvest,
+            inputAmount: _amount,
             inputTokenSwap: '0x',
             dcaSwaps: dcaInvestments.map(_ => '0x'),
             vaultSwaps: vaultInvestments.map(_ => '0x'),
             liquidityZaps,
             tokenSwaps: [], // TODO
-            investorPermit: await subscriptionSignature
-                .signSubscriptionPermit(await investor.getAddress(), deadline),
-            strategistPermit: await subscriptionSignature
-                .signSubscriptionPermit(await account0.getAddress(), deadline),
+            investorPermit,
+            strategistPermit,
         })
     }
 
+    // TODO remove old function
     async function invest(account: Signer, {
         _strategyId = strategyId,
         _dcaSwaps = dcaSwaps,
@@ -327,7 +375,6 @@ describe('StrategyManager#invest', () => {
             dca,
             vault,
             strategyManager,
-            strategyManagerAddress,
             liquidityManager,
             vaultManager,
             exchangeManager,
@@ -337,11 +384,8 @@ describe('StrategyManager#invest', () => {
             factoryUniV3,
 
             // global data
-            dcaStrategyPositions,
-            vaultStrategyPosition,
             subscriptionSignature,
-
-            tokenMap,
+            erc20PricedMap,
         } = await loadFixture(createStrategyFixture))
 
         const { token0, token1 } = UniswapV3.sortTokens(stablecoinPriced, wethPriced)
@@ -385,146 +429,145 @@ describe('StrategyManager#invest', () => {
 
     describe('EFFECTS', () => {
         describe('when user is subscribed', () => {
-            it.only('create investment position in dca, vaults and liquidity', async () => {
-                await _invest(amountWithDeductedFees, strategyId, account1)
+            it('create investment position in dca, vaults and liquidity', async () => {
+                await _invest(account1)
 
                 const [
                     dcaPosition0,
                     dcaPosition1,
                     dcaPositionBalance0,
                     dcaPositionBalance1,
+                    vaultPositionBalance,
+                    positionId,
                 ] = await Promise.all([
-                    dca.getPosition(strategyManagerAddress, 0),
-                    dca.getPosition(strategyManagerAddress, 1),
-                    dca.getPositionBalances(strategyManagerAddress, 0),
-                    dca.getPositionBalances(strategyManagerAddress, 1),
+                    dca.getPosition(strategyManager, 0),
+                    dca.getPosition(strategyManager, 1),
+                    dca.getPositionBalances(strategyManager, 0),
+                    dca.getPositionBalances(strategyManager, 1),
+                    vault.balanceOf(strategyManager),
+                    positionManagerUniV3.tokenOfOwnerByIndex(strategyManager, 0),
                 ])
 
                 /////////////////////
                 // DCA Position 0 //
                 ///////////////////
-                const expectedDcaPositionBalance0 = await Fees.deductProductFee(
-                    amountToInvest * investments.dcaInvestments[0].percentage / 100n,
-                    true,
-                    dca,
-                )
-
                 expect(dcaPosition0.swaps).to.be.equal(investments.dcaInvestments[0].swaps)
                 expect(dcaPosition0.poolId).to.be.equal(investments.dcaInvestments[0].poolId)
-                expect(dcaPositionBalance0.inputTokenBalance).to.be.equal(expectedDcaPositionBalance0)
+                expect(dcaPositionBalance0.inputTokenBalance)
+                    .to.be.equal(amountWithDeductedFees * investments.dcaInvestments[0].percentage / 100n)
 
                 /////////////////////
                 // DCA Position 1 //
                 ///////////////////
-                const expectedDcaPositionBalance1 = await Fees.deductProductFee(
-                    amountToInvest * investments.dcaInvestments[1].percentage / 100n,
-                    true,
-                    dca,
-                )
-
                 expect(dcaPosition1.swaps).to.be.equal(investments.dcaInvestments[1].swaps)
                 expect(dcaPosition1.poolId).to.be.equal(investments.dcaInvestments[1].poolId)
-                expect(dcaPositionBalance1.inputTokenBalance).to.be.equal(expectedDcaPositionBalance1)
+                expect(dcaPositionBalance1.inputTokenBalance)
+                    .to.be.equal(amountWithDeductedFees * investments.dcaInvestments[1].percentage / 100n)
 
                 ////////////////////
                 // VaultPosition //
                 //////////////////
-                const expectVaultPositionBalance = await Fees.deductProductFee(
-                    amountToInvest * BigInt(investments.vaultInvestments[0].percentage) / 100n,
-                    true,
-                    vaultManager,
-                )
+                expect(vaultPositionBalance)
+                    .to.be.equal(amountWithDeductedFees * investments.vaultInvestments[0].percentage / 100n)
 
-                expect(await vault.balanceOf(strategyManagerAddress)).to.be.equal(expectVaultPositionBalance)
+                ////////////////////////
+                // LiquidityPosition //
+                //////////////////////
+                const liquidityPosition = await positionManagerUniV3.positions(positionId)
+
+                // TODO check ticks and liquidity
+                expect(liquidityPosition.token0).to.be.equal(investments.liquidityInvestments[0].token0)
+                expect(liquidityPosition.token1).to.be.equal(investments.liquidityInvestments[0].token1)
+                expect(liquidityPosition.fee).to.be.equal(investments.liquidityInvestments[0].fee)
+                expect(await positionManagerUniV3.getAddress())
+                    .to.be.equal(investments.liquidityInvestments[0].positionManager)
             })
         })
 
         describe('when user is not subscribed', () => {
             it('create investment position in dca and vaults', async () => {
-                await invest(account2, { _deadlineInvestor: 0 })
+                await _invest(account2, { _investorSubscribed: false })
 
                 const [
                     dcaPosition0,
                     dcaPosition1,
                     dcaPositionBalance0,
                     dcaPositionBalance1,
+                    vaultPositionBalance,
+                    amountWithDeductedFees,
                 ] = await Promise.all([
-                    dca.getPosition(strategyManagerAddress, 0),
-                    dca.getPosition(strategyManagerAddress, 1),
-                    dca.getPositionBalances(strategyManagerAddress, 0),
-                    dca.getPositionBalances(strategyManagerAddress, 1),
+                    dca.getPosition(strategyManager, 0),
+                    dca.getPosition(strategyManager, 1),
+                    dca.getPositionBalances(strategyManager, 0),
+                    dca.getPositionBalances(strategyManager, 1),
+                    vault.balanceOf(strategyManager),
+                    deductFees(amountToInvest, strategyId, false),
                 ])
 
                 /////////////////////
                 // DCA Position 0 //
                 ///////////////////
-                const baseAmountToDCAPosition0 = amountToInvest * BigInt(dcaStrategyPositions[0].percentage) / 100n
-                const expectedDcaPositionBalance0 = ContractFees.discountNonSubscriberFee(baseAmountToDCAPosition0)
-
                 expect(dcaPosition0.swaps).to.be.equal(investments.dcaInvestments[0].swaps)
                 expect(dcaPosition0.poolId).to.be.equal(investments.dcaInvestments[0].poolId)
-                expect(dcaPositionBalance0.inputTokenBalance).to.be.equal(expectedDcaPositionBalance0)
+                expect(dcaPositionBalance0.inputTokenBalance)
+                    .to.be.equal(amountWithDeductedFees * investments.dcaInvestments[0].percentage / 100n)
 
                 /////////////////////
                 // DCA Position 1 //
                 ///////////////////
-                const baseAmountToDCAPosition1 = amountToInvest * BigInt(dcaStrategyPositions[1].percentage) / 100n
-                const expectedDcaPositionBalance1 = ContractFees.discountNonSubscriberFee(baseAmountToDCAPosition1)
-
                 expect(dcaPosition1.swaps).to.be.equal(investments.dcaInvestments[1].swaps)
                 expect(dcaPosition1.poolId).to.be.equal(investments.dcaInvestments[1].poolId)
-                expect(dcaPositionBalance1.inputTokenBalance).to.be.equal(expectedDcaPositionBalance1)
+                expect(dcaPositionBalance1.inputTokenBalance)
+                    .to.be.equal(amountWithDeductedFees * investments.dcaInvestments[0].percentage / 100n)
 
                 ////////////////////
                 // VaultPosition //
                 //////////////////
-                const expectVaultPositionBalance = ContractFees.discountNonSubscriberFee(
-                    amountToInvest * BigInt(vaultStrategyPosition[0].percentage) / 100n,
-                )
+                expect(vaultPositionBalance)
+                    .to.be.equal(amountWithDeductedFees * investments.vaultInvestments[0].percentage / 100n)
 
-                expect(await vault.balanceOf(strategyManagerAddress)).to.be.equal(expectVaultPositionBalance)
+                // TODO check liquidity position
             })
         })
 
         describe('when strategist is subscribed and strategy is not hot', async () => {
             it('increase strategist rewards', async () => {
-                const strategistAddress = await account0.getAddress()
-                const baseFee = ContractFees.getBaseFee(amountToInvest)
-                const strategistFee = ContractFees.getStrategistFee(baseFee)
-                const strategistRewardsBefore = await strategyManager.getStrategistRewards(strategistAddress)
+                const strategistRewardsBefore = await strategyManager.getStrategistRewards(account0)
 
-                await invest(account1)
+                await _invest(account1)
 
-                const strategistRewardsDelta = (await strategyManager.getStrategistRewards(strategistAddress)) - strategistRewardsBefore
+                const { strategistFee } = await getStrategyFeeAmount(amountToInvest, strategyId)
+                const strategistRewardsDelta = (await strategyManager.getStrategistRewards(account0)) - strategistRewardsBefore
 
                 expect(strategistRewardsDelta).to.be.equal(strategistFee)
             })
 
             it('send fees to treasury', async () => {
+                /*
+                    TODO Treasury calculation is wrong since some left dust from
+                    adding liquidity is immediately sent to treasury. Maybe we could
+                    let the dust accumulate and add a function to collect it when we want.
+                */
                 const treasuryBalanceBefore = await stablecoin.balanceOf(treasury)
-                const baseFee = ContractFees.getBaseFee(amountToInvest)
-                const strategistFee = ContractFees.getStrategistFee(baseFee)
 
-                await invest(account1)
+                await _invest(account1)
 
+                const { protocolFee } = await getStrategyFeeAmount(amountToInvest, strategyId)
                 const treasuryBalanceDelta = (await stablecoin.balanceOf(treasury)) - treasuryBalanceBefore
 
-                expect(treasuryBalanceDelta).to.be.equal(baseFee - strategistFee)
+                expect(treasuryBalanceDelta).to.be.equal(protocolFee)
             })
         })
 
         describe('when strategist is subscribed and strategy is hot', async () => {
             it('increase strategist rewards', async () => {
-                const strategistAddress = await account0.getAddress()
-                const strategistRewardsBefore = await strategyManager.getStrategistRewards(strategistAddress)
-
-                const baseFee = ContractFees.getBaseFee(amountToInvest)
-                const strategistFee = baseFee * 30n / 100n
+                const strategistRewardsBefore = await strategyManager.getStrategistRewards(account0)
 
                 await strategyManager.setHottestStrategies([0])
-                await invest(account2)
+                await _invest(account2, { _investorSubscribed: false })
 
-                const strategistRewardsDelta = (await strategyManager.getStrategistRewards(strategistAddress)) - strategistRewardsBefore
+                const { strategistFee } = await getStrategyFeeAmount(amountToInvest, strategyId, false)
+                const strategistRewardsDelta = (await strategyManager.getStrategistRewards(account0)) - strategistRewardsBefore
 
                 expect(strategistRewardsDelta).to.be.equal(strategistFee)
             })
@@ -532,58 +575,60 @@ describe('StrategyManager#invest', () => {
             it('send fees to treasury', async () => {
                 const treasuryBalanceBefore = await stablecoin.balanceOf(treasury)
 
-                const baseFee = ContractFees.getBaseFee(amountToInvest)
-                const strategistFee = baseFee * 30n / 100n
-
                 await strategyManager.setHottestStrategies([0])
-                await invest(account1)
+                await _invest(account1)
 
+                const { protocolFee } = await getStrategyFeeAmount(amountToInvest, strategyId)
                 const treasuryBalanceDelta = (await stablecoin.balanceOf(treasury)) - treasuryBalanceBefore
 
-                expect(treasuryBalanceDelta).to.be.equal(baseFee - strategistFee)
+                expect(treasuryBalanceDelta).to.be.equal(protocolFee)
             })
         })
 
         describe('when strategist is not subscribed', () => {
             let strategist: string
-            let investor: string
             let initialStrategistRewards: bigint
 
             beforeEach(async () => {
                 strategist = await strategyManager.getStrategyCreator(strategyId)
-                investor = await account2.getAddress()
                 initialStrategistRewards = await strategyManager
                     .getStrategistRewards(strategist)
             })
 
             it('subscribed user sends strategist rewards to treasury', async () => {
-                const tx = await invest(account2, { _deadlineStrategist: 0 })
+                const tx = await _invest(account1, { _strategiestSubscribed: false })
 
                 const finalStrategistRewards = await strategyManager
                     .getStrategistRewards(strategist)
 
                 expect(finalStrategistRewards).to.be.equal(initialStrategistRewards)
 
+                // TODO take strategiest subscription into consideration
+                const { protocolFee } = await getStrategyFeeAmount(amountToInvest, strategyId)
+
                 await expect(tx).to.emit(strategyManager, 'Fee').withArgs(
-                    investor,
+                    account1,
                     treasury,
-                    ContractFees.getBaseFee(amountToInvest),
+                    protocolFee,
                     AbiCoder.defaultAbiCoder().encode(['uint'], [strategyId]),
                 )
             })
 
             it('unsubscribed user sends strategist rewards to treasury', async () => {
-                const tx = await invest(account2, { _deadlineInvestor: 0, _deadlineStrategist: 0 })
+                const tx = await _invest(account2, { _investorSubscribed: false, _strategiestSubscribed: false })
 
                 const finalStrategistRewards = await strategyManager
                     .getStrategistRewards(strategist)
 
                 expect(finalStrategistRewards).to.be.equal(initialStrategistRewards)
 
+                // TODO take strategiest subscription into consideration
+                const { protocolFee } = await getStrategyFeeAmount(amountToInvest, strategyId, false)
+
                 await expect(tx).to.emit(strategyManager, 'Fee').withArgs(
-                    investor,
+                    account2,
                     treasury,
-                    ContractFees.getNonSubscriberFee(amountToInvest),
+                    protocolFee,
                     AbiCoder.defaultAbiCoder().encode(['uint'], [strategyId]),
                 )
             })
@@ -592,13 +637,11 @@ describe('StrategyManager#invest', () => {
 
     describe('SIDE-EFFECT', () => {
         it('save position in the array of investments', async () => {
-            const account1Address = await account1.getAddress()
+            await _invest(account1)
 
-            await invest(account1)
-
-            const investmentsLength = await strategyManager.getPositionsLength(account1Address)
-            const position = await strategyManager.getPosition(account1Address, 0)
-            const investments = await strategyManager.getPositionInvestments(account1Address, 0)
+            const investmentsLength = await strategyManager.getPositionsLength(account1)
+            const position = await strategyManager.getPosition(account1, 0)
+            const investments = await strategyManager.getPositionInvestments(account1, 0)
 
             expect(investmentsLength).to.be.equal(1n)
             expect(position.strategyId).to.be.equal(0n)
@@ -607,25 +650,22 @@ describe('StrategyManager#invest', () => {
         })
 
         it('emits PositionCreated event', async () => {
-            const account1Address = await account1.getAddress()
-            const tx = invest(account1)
+            const tx = _invest(account1)
 
             await expect(tx)
                 .to.emit(strategyManager, 'PositionCreated')
                 .withArgs(
-                    account1Address,
+                    account1,
                     0,
                     0,
                     stablecoin,
                     amountToInvest,
-                    ContractFees.discountBaseFee(amountToInvest),
+                    amountWithDeductedFees,
                     [0, 1],
                     [
                         [
                             await vault.getAddress(),
-                            ContractFees.discountBaseFee(
-                                amountToInvest * BigInt(vaultStrategyPosition[0].percentage) / 100n,
-                            ),
+                            amountWithDeductedFees * investments.vaultInvestments[0].percentage / 100n,
                         ],
                     ],
                     [],
@@ -662,6 +702,12 @@ describe('StrategyManager#invest', () => {
                 expect(decodedError.name).to.be.equal('InvalidParamsLength')
             }
         })
+
+        // it('if swap paths are different than the liquidity length in strategy', async () => {
+        //     const tx = invest(account2, { _liquidityZaps: [] })
+
+        //     await expect(tx).to.be.revertedWithCustomError(strategyManager, 'InvalidParamsLength')
+        // })
 
         it('if strategyId do not exist', async () => {
             const tx = invest(account2, { _strategyId: 99 })
