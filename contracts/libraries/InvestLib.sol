@@ -17,6 +17,7 @@ library InvestLib {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     error InvalidParamsLength();
+    error InsufficientFunds();
 
     /**
      * Investment structs
@@ -334,12 +335,16 @@ library InvestLib {
         for (uint i; i < _params.investments.length; ++i) {
             LiquidityInvestment memory investment = _params.investments[i];
             LiquidityInvestZapParams memory zap = _params.zaps[i];
+            uint currentInvestmentAmount = _params.amount * investment.percentage / 100;
+
+            if (zap.swapAmountToken0 + zap.swapAmountToken1 > currentInvestmentAmount)
+                revert InsufficientFunds();
 
             (uint tokenId, uint128 liquidity) = _params.liquidityManager.investUniswapV3UsingStrategy(
                 LiquidityManager.InvestUniswapV3Params({
                     positionManager: investment.positionManager,
                     inputToken: _params.inputToken,
-                    depositAmountInputToken: _params.amount * investment.percentage / 100,
+                    depositAmountInputToken: currentInvestmentAmount,
                     token0: investment.token0,
                     token1: investment.token1,
                     fee: investment.fee,
@@ -360,8 +365,6 @@ library InvestLib {
                 liquidity
             );
         }
-
-        _params.liquidityManager.sendDust(_params.inputToken, _params.treasury);
 
         return liquidityPositions;
     }
