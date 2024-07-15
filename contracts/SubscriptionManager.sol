@@ -36,6 +36,7 @@ contract SubscriptionManager is HubOwnable, UseTreasury, EIP712Upgradeable {
     uint constant public ONE_MONTH = 30 days;
 
     event Subscribed(address user);
+    event SubscriptionSignerUpdated(address subscriptionSigner);
     event PricePerMonthUpdated(uint pricePerMonth);
 
     error InvalidSignature();
@@ -79,6 +80,12 @@ contract SubscriptionManager is HubOwnable, UseTreasury, EIP712Upgradeable {
             revert InvalidSignature();
 
         return true;
+    }
+
+    function setSubscriptionSigner(address _subscriptionSigner) external virtual onlyOwner {
+        subscriptionSigner = _subscriptionSigner;
+
+        emit SubscriptionSignerUpdated(_subscriptionSigner);
     }
 
     function setSubscriptionPrice(uint _pricePerMonth) external virtual onlyOwner {
