@@ -1,6 +1,6 @@
-import { PathUniswapV3 } from '@defihub/shared'
-import { tokens } from '@src/constants'
 import { ChainIds } from '@ryze-blockchain/ethereum'
+import { PathUniswapV3 } from '@defihub/shared'
+import { tokens } from '../tokens'
 
 const bnbTokens = tokens[ChainIds.BNB]
 
