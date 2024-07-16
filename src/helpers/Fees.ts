@@ -8,23 +8,18 @@ export class Fees {
         strategyManager: StrategyManager,
         strategyId: BigNumberish,
         subscribedUser: boolean,
+        subscribedStrategiest: boolean,
         dca: UseFee,
         vaultManager: UseFee,
         liquidityManager: UseFee,
         exchangeManager: UseFee,
     ) {
-        const [
-            isHottestDeal,
-            {
-                dcaInvestments,
-                vaultInvestments,
-                liquidityInvestments,
-                tokenInvestments,
-            },
-        ] = await Promise.all([
-            strategyManager.isHot(strategyId),
-            strategyManager.getStrategyInvestments(strategyId),
-        ])
+        const {
+            dcaInvestments,
+            vaultInvestments,
+            liquidityInvestments,
+            tokenInvestments,
+        } = await strategyManager.getStrategyInvestments(strategyId)
 
         const dcaPercentage = Fees._sumInvestmentPercentages(dcaInvestments)
         const vaultPercentage = Fees._sumInvestmentPercentages(vaultInvestments)
@@ -32,15 +27,13 @@ export class Fees {
         const tokensPercentage = Fees._sumInvestmentPercentages(tokenInvestments)
 
         const [
-            strategistPercentage,
+            strategiestPercentage,
             { baseFeeBP: dcaBaseFeeBP, nonSubscriberFeeBP: dcaNonSubscriberFeeBP },
             { baseFeeBP: vaultBaseFeeBP, nonSubscriberFeeBP: vaultNonSubscriberFeeBP },
             { baseFeeBP: liquidityBaseFeeBP, nonSubscriberFeeBP: liquidityNonSubscriberFeeBP },
             { baseFeeBP: exchangeBaseFeeBP, nonSubscriberFeeBP: exchangeNonSubscriberFeeBP },
         ] = await Promise.all([
-            isHottestDeal
-                ? strategyManager.hotStrategistPercentage()
-                : strategyManager.strategistPercentage(),
+            Fees._getStrategiestPercentage(strategyManager, strategyId, subscribedStrategiest),
             Fees._getProductFees(dca, subscribedUser),
             Fees._getProductFees(vaultManager, subscribedUser),
             Fees._getProductFees(liquidityManager, subscribedUser),
@@ -66,7 +59,7 @@ export class Fees {
 
         const totalFee = baseFee.plus(nonSubscriberFee)
         const strategistFee = totalFee
-            .times(strategistPercentage.toString())
+            .times(strategiestPercentage.toString())
             .div(100)
 
         return {
@@ -80,6 +73,7 @@ export class Fees {
         strategyManager: StrategyManager,
         strategyId: BigNumberish,
         subscribedUser: boolean,
+        subscribedStrategiest: boolean,
         dca: UseFee,
         vaultManager: UseFee,
         liquidityManager: UseFee,
@@ -92,14 +86,13 @@ export class Fees {
             strategyManager,
             strategyId,
             subscribedUser,
+            subscribedStrategiest,
             dca,
             vaultManager,
             liquidityManager,
             exchangeManager,
         )
         const amountBN = new BigNumber(amount.toString())
-
-        console.log({ protocolFee: protocolFee.toNumber(), amount })
 
         return {
             protocolFee: BigInt(amountBN.times(protocolFee.div(100)).toString()),
@@ -128,6 +121,7 @@ export class Fees {
         strategyManager: StrategyManager,
         strategyId: BigNumberish,
         subscribedUser: boolean,
+        subscribedStrategiest: boolean,
         dca: UseFee,
         vaultManager: UseFee,
         liquidityManager: UseFee,
@@ -138,6 +132,7 @@ export class Fees {
             strategyManager,
             strategyId,
             subscribedUser,
+            subscribedStrategiest,
             dca,
             vaultManager,
             liquidityManager,
@@ -167,5 +162,20 @@ export class Fees {
             baseFeeBP,
             nonSubscriberFeeBP,
         }
+    }
+
+    private static async _getStrategiestPercentage(
+        strategyManager: StrategyManager,
+        strategyId: BigNumberish,
+        subscribedStrategiest: boolean,
+    ) {
+        if (!subscribedStrategiest)
+            return BigInt(0)
+
+        const isHottestDeal = await strategyManager.isHot(strategyId)
+
+        return isHottestDeal
+            ? strategyManager.hotStrategistPercentage()
+            : strategyManager.strategistPercentage()
     }
 }
