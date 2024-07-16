@@ -1,9 +1,10 @@
 import { expect } from 'chai'
-import { Signer, parseEther, ZeroHash, ContractTransactionResponse } from 'ethers'
+import { Signer, parseEther, ContractTransactionResponse } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import { StrategyManager, SubscriptionManager, TestERC20, TestVault, VaultManager } from '@src/typechain'
 import { baseVaultManagerFixture } from './fixtures/base.fixture'
 import { Fees } from '@src/helpers/Fees'
+import { createStrategy } from '@src/helpers'
 
 // given a strategy contract
 //      when investUsingStrategy is called
@@ -22,7 +23,7 @@ describe('VaultManager#investUsingStrategy', () => {
     let stablecoin: TestERC20
     let strategyManager: StrategyManager
     let strategyId: bigint
-    let permit: SubscriptionManager.PermitStruct
+    let permitAccount0: SubscriptionManager.PermitStruct
 
     const amountToDeposit = parseEther('10')
 
@@ -33,17 +34,17 @@ describe('VaultManager#investUsingStrategy', () => {
             vault,
             strategyManager,
             stablecoin,
-            permit,
+            permitAccount0,
         } = await loadFixture(baseVaultManagerFixture))
     })
 
     describe('given a strategy contract', () => {
         beforeEach(async () => {
-            strategyId = await strategyManager.getStrategiesLength()
-
-            await strategyManager
-                .connect(account0)
-                .createStrategy({
+            strategyId = await createStrategy(
+                account0,
+                permitAccount0,
+                strategyManager,
+                {
                     dcaInvestments: [],
                     vaultInvestments: [
                         {
@@ -53,9 +54,8 @@ describe('VaultManager#investUsingStrategy', () => {
                     ],
                     liquidityInvestments: [],
                     tokenInvestments: [],
-                    permit,
-                    metadataHash: ZeroHash,
-                })
+                },
+            )
 
             await stablecoin.connect(account0).approve(strategyManager, amountToDeposit)
         })
@@ -75,8 +75,8 @@ describe('VaultManager#investUsingStrategy', () => {
                         vaultSwaps: ['0x'],
                         tokenSwaps: [],
                         liquidityZaps: [],
-                        investorPermit: permit,
-                        strategistPermit: permit,
+                        investorPermit: permitAccount0,
+                        strategistPermit: permitAccount0,
                     })
             })
 
