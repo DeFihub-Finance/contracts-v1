@@ -1,6 +1,8 @@
-import { keccak256, parseEther } from 'ethers'
-import { NetworkService } from '@src/NetworkService'
+import { parseEther } from 'ethers'
 import { baseStrategyManagerFixture } from './base.fixture'
+import { UniswapV3 } from '@defihub/shared'
+import { createStrategy } from '@src/helpers'
+import { StrategyManager } from '@src/typechain'
 
 export async function createStrategyFixture() {
     /////////////////////////////////////
@@ -17,9 +19,12 @@ export async function createStrategyFixture() {
         vaultStrategyPosition,
         positionManagerUniV3,
         subscriptionSignature,
+        permitAccount0,
+        vault,
+        stablecoinPriced,
+        wethPriced,
         ...rest
     } = await baseStrategyManagerFixture()
-    const nameBioHash = keccak256(new TextEncoder().encode('Name' + 'Bio'))
 
     await strategyManager.setHotStrategistPercentage(30)
 
@@ -38,32 +43,39 @@ export async function createStrategyFixture() {
     /////////////////////////////////////////
     // Create default strategy for tests  //
     ////////////////////////////////////////
-    await strategyManager.connect(account0).createStrategy({
-        dcaInvestments: dcaStrategyPositions,
-        vaultInvestments: vaultStrategyPosition,
-        liquidityInvestments: [],
-        tokenInvestments: [],
-        permit: await subscriptionSignature.signSubscriptionPermit(
-            await account0.getAddress(),
-            await NetworkService.getBlockTimestamp() + 10_000,
-        ),
-        metadataHash: nameBioHash,
-    })
+    const { token0, token1 } = UniswapV3.sortTokens(stablecoinPriced, wethPriced)
 
-    //////////////////////////////////////////////
-    // Create strategy for swap and deposit test//
-    //////////////////////////////////////////////
-    await strategyManager.connect(account0).createStrategy({
-        dcaInvestments: [{ poolId: 2, swaps: 10, percentage: 66 }],
-        vaultInvestments: vaultStrategyPosition,
-        liquidityInvestments: [],
+    const investments: Omit<StrategyManager.CreateStrategyParamsStruct, 'permit' | 'metadataHash'> = {
+        dcaInvestments: [
+            { poolId: 0, swaps: 10, percentage: 25 },
+            { poolId: 1, swaps: 10, percentage: 25 },
+        ],
+        vaultInvestments: [
+            {
+                vault: await vault.getAddress(),
+                percentage: 25,
+            },
+        ],
+        liquidityInvestments: [
+            {
+                positionManager: positionManagerUniV3,
+                token0: token0.address,
+                token1: token1.address,
+                fee: 3000,
+                lowerPricePercentage: 10,
+                upperPricePercentage: 10,
+                percentage: 25,
+            },
+        ],
         tokenInvestments: [],
-        permit: await subscriptionSignature.signSubscriptionPermit(
-            await account0.getAddress(),
-            await NetworkService.getBlockTimestamp() + 10_000,
-        ),
-        metadataHash: nameBioHash,
-    })
+    }
+
+    const strategyId = await createStrategy(
+        account0,
+        permitAccount0,
+        strategyManager,
+        investments,
+    )
 
     return {
         account0,
@@ -76,6 +88,11 @@ export async function createStrategyFixture() {
         positionManagerUniV3,
         subscriptionSignature,
         stablecoin,
+        permitAccount0,
+        vault,
+        stablecoinPriced,
+        wethPriced,
+        strategyId,
         ...rest,
     }
 }
