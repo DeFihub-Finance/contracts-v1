@@ -1,4 +1,4 @@
-import { Pool } from '@uniswap/v3-sdk'
+import { Pool, Position } from '@uniswap/v3-sdk'
 import { Token } from '@uniswap/sdk-core'
 import { BigNumber, ChainIds } from '@ryze-blockchain/ethereum'
 import {
@@ -140,7 +140,10 @@ export class UniswapV3 {
             ethers.provider,
         )
 
-        const [liquidity, { sqrtPriceX96, tick }] = await Promise.all([
+        const [
+            liquidity,
+            { sqrtPriceX96, tick },
+        ] = await Promise.all([
             pool.liquidity(),
             pool.slot0(),
         ])
@@ -153,5 +156,25 @@ export class UniswapV3 {
             liquidity.toString(),
             Number(tick),
         )
+    }
+
+    // TODO move to shared
+    public static getPositionTokenAmounts(
+        pool: Pool,
+        liquidity: bigint,
+        tickLower: number,
+        tickUpper: number,
+    ) {
+        const { amount0, amount1 } = new Position({
+            pool,
+            liquidity: liquidity.toString(),
+            tickLower,
+            tickUpper,
+        })
+
+        return {
+            amount0: BigInt(amount0.quotient.toString()),
+            amount1: BigInt(amount1.quotient.toString()),
+        }
     }
 }

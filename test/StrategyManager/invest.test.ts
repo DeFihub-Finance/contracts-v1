@@ -23,6 +23,7 @@ import { ERC20Priced, Slippage, UniswapV3 } from '@defihub/shared'
 import { BigNumber } from '@ryze-blockchain/ethereum'
 import { Fees } from '@src/helpers/Fees'
 import { SubscriptionSignature } from '@src/SubscriptionSignature'
+import { Compare } from '@src/Compare'
 
 // EFFECTS
 // => when user is subscribed
@@ -87,6 +88,15 @@ describe('StrategyManager#invest', () => {
 
     let strategyId: bigint
     let erc20PricedMap: Map<string, ERC20Priced>
+
+    function getPricedTokenOrFail(address: string) {
+        const token = erc20PricedMap.get(address)
+
+        if (!token)
+            throw new Error(`Unable to find ERC20Priced with address ${ address }`)
+
+        return token
+    }
 
     function deductFees(
         amount: bigint,
@@ -176,16 +186,8 @@ describe('StrategyManager#invest', () => {
         liquidityInvestments: InvestLib.LiquidityInvestmentStructOutput[],
     ): Promise<InvestLib.LiquidityInvestZapParamsStruct[]> {
         return Promise.all(liquidityInvestments.map(async investment => {
-            const [
-                token0,
-                token1,
-            ] = [
-                erc20PricedMap.get(investment.token0),
-                erc20PricedMap.get(investment.token1),
-            ]
-
-            if (!token0 || !token1)
-                throw new Error('Unable to get ERC20Priced token(s) from Map')
+            const token0 = getPricedTokenOrFail(investment.token0)
+            const token1 = getPricedTokenOrFail(investment.token1)
 
             const pool = await UniswapV3Helper.getPoolByFactoryContract(
                 factoryUniV3,
@@ -370,6 +372,16 @@ describe('StrategyManager#invest', () => {
                     liquidity,
                 } = await positionManagerUniV3.positions(liquidityPositions[0].tokenId)
 
+                const { amount0, amount1 } = UniswapV3Helper.getPositionTokenAmounts(
+                    await UniswapV3Helper.getPoolByFactoryContract(factoryUniV3, token0, token1, fee),
+                    liquidity,
+                    Number(tickLower),
+                    Number(tickUpper),
+                )
+
+                const pricedToken0 = getPricedTokenOrFail(token0)
+                const pricedToken1 = getPricedTokenOrFail(token1)
+
                 expect(fee).to.be.equal(investments.liquidityInvestments[0].fee)
                 expect(token0).to.be.equal(investments.liquidityInvestments[0].token0)
                 expect(token1).to.be.equal(investments.liquidityInvestments[0].token1)
@@ -377,8 +389,18 @@ describe('StrategyManager#invest', () => {
                 expect(tickLower).to.be.equal(investParams.liquidityZaps[0].tickLower)
                 expect(tickUpper).to.be.equal(investParams.liquidityZaps[0].tickUpper)
 
-                expect(liquidity).to.be.equal(liquidityPositions[0].liquidity) // TODO check liquidity value
+                expect(liquidity).to.be.equal(liquidityPositions[0].liquidity)
                 expect(await positionManagerUniV3.getAddress()).to.be.equal(liquidityPositions[0].positionManager)
+
+                Compare.almostEqualPercentage({
+                    value: amountWithDeductedFees * investments.liquidityInvestments[0].percentage / 100n,
+                    target: BigInt(
+                        pricedToken0.price.times(amount0.toString())
+                            .plus(pricedToken1.price.times(amount1.toString()))
+                            .toFixed(0),
+                    ),
+                    tolerance: new BigNumber(0.01),
+                })
             })
         })
 
@@ -441,6 +463,16 @@ describe('StrategyManager#invest', () => {
                     liquidity,
                 } = await positionManagerUniV3.positions(liquidityPositions[0].tokenId)
 
+                const { amount0, amount1 } = UniswapV3Helper.getPositionTokenAmounts(
+                    await UniswapV3Helper.getPoolByFactoryContract(factoryUniV3, token0, token1, fee),
+                    liquidity,
+                    Number(tickLower),
+                    Number(tickUpper),
+                )
+
+                const pricedToken0 = getPricedTokenOrFail(token0)
+                const pricedToken1 = getPricedTokenOrFail(token1)
+
                 expect(fee).to.be.equal(investments.liquidityInvestments[0].fee)
                 expect(token0).to.be.equal(investments.liquidityInvestments[0].token0)
                 expect(token1).to.be.equal(investments.liquidityInvestments[0].token1)
@@ -448,8 +480,18 @@ describe('StrategyManager#invest', () => {
                 expect(tickLower).to.be.equal(investParams.liquidityZaps[0].tickLower)
                 expect(tickUpper).to.be.equal(investParams.liquidityZaps[0].tickUpper)
 
-                expect(liquidity).to.be.equal(liquidityPositions[0].liquidity) // TODO check liquidity value
+                expect(liquidity).to.be.equal(liquidityPositions[0].liquidity)
                 expect(await positionManagerUniV3.getAddress()).to.be.equal(liquidityPositions[0].positionManager)
+
+                Compare.almostEqualPercentage({
+                    value: amountWithDeductedFees * investments.liquidityInvestments[0].percentage / 100n,
+                    target: BigInt(
+                        pricedToken0.price.times(amount0.toString())
+                            .plus(pricedToken1.price.times(amount1.toString()))
+                            .toFixed(0),
+                    ),
+                    tolerance: new BigNumber(0.01),
+                })
             })
         })
 
