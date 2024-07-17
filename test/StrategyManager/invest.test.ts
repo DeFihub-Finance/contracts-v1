@@ -11,15 +11,9 @@ import {
     UniswapV3Factory,
     UseFee,
 } from '@src/typechain'
-import { InvestLib } from '@src/typechain/artifacts/contracts/StrategyManager'
 import { createStrategyFixture } from './fixtures/create-strategy.fixture'
-import {
-    decodeLowLevelCallError,
-    UniswapV2ZapHelper,
-    UniswapV3 as UniswapV3Helper,
-    UniswapV3ZapHelper,
-} from '@src/helpers'
-import { ERC20Priced, Slippage, UniswapV3 } from '@defihub/shared'
+import { decodeLowLevelCallError, getLiquidityZap, UniswapV3 } from '@src/helpers'
+import { ERC20Priced } from '@defihub/shared'
 import { BigNumber } from '@ryze-blockchain/ethereum'
 import { Fees } from '@src/helpers/Fees'
 import { SubscriptionSignature } from '@src/SubscriptionSignature'
@@ -48,7 +42,7 @@ import { Compare } from '@src/Compare'
 // => if strategyId doesn't exist
 // => if swap paths are different than the vaults length in strategy
 // => if swap paths are different than the dca length in strategy
-describe('StrategyManager#invest', () => {
+describe.only('StrategyManager#invest', () => {
     const SLIPPAGE_BN = new BigNumber(0.01)
     const amountToInvest = parseEther('10')
 
@@ -60,9 +54,6 @@ describe('StrategyManager#invest', () => {
     /** Non Subscribed Investor */
     let account2: Signer
     let treasury: Signer
-
-    // prices
-    let USD_PRICE_BN: BigNumber
 
     // tokens
     let stablecoin: TestERC20
@@ -136,93 +127,6 @@ describe('StrategyManager#invest', () => {
         )
     }
 
-    function getMinOutput(
-        amount: bigint,
-        outputToken: ERC20Priced,
-    ) {
-        if (outputToken.address === stablecoinPriced.address)
-            return Slippage.deductSlippage(amount, SLIPPAGE_BN)
-
-        return Slippage.getMinOutput(
-            amount,
-            stablecoinPriced,
-            outputToken,
-            SLIPPAGE_BN.times(2),
-        )
-    }
-
-    async function getEncodedSwap(
-        amount: bigint,
-        outputToken: ERC20Priced,
-        protocol: 'uniswapV2' | 'uniswapV3' = 'uniswapV2',
-    ) {
-        if (!amount || outputToken.address === stablecoinPriced.address)
-            return '0x'
-
-        return protocol === 'uniswapV2'
-            ? UniswapV2ZapHelper.encodeSwap(
-                amount,
-                stablecoin,
-                outputToken.address,
-                USD_PRICE_BN,
-                outputToken.price,
-                SLIPPAGE_BN,
-                liquidityManager,
-            )
-            : UniswapV3ZapHelper.encodeExactInputSingle(
-                amount,
-                stablecoin,
-                outputToken.address,
-                3000,
-                USD_PRICE_BN,
-                outputToken.price,
-                SLIPPAGE_BN,
-                liquidityManager,
-            )
-    }
-
-    async function getLiquidityZaps(
-        amount: bigint,
-        liquidityInvestments: InvestLib.LiquidityInvestmentStructOutput[],
-    ): Promise<InvestLib.LiquidityInvestZapParamsStruct[]> {
-        return Promise.all(liquidityInvestments.map(async investment => {
-            const token0 = getPricedTokenOrFail(investment.token0)
-            const token1 = getPricedTokenOrFail(investment.token1)
-
-            const pool = await UniswapV3Helper.getPoolByFactoryContract(
-                factoryUniV3,
-                token0.address,
-                token1.address,
-                investment.fee,
-            )
-
-            const {
-                swapAmountToken0,
-                swapAmountToken1,
-                tickLower,
-                tickUpper,
-            } = UniswapV3.getMintPositionInfo(
-                new BigNumber((amount * investment.percentage / 100n).toString()),
-                pool,
-                token0.price,
-                token1.price,
-                Number(investment.lowerPricePercentage),
-                Number(investment.upperPricePercentage),
-            )
-
-            return {
-                amount0Min: getMinOutput(swapAmountToken0, token0),
-                amount1Min: getMinOutput(swapAmountToken1, token1),
-                swapAmountToken0,
-                swapAmountToken1,
-                swapToken0: await getEncodedSwap(swapAmountToken0, token0, 'uniswapV3'),
-                swapToken1: await getEncodedSwap(swapAmountToken1, token1, 'uniswapV3'),
-                tickLower,
-                tickUpper,
-            }
-        }))
-    }
-
     async function getInvestParams(investor: Signer, {
         _amount = amountToInvest,
         _strategyId = strategyId,
@@ -252,6 +156,19 @@ describe('StrategyManager#invest', () => {
                 .signSubscriptionPermit(await investor.getAddress(), deadlineInvestor),
         ])
 
+        const liquidityZaps = await Promise.all(liquidityInvestments.map(
+            investment => getLiquidityZap(
+                amountWithDeductedFees,
+                investment,
+                stablecoinPriced,
+                getPricedTokenOrFail(investment.token0),
+                getPricedTokenOrFail(investment.token1),
+                factoryUniV3,
+                liquidityManager,
+                SLIPPAGE_BN,
+            ),
+        ))
+
         return {
             strategyId: _strategyId,
             inputToken: stablecoin,
@@ -259,7 +176,7 @@ describe('StrategyManager#invest', () => {
             inputTokenSwap: '0x',
             dcaSwaps: dcaInvestments.map(_ => '0x'),
             vaultSwaps: vaultInvestments.map(_ => '0x'),
-            liquidityZaps: await getLiquidityZaps(amountWithDeductedFees, liquidityInvestments),
+            liquidityZaps,
             tokenSwaps: [], // TODO
             investorPermit,
             strategistPermit: _strategiestSubscribed ? permitAccount0 : expiredPermitAccount0,
@@ -282,9 +199,6 @@ describe('StrategyManager#invest', () => {
             account1,
             account2,
             treasury,
-
-            // prices
-            USD_PRICE_BN,
 
             // tokens
             stablecoin,
@@ -372,8 +286,8 @@ describe('StrategyManager#invest', () => {
                     liquidity,
                 } = await positionManagerUniV3.positions(liquidityPositions[0].tokenId)
 
-                const { amount0, amount1 } = UniswapV3Helper.getPositionTokenAmounts(
-                    await UniswapV3Helper.getPoolByFactoryContract(factoryUniV3, token0, token1, fee),
+                const { amount0, amount1 } = UniswapV3.getPositionTokenAmounts(
+                    await UniswapV3.getPoolByFactoryContract(factoryUniV3, token0, token1, fee),
                     liquidity,
                     Number(tickLower),
                     Number(tickUpper),
@@ -463,8 +377,8 @@ describe('StrategyManager#invest', () => {
                     liquidity,
                 } = await positionManagerUniV3.positions(liquidityPositions[0].tokenId)
 
-                const { amount0, amount1 } = UniswapV3Helper.getPositionTokenAmounts(
-                    await UniswapV3Helper.getPoolByFactoryContract(factoryUniV3, token0, token1, fee),
+                const { amount0, amount1 } = UniswapV3.getPositionTokenAmounts(
+                    await UniswapV3.getPoolByFactoryContract(factoryUniV3, token0, token1, fee),
                     liquidity,
                     Number(tickLower),
                     Number(tickUpper),
