@@ -10,6 +10,16 @@ export function getEncodedSwap<T extends Protocol>(
     protocol: T,
     ...args: EncodedSwapParams<T>
 ) {
+    const [
+        amount,
+        inputToken,
+        outputToken,
+    ] = args
+
+    // TODO unwrap address like ?
+    if (!amount || inputToken === outputToken)
+        return '0x'
+
     return protocol === 'uniswapV2'
         ? UniswapV2ZapHelper.encodeSwap(...(args as UniswapV2ZapHelperParams))
         : UniswapV3ZapHelper.encodeExactInputSingle(...(args as UniswapV3ZapHelperParams))
