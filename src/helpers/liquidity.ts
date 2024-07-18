@@ -1,37 +1,10 @@
 import { BigNumber } from '@ryze-blockchain/ethereum'
 import { ERC20Priced, Slippage, UniswapFactoryV3, UniswapV3, UseFee } from '@defihub/shared'
 import { InvestLib } from '@src/typechain/artifacts/contracts/StrategyManager'
-import { UniswapV2ZapHelper, UniswapV3ZapHelper } from './zap'
+import { UniswapV3ZapHelper } from './zap'
 import { UniswapV3 as UniswapV3Helper } from './UniswapV3'
 
-type Protocol = 'uniswapV2' | 'uniswapV3'
-type UniswapV2ZapHelperParams = Parameters<typeof UniswapV2ZapHelper.encodeSwap>
-type UniswapV3ZapHelperParams = Parameters<typeof UniswapV3ZapHelper.encodeExactInputSingle>
-
-type EncodedSwapParams<T> = T extends 'uniswapV2'
-    ? UniswapV2ZapHelperParams
-    : UniswapV3ZapHelperParams
-
 export class LiquidityHelpers {
-    public static getEncodedSwap<T extends Protocol>(
-        protocol: T,
-        ...args: EncodedSwapParams<T>
-    ) {
-        const [
-            amount,
-            inputToken,
-            outputToken,
-        ] = args
-
-        // TODO unwrap address like ?
-        if (!amount || inputToken === outputToken)
-            return '0x'
-
-        return protocol === 'uniswapV2'
-            ? UniswapV2ZapHelper.encodeSwap(...(args as UniswapV2ZapHelperParams))
-            : UniswapV3ZapHelper.encodeExactInputSingle(...(args as UniswapV3ZapHelperParams))
-    }
-
     public static getMinOutput(
         amount: bigint,
         inputToken: ERC20Priced,
@@ -85,7 +58,6 @@ export class LiquidityHelpers {
             swapToken1,
         ] = await Promise.all([
             LiquidityHelpers.getEncodedSwap(
-                'uniswapV3',
                 swapAmountToken0,
                 inputToken.address,
                 token0.address,
@@ -96,7 +68,6 @@ export class LiquidityHelpers {
                 liquidityManager,
             ),
             LiquidityHelpers.getEncodedSwap(
-                'uniswapV3',
                 swapAmountToken1,
                 inputToken.address,
                 token1.address,
@@ -118,5 +89,20 @@ export class LiquidityHelpers {
             tickLower,
             tickUpper,
         }
+    }
+
+    public static getEncodedSwap(
+        ...args: Parameters<typeof UniswapV3ZapHelper.encodeExactInputSingle>
+    ) {
+        const [
+            amount,
+            inputToken,
+            outputToken,
+        ] = args
+
+        if (!amount || inputToken === outputToken)
+            return '0x'
+
+        return UniswapV3ZapHelper.encodeExactInputSingle(...args)
     }
 }
