@@ -12,7 +12,7 @@ import {
     UseFee,
 } from '@src/typechain'
 import { createStrategyFixture } from './fixtures/create-strategy.fixture'
-import { decodeLowLevelCallError, getLiquidityZap, UniswapV3 } from '@src/helpers'
+import { decodeLowLevelCallError, LiquidityHelpers, UniswapV3 } from '@src/helpers'
 import { ERC20Priced } from '@defihub/shared'
 import { BigNumber } from '@ryze-blockchain/ethereum'
 import { Fees } from '@src/helpers/Fees'
@@ -42,7 +42,7 @@ import { Compare } from '@src/Compare'
 // => if strategyId doesn't exist
 // => if swap paths are different than the vaults length in strategy
 // => if swap paths are different than the dca length in strategy
-describe.only('StrategyManager#invest', () => {
+describe('StrategyManager#invest', () => {
     const SLIPPAGE_BN = new BigNumber(0.01)
     const amountToInvest = parseEther('10')
 
@@ -157,7 +157,7 @@ describe.only('StrategyManager#invest', () => {
         ])
 
         const liquidityZaps = await Promise.all(liquidityInvestments.map(
-            investment => getLiquidityZap(
+            investment => LiquidityHelpers.getLiquidityZap(
                 amountWithDeductedFees,
                 investment,
                 stablecoinPriced,
