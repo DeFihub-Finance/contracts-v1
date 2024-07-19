@@ -74,6 +74,8 @@ export async function investFixture() {
         },
     )
 
+    const dcaPositionId = await strategyManager.getPositionsLength(account1)
+
     await strategyManager.connect(account1).invest({
         strategyId: dcaStrategyId,
         inputToken: stablecoin,
@@ -111,6 +113,8 @@ export async function investFixture() {
         ),
     ))
 
+    const liquidityPositionId = await strategyManager.getPositionsLength(account1)
+
     await strategyManager.connect(account1).invest({
         strategyId: liquidityStrategyId,
         inputToken: stablecoin,
@@ -134,6 +138,8 @@ export async function investFixture() {
         exchangeManager,
         dcaStrategyId,
         liquidityStrategyId,
+        dcaPositionId,
+        liquidityPositionId,
         amountToInvest,
         stablecoin,
         stablecoinPriced,
