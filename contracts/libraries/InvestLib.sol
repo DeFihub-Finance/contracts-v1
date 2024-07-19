@@ -571,6 +571,8 @@ library InvestLib {
                 })
             );
 
+            withdrawnAmounts[i] = new uint[](2);
+
             withdrawnAmounts[i][0] = amount0;
             withdrawnAmounts[i][1] = amount1;
         }
