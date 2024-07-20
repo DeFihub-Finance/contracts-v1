@@ -484,7 +484,7 @@ library InvestLib {
             LiquidityPosition memory position = _positions[i];
             LiquidityMinOutputs memory minOutput = _minOutputs[i];
 
-            INonfungiblePositionManager(position.positionManager).decreaseLiquidity(
+            (uint amount0, uint amount1) = INonfungiblePositionManager(position.positionManager).decreaseLiquidity(
                 INonfungiblePositionManager.DecreaseLiquidityParams({
                     tokenId: position.tokenId,
                     liquidity: position.liquidity,
@@ -493,6 +493,11 @@ library InvestLib {
                     deadline: block.timestamp
                 })
             );
+
+            withdrawnAmounts[i] = new uint[](2);
+
+            withdrawnAmounts[i][0] = amount0;
+            withdrawnAmounts[i][1] = amount1;
         }
 
         return withdrawnAmounts;
