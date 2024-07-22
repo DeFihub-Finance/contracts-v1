@@ -183,7 +183,7 @@ async function deployProject() {
             swapRouter: await findAddressOrFail('UniswapRouterV2'),
         },
         uniswapV3ZapperConstructor: {
-            positionManager: safe,
+            positionManager: safe, // TODO update with position manager addr
             swapRouter: await findAddressOrFail('UniswapRouterV3'),
         },
     }
