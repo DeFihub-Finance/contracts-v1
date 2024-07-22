@@ -43,12 +43,14 @@ async function createMockStrategy() {
             }
 
             await sendTransaction(
-                await strategyManager.createStrategy.populateTransaction(
-                    strategy.dcaInvestments,
-                    strategy.vaultInvestments,
-                    signature,
-                    toKeccak256([strategy.name, strategy.bio]),
-                ),
+                await strategyManager.createStrategy.populateTransaction({
+                    dcaInvestments: strategy.dcaInvestments,
+                    vaultInvestments: strategy.vaultInvestments,
+                    liquidityInvestments: [],
+                    tokenInvestments: [],
+                    permit: signature,
+                    metadataHash: toKeccak256([strategy.name, strategy.bio]),
+                }),
                 deployer,
             )
         }
