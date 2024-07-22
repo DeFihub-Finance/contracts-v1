@@ -4,6 +4,7 @@ import { DollarCostAverage, StrategyManager, TestERC20, TestERC20__factory, Unis
 import { Signer } from 'ethers'
 import { runStrategy } from './fixtures/run-strategy.fixture'
 import { ethers } from 'hardhat'
+import { UniswapV3 } from '@src/helpers'
 
 // => Given an investor with a position in a strategy which contains a DCA pool
 //      => When the investor collects the position
@@ -25,9 +26,6 @@ describe('StrategyManager#collectPosition', () => {
     let dcaPositionId: bigint
     let liquidityPositionId: bigint
 
-    // TODO move to constants
-    const MaxUint128 = 2n ** 128n - 1n
-
     let dcaStrategyId: bigint
     let liquidityStrategyId: bigint
 
@@ -35,15 +33,6 @@ describe('StrategyManager#collectPosition', () => {
 
     const getDcaOutputTokenBalance = async () => dcaOutputToken.balanceOf(account1)
     const getDcaPositionBalances = async () => dca.getPositionBalances(strategyManager, 0)
-
-    async function getUniV3PositionFees() {
-        return positionManagerUniV3.connect(ethers.provider).collect.staticCall({
-            tokenId: await positionManagerUniV3.tokenOfOwnerByIndex(strategyManager, 0),
-            recipient: account1,
-            amount0Max: MaxUint128,
-            amount1Max: MaxUint128,
-        }, { from: strategyManager })
-    }
 
     async function getUniV3PositionTokens() {
         const { token0, token1 } = await positionManagerUniV3.positions(
@@ -108,7 +97,13 @@ describe('StrategyManager#collectPosition', () => {
         describe('Which contains a Liquidity pool', () => {
             describe('When the investor collects the position', () => {
                 it('then increase liquidity pool output tokens balance of investor', async () => {
-                    const { amount0, amount1 } = await getUniV3PositionFees()
+                    const { amount0, amount1 } = await UniswapV3.getPositionFees(
+                        await positionManagerUniV3.tokenOfOwnerByIndex(strategyManager, 0),
+                        positionManagerUniV3,
+                        account1,
+                        strategyManager,
+                    )
+
                     const { token0, token1 } = await getUniV3PositionTokens()
 
                     const token0BalanceBefore = await token0.balanceOf(account1)
@@ -124,7 +119,12 @@ describe('StrategyManager#collectPosition', () => {
                 })
 
                 it('then emit PositionCollected event', async () => {
-                    const { amount0, amount1 } = await getUniV3PositionFees()
+                    const { amount0, amount1 } = await UniswapV3.getPositionFees(
+                        await positionManagerUniV3.tokenOfOwnerByIndex(strategyManager, 0),
+                        positionManagerUniV3,
+                        account1,
+                        strategyManager,
+                    )
 
                     await expect(strategyManager.connect(account1).collectPosition(liquidityPositionId))
                         .to.emit(strategyManager, 'PositionCollected')

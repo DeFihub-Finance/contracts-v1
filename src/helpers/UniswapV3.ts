@@ -11,6 +11,7 @@ import {
     INonfungiblePositionManager,
     Quoter,
     TestERC20,
+    UniswapPositionManager,
     UniswapV3Factory,
     UniswapV3Pool__factory,
     type UniswapV3Pool,
@@ -20,6 +21,8 @@ import { PathUniswapV3 } from '@defihub/shared'
 import { ethers } from 'hardhat'
 
 export class UniswapV3 {
+    public static MAX_UINT_128 = 2n ** 128n - 1n
+
     public static async getOutputTokenAmount(
         quoter: Quoter,
         inputToken: AddressLike,
@@ -176,5 +179,19 @@ export class UniswapV3 {
             amount0: BigInt(amount0.quotient.toString()),
             amount1: BigInt(amount1.quotient.toString()),
         }
+    }
+
+    public static getPositionFees(
+        tokenId: bigint,
+        positionManager: UniswapPositionManager,
+        recipient: AddressLike,
+        from?: AddressLike,
+    ) {
+        return positionManager.connect(ethers.provider).collect.staticCall({
+            tokenId,
+            recipient,
+            amount0Max: UniswapV3.MAX_UINT_128,
+            amount1Max: UniswapV3.MAX_UINT_128,
+        }, { from })
     }
 }
