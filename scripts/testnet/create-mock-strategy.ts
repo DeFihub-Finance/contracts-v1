@@ -5,8 +5,10 @@ import hre from 'hardhat'
 import { Storage } from 'hardhat-vanity'
 import { ofetch } from 'ofetch'
 import { sendTransaction } from '@src/helpers'
-import { toKeccak256 } from '@defihub/shared'
+import { toKeccak256, UniswapV3 } from '@defihub/shared'
 import { mockStrategies } from '@src/constants'
+import { mockTokenWithAddress } from '@src/helpers/mock-token'
+import { BigNumber } from '@ryze-blockchain/ethereum'
 
 const commitMetadataToBackend = true
 
@@ -46,8 +48,24 @@ async function createMockStrategy() {
                 await strategyManager.createStrategy.populateTransaction({
                     dcaInvestments: strategy.dcaInvestments,
                     vaultInvestments: strategy.vaultInvestments,
-                    liquidityInvestments: [],
-                    tokenInvestments: [],
+                    liquidityInvestments: strategy.liquidityInvestments
+                        ? await Promise.all(
+                            strategy.liquidityInvestments.map(async investment => {
+                                const { token0, token1 } = UniswapV3.sortTokens(
+                                    await mockTokenWithAddress(new BigNumber(0), 18, investment.tokenA),
+                                    await mockTokenWithAddress(new BigNumber(0), 18, investment.tokenB),
+                                )
+
+                                return {
+                                    ...investment,
+                                    token0: token0.address,
+                                    token1: token1.address,
+                                    fee: 3000,
+                                }
+                            }),
+                        )
+                        : [],
+                    tokenInvestments: strategy.tokenInvestments || [],
                     permit: signature,
                     metadataHash: toKeccak256([strategy.name, strategy.bio]),
                 }),
