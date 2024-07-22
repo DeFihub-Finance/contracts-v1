@@ -1,3 +1,6 @@
+import { tokens } from '@src/constants/tokens'
+import { ChainIds } from '@ryze-blockchain/ethereum'
+
 export const mockStrategies = [
     {
         name: 'Buy crypto and sell it over time',
@@ -50,34 +53,64 @@ export const mockStrategies = [
             {
                 poolId: 0,
                 swaps: 30,
-                percentage: 15,
+                percentage: 10,
             },
             {
                 poolId: 1,
                 swaps: 30,
-                percentage: 15,
+                percentage: 10,
             },
             {
                 poolId: 2,
                 swaps: 30,
-                percentage: 15,
+                percentage: 10,
             },
         ],
         vaultInvestments: [
             {
                 vault: '0x5c1348d96eee708c52545edb06e1ec6f35306a72',
-                percentage: 15,
+                percentage: 10,
             },
             {
                 vault: '0x9ff95fc55a294d7066d1cf88b0d1a0324e75a0ce',
-                percentage: 15,
+                percentage: 10,
             },
         ],
         liquidityInvestments: [
-            // TODO
+            {
+                positionManager: '',
+                tokenA: tokens[ChainIds.BNB_TESTNET].usdt,
+                tokenB: tokens[ChainIds.BNB_TESTNET].wbtc,
+                lowerPricePercentage: 10,
+                upperPricePercentage: 30,
+                percentage: 10,
+            },
+            {
+                positionManager: '',
+                tokenA: tokens[ChainIds.BNB_TESTNET].usdt,
+                tokenB: tokens[ChainIds.BNB_TESTNET].weth,
+                lowerPricePercentage: 10,
+                upperPricePercentage: 30,
+                percentage: 10,
+            },
+            {
+                positionManager: '',
+                tokenA: tokens[ChainIds.BNB_TESTNET].wbtc,
+                tokenB: tokens[ChainIds.BNB_TESTNET].weth,
+                lowerPricePercentage: 20,
+                upperPricePercentage: 10,
+                percentage: 10,
+            },
         ],
         tokenInvestments: [
-            //TODO
+            {
+                token: tokens[ChainIds.BNB_TESTNET].wbtc,
+                percentage: 10,
+            },
+            {
+                token: tokens[ChainIds.BNB_TESTNET].weth,
+                percentage: 10,
+            },
         ],
     },
 ]
