@@ -485,12 +485,7 @@ library InvestLib {
             LiquidityPosition memory position = _positions[i];
             LiquidityMinOutputs memory minOutput = _minOutputs[i];
 
-            (,,address token0, address token1,,,,,,,,) = position.positionManager.positions(position.tokenId);
-
-            uint initialBalanceToken0 = IERC20Upgradeable(token0).balanceOf(msg.sender);
-            uint initialBalanceToken1 = IERC20Upgradeable(token1).balanceOf(msg.sender);
-
-            position.positionManager.decreaseLiquidity(
+            (uint positionAmount0, uint positionAmount1) = position.positionManager.decreaseLiquidity(
                 INonfungiblePositionManager.DecreaseLiquidityParams({
                     tokenId: position.tokenId,
                     liquidity: position.liquidity,
@@ -500,7 +495,7 @@ library InvestLib {
                 })
             );
 
-            position.positionManager.collect(
+            (uint feeAmount0, uint feeAmount1) = position.positionManager.collect(
                 INonfungiblePositionManager.CollectParams({
                     tokenId: position.tokenId,
                     recipient: msg.sender,
@@ -511,8 +506,8 @@ library InvestLib {
 
             withdrawnAmounts[i] = new uint[](2);
 
-            withdrawnAmounts[i][0] = IERC20Upgradeable(token0).balanceOf(msg.sender) - initialBalanceToken0;
-            withdrawnAmounts[i][1] = IERC20Upgradeable(token1).balanceOf(msg.sender) - initialBalanceToken1;
+            withdrawnAmounts[i][0] = positionAmount0 + feeAmount0;
+            withdrawnAmounts[i][1] = positionAmount1 + feeAmount1;
         }
 
         return withdrawnAmounts;
