@@ -575,9 +575,8 @@ library InvestLib {
 
         for (uint i; i < _positions.length; ++i) {
             LiquidityPosition memory position = _positions[i];
-            INonfungiblePositionManager positionManager = position.positionManager;
 
-            (uint amount0, uint amount1) = positionManager.collect(
+            (uint amount0, uint amount1) = position.positionManager.collect(
                 INonfungiblePositionManager.CollectParams({
                     tokenId: position.tokenId,
                     recipient: msg.sender,
