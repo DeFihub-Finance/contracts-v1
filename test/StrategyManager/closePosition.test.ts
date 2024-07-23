@@ -197,7 +197,7 @@ describe('StrategyManager#closePosition', () => {
 
     describe('Given an open position with only liquidity', () => {
         describe('When the owner of position calls closePosition', () => {
-            it.only('Then the user receives remaning tokens of all liquidity positions in a strategy', async () => {
+            it.only('Then the user receives remaining tokens of all liquidity positions in a strategy', async () => {
                 const account1Address = await account1.getAddress()
 
                 const strategyTokenBalancesBefore = await snapshotStrategyTokenBalances(liquidityPositionId)
