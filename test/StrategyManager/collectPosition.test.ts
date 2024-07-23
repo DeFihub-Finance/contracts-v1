@@ -106,16 +106,16 @@ describe('StrategyManager#collectPosition', () => {
 
                     const { token0, token1 } = await getUniV3PositionTokens()
 
-                    const token0BalanceBefore = await token0.balanceOf(account1)
-                    const token1BalanceBefore = await token1.balanceOf(account1)
+                    const userBalanceToken0 = await token0.balanceOf(account1)
+                    const userBalanceToken1 = await token1.balanceOf(account1)
 
                     await strategyManager.connect(account1).collectPosition(liquidityPositionId)
 
-                    const token0BalanceDelta = await token0.balanceOf(account1) - token0BalanceBefore
-                    const token1BalanceDelta = await token1.balanceOf(account1) - token1BalanceBefore
+                    const userBalanceToken0Delta = await token0.balanceOf(account1) - userBalanceToken0
+                    const userBalanceToken1Delta = await token1.balanceOf(account1) - userBalanceToken1
 
-                    expect(token0BalanceDelta).to.be.equals(amount0)
-                    expect(token1BalanceDelta).to.be.equals(amount1)
+                    expect(userBalanceToken0Delta).to.be.equals(amount0)
+                    expect(userBalanceToken1Delta).to.be.equals(amount1)
                 })
 
                 it('then emit PositionCollected event', async () => {
