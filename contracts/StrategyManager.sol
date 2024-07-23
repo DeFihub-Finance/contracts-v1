@@ -261,8 +261,8 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
             InvestLib.LiquidityInvestment memory liquidityStrategy = _params.liquidityInvestments[i];
 
             if (
-                !liquidityManager.positionManagerWhitelist(liquidityStrategy.positionManager) ||
-            liquidityStrategy.token0 >= liquidityStrategy.token1
+                !liquidityManager.positionManagerWhitelist(address(liquidityStrategy.positionManager)) ||
+                liquidityStrategy.token0 >= liquidityStrategy.token1
             )
                 revert InvalidInvestment();
 
