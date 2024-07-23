@@ -12,6 +12,7 @@ import { Signer } from 'ethers'
 import { runStrategy } from './fixtures/run-strategy.fixture'
 import { ethers } from 'hardhat'
 import { UniswapV3 } from '@src/helpers'
+import { InvestLib } from '@src/typechain/artifacts/contracts/StrategyManager'
 
 // => Given an open position
 //      => When the owner of position calls closePosition
@@ -23,12 +24,15 @@ import { UniswapV3 } from '@src/helpers'
 //     => When the owner of position calls closePosition
 //          => Then the contract reverts with PositionAlreadyClosed
 describe('StrategyManager#closePosition', () => {
-    let strategyManager: StrategyManager
     let account1: Signer
     let dca: DollarCostAverage
+    let strategyManager: StrategyManager
+
     let dcaPositionId: bigint
+
     let liquidityPositionId: bigint
     let liquidityStrategyId: bigint
+
     let positionManagerUniV3: UniswapPositionManager
     let factoryUniV3: UniswapV3Factory
 
@@ -80,33 +84,13 @@ describe('StrategyManager#closePosition', () => {
         }
 
         for (const liquidityPosition of liquidityPositions) {
-            const { liquidity, tokenId } = liquidityPosition
-
-            const [
-                {
-                    token0,
-                    token1,
-                    fee,
-                    tickLower,
-                    tickUpper,
-                },
+            const {
                 fees,
-            ] = await Promise.all([
-                positionManagerUniV3.positions(tokenId),
-                UniswapV3.getPositionFees(
-                    tokenId,
-                    positionManagerUniV3,
-                    account1,
-                    strategyManager,
-                ),
-            ])
-
-            const { amount0, amount1 } = UniswapV3.getPositionTokenAmounts(
-                await UniswapV3.getPoolByFactoryContract(factoryUniV3, token0, token1, fee),
-                liquidity,
-                Number(tickLower),
-                Number(tickUpper),
-            )
+                amount0,
+                amount1,
+                token0,
+                token1,
+            } = await getLiquidityPositionInfo(liquidityPosition)
 
             addOrCreateBalance(token0, amount0 + fees.amount0)
             addOrCreateBalance(token1, amount1 + fees.amount1)
@@ -144,6 +128,58 @@ describe('StrategyManager#closePosition', () => {
                 ),
                 position,
             )
+        }))
+    }
+
+    async function getLiquidityPositionInfo(
+        position: InvestLib.LiquidityPositionStructOutput,
+    ) {
+        const [
+            {
+                token0,
+                token1,
+                fee,
+                tickLower,
+                tickUpper,
+            },
+            fees,
+        ] = await Promise.all([
+            positionManagerUniV3.positions(position.tokenId),
+            UniswapV3.getPositionFees(
+                position.tokenId,
+                positionManagerUniV3,
+                account1,
+                strategyManager,
+            ),
+        ])
+
+        const { amount0, amount1 } = UniswapV3.getPositionTokenAmounts(
+            await UniswapV3.getPoolByFactoryContract(factoryUniV3, token0, token1, fee),
+            position.liquidity,
+            Number(tickLower),
+            Number(tickUpper),
+        )
+
+        return {
+            token0,
+            token1,
+            amount0,
+            amount1,
+            fees,
+        }
+    }
+
+    async function getLiquidityWithdrawnAmounts(strategyPositionId: bigint) {
+        const { liquidityPositions } = await strategyManager.getPositionInvestments(account1, strategyPositionId)
+
+        return Promise.all(liquidityPositions.map(async position => {
+            const {
+                amount0,
+                amount1,
+                fees,
+            } = await getLiquidityPositionInfo(position)
+
+            return [amount0 + fees.amount0, amount1 + fees.amount1]
         }))
     }
 
@@ -197,7 +233,7 @@ describe('StrategyManager#closePosition', () => {
 
     describe('Given an open position with only liquidity', () => {
         describe('When the owner of position calls closePosition', () => {
-            it.only('Then the user receives remaining tokens of all liquidity positions in a strategy', async () => {
+            it('Then the user receives remaning tokens of all liquidity positions in a strategy', async () => {
                 const account1Address = await account1.getAddress()
 
                 const strategyTokenBalancesBefore = await snapshotStrategyTokenBalances(liquidityPositionId)
@@ -219,6 +255,8 @@ describe('StrategyManager#closePosition', () => {
             })
 
             it('Then the contract emits a PositionClosed event', async () => {
+                const liquidityWithdrawnAmounts = await getLiquidityWithdrawnAmounts(liquidityPositionId)
+
                 const tx = strategyManager.connect(account1).closePosition(
                     liquidityPositionId,
                     await getLiquidityMinOutputs(liquidityPositionId),
@@ -232,6 +270,7 @@ describe('StrategyManager#closePosition', () => {
                         liquidityPositionId,
                         [],
                         [],
+                        liquidityWithdrawnAmounts,
                         [],
                     )
             })
