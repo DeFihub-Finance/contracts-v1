@@ -1,9 +1,5 @@
 import { findAddressOrFail, sendDeploymentTransaction, sendTransaction } from '@src/helpers'
-import {
-    BeefyMockStrategy__factory,
-    BeefyVaultV7__factory,
-    VaultManager__factory,
-} from '@src/typechain'
+import { BeefyMockStrategy__factory, BeefyVaultV7__factory } from '@src/typechain'
 import hre from 'hardhat'
 
 const token = 'WrappedEthereum'
@@ -40,13 +36,6 @@ async function deployVault() {
                 vaultAddress,
                 await findAddressOrFail(token),
             ),
-        deployer,
-    )
-
-    await sendTransaction(
-        await VaultManager__factory.connect(await findAddressOrFail('VaultManager'), deployer)
-            .setVaultWhitelistStatus
-            .populateTransaction(vaultAddress, true),
         deployer,
     )
 }
