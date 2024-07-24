@@ -3,6 +3,8 @@ import { ERC20Priced, Slippage, UniswapFactoryV3, UniswapV3, UseFee } from '@def
 import { InvestLib } from '@src/typechain/artifacts/contracts/StrategyManager'
 import { UniswapV3ZapHelper } from './zap'
 import { UniswapV3 as UniswapV3Helper } from './UniswapV3'
+import { UniswapPositionManager, UniswapV3Factory } from '@src/typechain'
+import { AddressLike } from 'ethers'
 
 export class LiquidityHelpers {
     public static getMinOutput(
@@ -104,5 +106,47 @@ export class LiquidityHelpers {
             return '0x'
 
         return UniswapV3ZapHelper.encodeExactInputSingle(...args)
+    }
+
+    public static async getLiquidityPositionInfo(
+        position: InvestLib.LiquidityPositionStructOutput,
+        positionManager: UniswapPositionManager,
+        factory: UniswapV3Factory,
+        recipient: AddressLike,
+        from?: AddressLike,
+    ) {
+        const [
+            {
+                token0,
+                token1,
+                fee,
+                tickLower,
+                tickUpper,
+            },
+            fees,
+        ] = await Promise.all([
+            positionManager.positions(position.tokenId),
+            UniswapV3Helper.getPositionFees(
+                position.tokenId,
+                positionManager,
+                recipient,
+                from,
+            ),
+        ])
+
+        const { amount0, amount1 } = UniswapV3Helper.getPositionTokenAmounts(
+            await UniswapV3Helper.getPoolByFactoryContract(factory, token0, token1, fee),
+            position.liquidity,
+            Number(tickLower),
+            Number(tickUpper),
+        )
+
+        return {
+            token0,
+            token1,
+            amount0,
+            amount1,
+            fees,
+        }
     }
 }
