@@ -17,6 +17,7 @@ library InvestLib {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     error InvalidParamsLength();
+    error InsufficientFunds();
 
     /**
      * Investment structs
@@ -36,7 +37,7 @@ library InvestLib {
     }
 
     struct LiquidityInvestment {
-        address positionManager;
+        INonfungiblePositionManager positionManager;
         IERC20Upgradeable token0;
         IERC20Upgradeable token1;
         uint24 fee;
@@ -139,7 +140,8 @@ library InvestLib {
     }
 
     struct LiquidityPosition {
-        address positionManager;
+        // TODO check if position manager is really necessary since it is already available in LiquidityInvestment struct
+        INonfungiblePositionManager positionManager;
         uint tokenId;
         uint128 liquidity;
     }
@@ -334,12 +336,16 @@ library InvestLib {
         for (uint i; i < _params.investments.length; ++i) {
             LiquidityInvestment memory investment = _params.investments[i];
             LiquidityInvestZapParams memory zap = _params.zaps[i];
+            uint currentInvestmentAmount = _params.amount * investment.percentage / 100;
+
+            if (zap.swapAmountToken0 + zap.swapAmountToken1 > currentInvestmentAmount)
+                revert InsufficientFunds();
 
             (uint tokenId, uint128 liquidity) = _params.liquidityManager.investUniswapV3UsingStrategy(
                 LiquidityManager.InvestUniswapV3Params({
-                    positionManager: investment.positionManager,
+                    positionManager: address(investment.positionManager),
                     inputToken: _params.inputToken,
-                    depositAmountInputToken: _params.amount * investment.percentage / 100,
+                    depositAmountInputToken: currentInvestmentAmount,
                     token0: investment.token0,
                     token1: investment.token1,
                     fee: investment.fee,
@@ -360,8 +366,6 @@ library InvestLib {
                 liquidity
             );
         }
-
-        _params.liquidityManager.sendDust(_params.inputToken, _params.treasury);
 
         return liquidityPositions;
     }
@@ -481,15 +485,29 @@ library InvestLib {
             LiquidityPosition memory position = _positions[i];
             LiquidityMinOutputs memory minOutput = _minOutputs[i];
 
-            INonfungiblePositionManager(position.positionManager).decreaseLiquidity(
+            position.positionManager.decreaseLiquidity(
                 INonfungiblePositionManager.DecreaseLiquidityParams({
                     tokenId: position.tokenId,
                     liquidity: position.liquidity,
                     amount0Min: minOutput.minOutputToken0,
-                    amount1Min: minOutput.minOutputToken0,
+                    amount1Min: minOutput.minOutputToken1,
                     deadline: block.timestamp
                 })
             );
+
+            (uint amount0, uint amount1) = position.positionManager.collect(
+                INonfungiblePositionManager.CollectParams({
+                    tokenId: position.tokenId,
+                    recipient: msg.sender,
+                    amount0Max: type(uint128).max,
+                    amount1Max: type(uint128).max
+                })
+            );
+
+            withdrawnAmounts[i] = new uint[](2);
+
+            withdrawnAmounts[i][0] = amount0;
+            withdrawnAmounts[i][1] = amount1;
         }
 
         return withdrawnAmounts;
@@ -557,9 +575,8 @@ library InvestLib {
 
         for (uint i; i < _positions.length; ++i) {
             LiquidityPosition memory position = _positions[i];
-            INonfungiblePositionManager positionManager = INonfungiblePositionManager(position.positionManager);
 
-            (uint amount0, uint amount1) = positionManager.collect(
+            (uint amount0, uint amount1) = position.positionManager.collect(
                 INonfungiblePositionManager.CollectParams({
                     tokenId: position.tokenId,
                     recipient: msg.sender,
@@ -567,6 +584,8 @@ library InvestLib {
                     amount1Max: type(uint128).max
                 })
             );
+
+            withdrawnAmounts[i] = new uint[](2);
 
             withdrawnAmounts[i][0] = amount0;
             withdrawnAmounts[i][1] = amount1;
