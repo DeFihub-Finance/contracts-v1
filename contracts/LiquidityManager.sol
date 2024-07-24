@@ -18,8 +18,6 @@ contract LiquidityManager is HubOwnable, UseFee, UseDust, OnlyStrategyManager {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     ZapManager public zapManager;
-    // @notice position managers must be whitelisted to prevent scam strategies using fake position managers
-    mapping(address => bool) public positionManagerWhitelist;
 
     struct InitializeParams {
         address owner;
@@ -85,6 +83,9 @@ contract LiquidityManager is HubOwnable, UseFee, UseDust, OnlyStrategyManager {
         if (requested > remainingAmount)
             revert InsufficientFunds(requested, remainingAmount);
 
+        if (_params.token0 >= _params.token1)
+            revert InvalidInvestment();
+
         return _investUniswapV3(_params);
     }
 
@@ -103,9 +104,6 @@ contract LiquidityManager is HubOwnable, UseFee, UseDust, OnlyStrategyManager {
         uint tokenId,
         uint128 liquidity
     ) {
-        if (!positionManagerWhitelist[_params.positionManager] || _params.token0 > _params.token1)
-            revert InvalidInvestment();
-
         uint amountToken0 = ZapLib.zap(
             zapManager,
             _params.swapToken0,
@@ -139,13 +137,6 @@ contract LiquidityManager is HubOwnable, UseFee, UseDust, OnlyStrategyManager {
                 deadline: block.timestamp
             })
         );
-    }
-
-    function setPositionManagerWhitelist(
-        address _positionManager,
-        bool _whitelisted
-    ) external virtual onlyOwner {
-        positionManagerWhitelist[_positionManager] = _whitelisted;
     }
 
     function sendDust(IERC20Upgradeable _token, address _to) external virtual onlyStrategyManager {
