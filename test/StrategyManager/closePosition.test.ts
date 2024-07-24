@@ -11,8 +11,7 @@ import {
 import { Signer } from 'ethers'
 import { runStrategy } from './fixtures/run-strategy.fixture'
 import { ethers } from 'hardhat'
-import { UniswapV3 } from '@src/helpers'
-import { InvestLib } from '@src/typechain/artifacts/contracts/StrategyManager'
+import { LiquidityHelpers, UniswapV3 } from '@src/helpers'
 
 // => Given an open position
 //      => When the owner of position calls closePosition
@@ -90,7 +89,13 @@ describe('StrategyManager#closePosition', () => {
                 amount1,
                 token0,
                 token1,
-            } = await getLiquidityPositionInfo(liquidityPosition)
+            } = await LiquidityHelpers.getLiquidityPositionInfo(
+                liquidityPosition,
+                positionManagerUniV3,
+                factoryUniV3,
+                account1,
+                strategyManager,
+            )
 
             addOrCreateBalance(token0, amount0 + fees.amount0)
             addOrCreateBalance(token1, amount1 + fees.amount1)
@@ -131,37 +136,6 @@ describe('StrategyManager#closePosition', () => {
         }))
     }
 
-    async function getLiquidityPositionInfo(
-        { tokenId }: InvestLib.LiquidityPositionStructOutput,
-    ) {
-        const [
-            position,
-            fees,
-        ] = await Promise.all([
-            positionManagerUniV3.positions(tokenId),
-            UniswapV3.getPositionFees(
-                tokenId,
-                positionManagerUniV3,
-                account1,
-                strategyManager,
-            ),
-        ])
-
-        const { token0, token1, fee } = position
-        const { amount0, amount1 } = UniswapV3.getPositionTokenAmounts(
-            await UniswapV3.getPoolByFactoryContract(factoryUniV3, token0, token1, fee),
-            position,
-        )
-
-        return {
-            token0,
-            token1,
-            amount0,
-            amount1,
-            fees,
-        }
-    }
-
     async function getLiquidityWithdrawnAmounts(strategyPositionId: bigint) {
         const { liquidityPositions } = await strategyManager.getPositionInvestments(account1, strategyPositionId)
 
@@ -170,7 +144,13 @@ describe('StrategyManager#closePosition', () => {
                 amount0,
                 amount1,
                 fees,
-            } = await getLiquidityPositionInfo(position)
+            } = await LiquidityHelpers.getLiquidityPositionInfo(
+                position,
+                positionManagerUniV3,
+                factoryUniV3,
+                account1,
+                strategyManager,
+            )
 
             return [amount0 + fees.amount0, amount1 + fees.amount1]
         }))

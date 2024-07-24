@@ -1,10 +1,10 @@
 import { expect } from 'chai'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import { DollarCostAverage, StrategyManager, TestERC20, TestERC20__factory, UniswapPositionManager } from '@src/typechain'
-import { Signer } from 'ethers'
+import { AddressLike, Signer } from 'ethers'
 import { runStrategy } from './fixtures/run-strategy.fixture'
-import { ethers } from 'hardhat'
-import { UniswapV3 } from '@src/helpers'
+import { LiquidityHelpers } from '@src/helpers'
+import { UniswapFactoryV3 } from '@defihub/shared'
 
 // => Given an investor with a position in a strategy which contains a DCA pool
 //      => When the investor collects the position
@@ -30,19 +30,71 @@ describe('StrategyManager#collectPosition', () => {
     let liquidityStrategyId: bigint
 
     let positionManagerUniV3: UniswapPositionManager
+    let factoryUniV3: UniswapFactoryV3
 
     const getDcaOutputTokenBalance = async () => dcaOutputToken.balanceOf(account1)
-    const getDcaPositionBalances = async () => dca.getPositionBalances(strategyManager, 0)
 
-    async function getUniV3PositionTokens() {
-        const { token0, token1 } = await positionManagerUniV3.positions(
-            await positionManagerUniV3.tokenOfOwnerByIndex(strategyManager, 0),
+    async function snapshotStrategyTokenCollectables(strategyPositionId: bigint) {
+        const positionTokenCollectables: Record<string, bigint> = {}
+
+        const { dcaPositions, liquidityPositions } = await strategyManager.getPositionInvestments(
+            account1,
+            strategyPositionId,
         )
 
-        return {
-            token0: TestERC20__factory.connect(token0, ethers.provider),
-            token1: TestERC20__factory.connect(token1, ethers.provider),
+        function addOrCreateBalance(token: string, balance: bigint) {
+            if (positionTokenCollectables[token])
+                positionTokenCollectables[token] = balance + positionTokenCollectables[token]
+            else
+                positionTokenCollectables[token] = balance
         }
+
+        for (const positionId of dcaPositions) {
+            const [
+                { outputTokenBalance },
+                { poolId },
+            ]= await Promise.all([
+                dca.getPositionBalances(strategyManager, positionId),
+                dca.getPosition(strategyManager, positionId),
+            ])
+
+            const { outputToken } = await dca.getPool(poolId)
+
+            addOrCreateBalance(outputToken, outputTokenBalance)
+        }
+
+        for (const position of liquidityPositions) {
+            const {
+                fees,
+                token0,
+                token1,
+            } = await LiquidityHelpers.getLiquidityPositionInfo(
+                position,
+                positionManagerUniV3,
+                factoryUniV3,
+                account1,
+                strategyManager,
+            )
+
+            addOrCreateBalance(token0, fees.amount0)
+            addOrCreateBalance(token1, fees.amount1)
+        }
+
+        return positionTokenCollectables
+    }
+
+    async function snapshotUserTokenBalances(tokens: Set<string>, account: AddressLike) {
+        const userTokenBalancesBefore: Record<string, bigint> = {}
+
+        await Promise.all(
+            Array.from(tokens).map(async token => {
+                userTokenBalancesBefore[token] = await TestERC20__factory
+                    .connect(token, account1)
+                    .balanceOf(account)
+            }),
+        )
+
+        return userTokenBalancesBefore
     }
 
     beforeEach(async () => {
@@ -57,6 +109,7 @@ describe('StrategyManager#collectPosition', () => {
             dcaPositionId,
             liquidityPositionId,
             positionManagerUniV3,
+            factoryUniV3,
         } = await loadFixture(runStrategy))
     })
 
@@ -64,14 +117,19 @@ describe('StrategyManager#collectPosition', () => {
         describe('Which contains a DCA pool', () => {
             describe('When the investor collects the position', () => {
                 it('then increase DCA pool output token balance of investor', async () => {
-                    const outputTokenBalanceBefore = await getDcaOutputTokenBalance()
-                    const { outputTokenBalance } = await getDcaPositionBalances()
+                    const positionTokenCollectables = await snapshotStrategyTokenCollectables(dcaPositionId)
+                    const collectableTokens = new Set(Object.keys(positionTokenCollectables))
+                    const userTokenBalancesBefore = await snapshotUserTokenBalances(collectableTokens, account1)
 
                     await strategyManager.connect(account1).collectPosition(dcaPositionId)
 
-                    const outputTokenBalanceDelta = await getDcaOutputTokenBalance() - outputTokenBalanceBefore
+                    const userTokenBalancesAfter = await snapshotUserTokenBalances(collectableTokens, account1)
 
-                    expect(outputTokenBalanceDelta).to.be.equals(outputTokenBalance)
+                    for (const token of collectableTokens) {
+                        expect(userTokenBalancesAfter[token] - userTokenBalancesBefore[token]).to.equal(
+                            positionTokenCollectables[token],
+                        )
+                    }
                 })
 
                 it('then emit PositionCollected event', async () => {
@@ -97,34 +155,32 @@ describe('StrategyManager#collectPosition', () => {
         describe('Which contains a Liquidity pool', () => {
             describe('When the investor collects the position', () => {
                 it('then increase liquidity pool output tokens balance of investor', async () => {
-                    const { amount0, amount1 } = await UniswapV3.getPositionFees(
-                        await positionManagerUniV3.tokenOfOwnerByIndex(strategyManager, 0),
-                        positionManagerUniV3,
-                        account1,
-                        strategyManager,
-                    )
-
-                    const { token0, token1 } = await getUniV3PositionTokens()
-
-                    const userBalanceToken0 = await token0.balanceOf(account1)
-                    const userBalanceToken1 = await token1.balanceOf(account1)
+                    const positionTokenCollectables = await snapshotStrategyTokenCollectables(liquidityPositionId)
+                    const tokens = new Set(Object.keys(positionTokenCollectables))
+                    const userTokenBalancesBefore = await snapshotUserTokenBalances(tokens, account1)
 
                     await strategyManager.connect(account1).collectPosition(liquidityPositionId)
 
-                    const userBalanceToken0Delta = await token0.balanceOf(account1) - userBalanceToken0
-                    const userBalanceToken1Delta = await token1.balanceOf(account1) - userBalanceToken1
+                    const userTokenBalancesAfter = await snapshotUserTokenBalances(tokens, account1)
 
-                    expect(userBalanceToken0Delta).to.be.equals(amount0)
-                    expect(userBalanceToken1Delta).to.be.equals(amount1)
+                    for (const token of tokens) {
+                        expect(userTokenBalancesAfter[token] - userTokenBalancesBefore[token]).to.equal(
+                            positionTokenCollectables[token],
+                        )
+                    }
                 })
 
                 it('then emit PositionCollected event', async () => {
-                    const { amount0, amount1 } = await UniswapV3.getPositionFees(
-                        await positionManagerUniV3.tokenOfOwnerByIndex(strategyManager, 0),
-                        positionManagerUniV3,
-                        account1,
-                        strategyManager,
-                    )
+                    const liquidityWithdrawAmounts = (await Promise.all(
+                        (await strategyManager.getPositionInvestments(account1, liquidityPositionId))
+                            .liquidityPositions.map(position => LiquidityHelpers.getLiquidityPositionInfo(
+                                position,
+                                positionManagerUniV3,
+                                factoryUniV3,
+                                account1,
+                                strategyManager,
+                            )),
+                    )).map(({ fees }) => ([fees.amount0, fees.amount1]))
 
                     await expect(strategyManager.connect(account1).collectPosition(liquidityPositionId))
                         .to.emit(strategyManager, 'PositionCollected')
@@ -133,7 +189,7 @@ describe('StrategyManager#collectPosition', () => {
                             liquidityStrategyId,
                             liquidityPositionId,
                             [],
-                            [[amount0, amount1]],
+                            liquidityWithdrawAmounts,
                             [],
                         )
                 })
