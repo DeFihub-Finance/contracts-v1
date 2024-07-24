@@ -78,7 +78,6 @@ export const mockStrategies = [
         ],
         liquidityInvestments: [
             {
-                positionManager: '',
                 tokenA: tokens[ChainIds.BNB_TESTNET].usdt,
                 tokenB: tokens[ChainIds.BNB_TESTNET].wbtc,
                 lowerPricePercentage: 10,
@@ -86,7 +85,6 @@ export const mockStrategies = [
                 percentage: 10,
             },
             {
-                positionManager: '',
                 tokenA: tokens[ChainIds.BNB_TESTNET].usdt,
                 tokenB: tokens[ChainIds.BNB_TESTNET].weth,
                 lowerPricePercentage: 10,
@@ -94,7 +92,6 @@ export const mockStrategies = [
                 percentage: 10,
             },
             {
-                positionManager: '',
                 tokenA: tokens[ChainIds.BNB_TESTNET].wbtc,
                 tokenB: tokens[ChainIds.BNB_TESTNET].weth,
                 lowerPricePercentage: 20,

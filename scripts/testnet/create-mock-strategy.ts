@@ -2,9 +2,8 @@ import { NetworkService } from '@src/NetworkService'
 import { SubscriptionSignature } from '@src/SubscriptionSignature'
 import { StrategyManager__factory, SubscriptionManager__factory } from '@src/typechain'
 import hre from 'hardhat'
-import { Storage } from 'hardhat-vanity'
 import { ofetch } from 'ofetch'
-import { sendTransaction } from '@src/helpers'
+import { findAddressOrFail, sendTransaction } from '@src/helpers'
 import { toKeccak256, UniswapV3 } from '@defihub/shared'
 import { mockStrategies } from '@src/constants'
 import { mockTokenWithAddress } from '@src/helpers/mock-token'
@@ -14,10 +13,7 @@ const commitMetadataToBackend = true
 
 async function createMockStrategy() {
     const [deployer] = await hre.ethers.getSigners()
-    const strategyManagerAddress = await Storage.findAddress('StrategyManager')
-
-    if (!strategyManagerAddress)
-        throw new Error('create-mock-strategy: missing StrategyManager address')
+    const strategyManagerAddress = await findAddressOrFail('StrategyManager')
 
     const strategyManager = StrategyManager__factory.connect(
         strategyManagerAddress,
@@ -58,6 +54,7 @@ async function createMockStrategy() {
 
                                 return {
                                     ...investment,
+                                    positionManager: await findAddressOrFail('UniswapPositionManagerV3'),
                                     token0: token0.address,
                                     token1: token1.address,
                                     fee: 3000,

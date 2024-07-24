@@ -1,4 +1,4 @@
-import { saveAddress, sendDeploymentTransaction } from '@src/helpers'
+import { findAddressOrFail, saveAddress, sendDeploymentTransaction } from '@src/helpers'
 import {
     SwapRouter__factory,
     UniswapPositionManager__factory,
@@ -44,7 +44,7 @@ async function deployUniswapV2() {
 
 async function deployUniswapV3() {
     const [deployer] = await hre.ethers.getSigners()
-    const weth = await Storage.findAddress('WrappedEthereum')
+    const weth = await findAddressOrFail('WrappedEthereum')
 
     const factoryAddress = await sendDeploymentTransaction(
         uniswapV3FactoryBytecode,

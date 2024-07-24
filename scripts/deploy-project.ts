@@ -34,10 +34,7 @@ async function deployProject() {
     const [deployer] = await hre.ethers.getSigners()
     const safe = await findAddressOrFail('GnosisSafe')
     const treasury = TREASURY_ADDR || safe
-    const stable = TestERC20__factory.connect(
-        await findAddressOrFail('Stablecoin'),
-        deployer,
-    )
+    const stable = TestERC20__factory.connect(await findAddressOrFail('Stablecoin'), deployer)
     const projectDeployer = await getProjectDeployer(deployer)
 
     const saltBuilder = new Salt(
@@ -183,7 +180,7 @@ async function deployProject() {
             swapRouter: await findAddressOrFail('UniswapRouterV2'),
         },
         uniswapV3ZapperConstructor: {
-            positionManager: safe, // TODO update with position manager addr
+            positionManager: await findAddressOrFail('UniswapPositionManagerV3'),
             swapRouter: await findAddressOrFail('UniswapRouterV3'),
         },
     }
