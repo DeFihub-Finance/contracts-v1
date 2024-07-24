@@ -20,6 +20,8 @@ import { NetworkService } from '@src/NetworkService'
 import { PathUniswapV3 } from '@defihub/shared'
 import { ethers } from 'hardhat'
 
+type UniswapV3Position = Awaited<ReturnType<UniswapPositionManager['positions']>>
+
 export class UniswapV3 {
     public static MAX_UINT_128 = 2n ** 128n - 1n
 
@@ -164,15 +166,13 @@ export class UniswapV3 {
     // TODO move to shared
     public static getPositionTokenAmounts(
         pool: Pool,
-        liquidity: bigint,
-        tickLower: number,
-        tickUpper: number,
+        { liquidity, tickLower, tickUpper }: UniswapV3Position,
     ) {
         const { amount0, amount1 } = new Position({
             pool,
             liquidity: liquidity.toString(),
-            tickLower,
-            tickUpper,
+            tickLower: Number(tickLower),
+            tickUpper: Number(tickUpper),
         })
 
         return {
@@ -197,7 +197,7 @@ export class UniswapV3 {
 
     public static getBurnAmounts(
         pool: Pool,
-        position: Awaited<ReturnType<UniswapPositionManager['positions']>>,
+        position: UniswapV3Position,
         slippage: BigNumber = new BigNumber(0.01), // 1%
     ) {
         const { amount0, amount1 } = new Position({

@@ -132,32 +132,25 @@ describe('StrategyManager#closePosition', () => {
     }
 
     async function getLiquidityPositionInfo(
-        position: InvestLib.LiquidityPositionStructOutput,
+        { tokenId }: InvestLib.LiquidityPositionStructOutput,
     ) {
         const [
-            {
-                token0,
-                token1,
-                fee,
-                tickLower,
-                tickUpper,
-            },
+            position,
             fees,
         ] = await Promise.all([
-            positionManagerUniV3.positions(position.tokenId),
+            positionManagerUniV3.positions(tokenId),
             UniswapV3.getPositionFees(
-                position.tokenId,
+                tokenId,
                 positionManagerUniV3,
                 account1,
                 strategyManager,
             ),
         ])
 
+        const { token0, token1, fee } = position
         const { amount0, amount1 } = UniswapV3.getPositionTokenAmounts(
             await UniswapV3.getPoolByFactoryContract(factoryUniV3, token0, token1, fee),
-            position.liquidity,
-            Number(tickLower),
-            Number(tickUpper),
+            position,
         )
 
         return {

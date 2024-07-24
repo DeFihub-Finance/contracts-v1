@@ -277,33 +277,30 @@ describe('StrategyManager#invest', () => {
                 ////////////////////////
                 // LiquidityPosition //
                 //////////////////////
-                const {
-                    fee,
-                    token0,
-                    token1,
-                    tickLower,
-                    tickUpper,
-                    liquidity,
-                } = await positionManagerUniV3.positions(liquidityPositions[0].tokenId)
+                const position = await positionManagerUniV3
+                    .positions(liquidityPositions[0].tokenId)
 
                 const { amount0, amount1 } = UniswapV3.getPositionTokenAmounts(
-                    await UniswapV3.getPoolByFactoryContract(factoryUniV3, token0, token1, fee),
-                    liquidity,
-                    Number(tickLower),
-                    Number(tickUpper),
+                    await UniswapV3.getPoolByFactoryContract(
+                        factoryUniV3,
+                        position.token0,
+                        position.token1,
+                        position.fee,
+                    ),
+                    position,
                 )
 
-                const pricedToken0 = getPricedTokenOrFail(token0)
-                const pricedToken1 = getPricedTokenOrFail(token1)
+                const pricedToken0 = getPricedTokenOrFail(position.token0)
+                const pricedToken1 = getPricedTokenOrFail(position.token1)
 
-                expect(fee).to.be.equal(investments.liquidityInvestments[0].fee)
-                expect(token0).to.be.equal(investments.liquidityInvestments[0].token0)
-                expect(token1).to.be.equal(investments.liquidityInvestments[0].token1)
+                expect(position.fee).to.be.equal(investments.liquidityInvestments[0].fee)
+                expect(position.token0).to.be.equal(investments.liquidityInvestments[0].token0)
+                expect(position.token1).to.be.equal(investments.liquidityInvestments[0].token1)
 
-                expect(tickLower).to.be.equal(investParams.liquidityZaps[0].tickLower)
-                expect(tickUpper).to.be.equal(investParams.liquidityZaps[0].tickUpper)
+                expect(position.tickLower).to.be.equal(investParams.liquidityZaps[0].tickLower)
+                expect(position.tickUpper).to.be.equal(investParams.liquidityZaps[0].tickUpper)
 
-                expect(liquidity).to.be.equal(liquidityPositions[0].liquidity)
+                expect(position.liquidity).to.be.equal(liquidityPositions[0].liquidity)
                 expect(await positionManagerUniV3.getAddress()).to.be.equal(liquidityPositions[0].positionManager)
 
                 Compare.almostEqualPercentage({
@@ -368,33 +365,30 @@ describe('StrategyManager#invest', () => {
                 ////////////////////////
                 // LiquidityPosition //
                 //////////////////////
-                const {
-                    fee,
-                    token0,
-                    token1,
-                    tickLower,
-                    tickUpper,
-                    liquidity,
-                } = await positionManagerUniV3.positions(liquidityPositions[0].tokenId)
+                const position = await positionManagerUniV3
+                    .positions(liquidityPositions[0].tokenId)
 
                 const { amount0, amount1 } = UniswapV3.getPositionTokenAmounts(
-                    await UniswapV3.getPoolByFactoryContract(factoryUniV3, token0, token1, fee),
-                    liquidity,
-                    Number(tickLower),
-                    Number(tickUpper),
+                    await UniswapV3.getPoolByFactoryContract(
+                        factoryUniV3,
+                        position.token0,
+                        position.token1,
+                        position.fee,
+                    ),
+                    position,
                 )
 
-                const pricedToken0 = getPricedTokenOrFail(token0)
-                const pricedToken1 = getPricedTokenOrFail(token1)
+                const pricedToken0 = getPricedTokenOrFail(position.token0)
+                const pricedToken1 = getPricedTokenOrFail(position.token1)
 
-                expect(fee).to.be.equal(investments.liquidityInvestments[0].fee)
-                expect(token0).to.be.equal(investments.liquidityInvestments[0].token0)
-                expect(token1).to.be.equal(investments.liquidityInvestments[0].token1)
+                expect(position.fee).to.be.equal(investments.liquidityInvestments[0].fee)
+                expect(position.token0).to.be.equal(investments.liquidityInvestments[0].token0)
+                expect(position.token1).to.be.equal(investments.liquidityInvestments[0].token1)
 
-                expect(tickLower).to.be.equal(investParams.liquidityZaps[0].tickLower)
-                expect(tickUpper).to.be.equal(investParams.liquidityZaps[0].tickUpper)
+                expect(position.tickLower).to.be.equal(investParams.liquidityZaps[0].tickLower)
+                expect(position.tickUpper).to.be.equal(investParams.liquidityZaps[0].tickUpper)
 
-                expect(liquidity).to.be.equal(liquidityPositions[0].liquidity)
+                expect(position.liquidity).to.be.equal(liquidityPositions[0].liquidity)
                 expect(await positionManagerUniV3.getAddress()).to.be.equal(liquidityPositions[0].positionManager)
 
                 Compare.almostEqualPercentage({
