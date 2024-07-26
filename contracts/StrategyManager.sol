@@ -564,19 +564,10 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
             _params.inputToken.balanceOf(address(this)) - initialInputTokenBalance
         );
 
-        uint totalFeePercentage;
-
-        if (strategy.percentages[PRODUCT_DCA] > 0)
-            totalFeePercentage = dca.getFeePercentage(userSubscribed) * strategy.percentages[PRODUCT_DCA];
-
-        if (strategy.percentages[PRODUCT_VAULTS] > 0)
-            totalFeePercentage += vaultManager.getFeePercentage(userSubscribed) * strategy.percentages[PRODUCT_VAULTS];
-
-        if (strategy.percentages[PRODUCT_LIQUIDITY] > 0)
-            totalFeePercentage += liquidityManager.getFeePercentage(userSubscribed) * strategy.percentages[PRODUCT_LIQUIDITY];
-
-        if (strategy.percentages[PRODUCT_TOKENS] > 0)
-            totalFeePercentage += exchangeManager.getFeePercentage(userSubscribed) * strategy.percentages[PRODUCT_TOKENS];
+        uint totalFeePercentage = _getProductFee(strategy.percentages[PRODUCT_DCA], dca, userSubscribed)
+            + _getProductFee(strategy.percentages[PRODUCT_VAULTS], vaultManager, userSubscribed)
+            + _getProductFee(strategy.percentages[PRODUCT_LIQUIDITY], liquidityManager, userSubscribed)
+            + _getProductFee(strategy.percentages[PRODUCT_TOKENS], exchangeManager, userSubscribed);
 
         // Divided by multiplier 10_000 (fee percentage) * 100 (strategy percentage per investment) = 1M
         uint totalFee = stableAmount * totalFeePercentage / 1_000_000;
@@ -606,6 +597,17 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
             stableAmount - (protocolFee + strategistFee),
             strategistFee
         );
+    }
+
+    function _getProductFee(
+        uint _productPercentage,
+        UseFee _product,
+        bool _userSubscribed
+    ) internal view returns (uint) {
+        if (_productPercentage == 0)
+            return 0;
+
+        return _product.getFeePercentage(_userSubscribed) * _productPercentage;
     }
 
     /**
