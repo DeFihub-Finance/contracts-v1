@@ -564,7 +564,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
             _params.inputToken.balanceOf(address(this)) - initialInputTokenBalance
         );
 
-        uint totalFeePercentage = _getProductFee(strategy.percentages[PRODUCT_DCA], dca, userSubscribed)
+        uint32 totalFeePercentage = _getProductFee(strategy.percentages[PRODUCT_DCA], dca, userSubscribed)
             + _getProductFee(strategy.percentages[PRODUCT_VAULTS], vaultManager, userSubscribed)
             + _getProductFee(strategy.percentages[PRODUCT_LIQUIDITY], liquidityManager, userSubscribed)
             + _getProductFee(strategy.percentages[PRODUCT_TOKENS], exchangeManager, userSubscribed);
@@ -600,10 +600,10 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
     }
 
     function _getProductFee(
-        uint _productPercentage,
+        uint8 _productPercentage,
         UseFee _product,
         bool _userSubscribed
-    ) internal view returns (uint) {
+    ) internal view returns (uint32) {
         if (_productPercentage == 0)
             return 0;
 
