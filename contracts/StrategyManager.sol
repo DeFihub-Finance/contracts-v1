@@ -564,13 +564,13 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
             _params.inputToken.balanceOf(address(this)) - initialInputTokenBalance
         );
 
-        uint32 totalFeePercentage = _getProductFee(strategy.percentages[PRODUCT_DCA], dca, userSubscribed)
+        // Divided by multiplier 10_000 (fee percentage) * 100 (strategy percentage per investment) = 1M
+        uint totalFee = stableAmount * (
+            _getProductFee(strategy.percentages[PRODUCT_DCA], dca, userSubscribed)
             + _getProductFee(strategy.percentages[PRODUCT_VAULTS], vaultManager, userSubscribed)
             + _getProductFee(strategy.percentages[PRODUCT_LIQUIDITY], liquidityManager, userSubscribed)
-            + _getProductFee(strategy.percentages[PRODUCT_TOKENS], exchangeManager, userSubscribed);
-
-        // Divided by multiplier 10_000 (fee percentage) * 100 (strategy percentage per investment) = 1M
-        uint totalFee = stableAmount * totalFeePercentage / 1_000_000;
+            + _getProductFee(strategy.percentages[PRODUCT_TOKENS], exchangeManager, userSubscribed)
+        ) / 1_000_000;
         uint strategistFee;
 
         if (strategistSubscribed) {
