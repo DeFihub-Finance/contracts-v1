@@ -29,7 +29,6 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
     struct Position {
         uint strategyId;
         bool closed;
-        bool collected;
     }
 
     struct InitializeParams {
@@ -361,12 +360,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         if (position.closed)
             revert PositionAlreadyClosed();
 
-        InvestLib.TokenPosition[] memory tokenPositions = position.collected
-            ? new InvestLib.TokenPosition[](0)
-            : _tokenPositionsPerPosition[msg.sender][_positionId];
-
         position.closed = true;
-        position.collected = true;
 
         (
             uint[][] memory dcaWithdrawnAmounts,
@@ -383,7 +377,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
                         vaultPositions: _vaultPositionsPerPosition[msg.sender][_positionId],
                         liquidityPositions: _liquidityPositionsPerPosition[msg.sender][_positionId],
                         liquidityMinOutputs: _liquidityMinOutputs,
-                        tokenPositions: tokenPositions
+                        tokenPositions: _tokenPositionsPerPosition[msg.sender][_positionId]
                     })
                 )
             ),
@@ -410,11 +404,11 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         if (position.closed)
             revert PositionAlreadyClosed();
 
-        InvestLib.TokenPosition[] memory tokenPositions = position.collected
-            ? new InvestLib.TokenPosition[](0)
-            : _tokenPositionsPerPosition[msg.sender][_positionId];
+        InvestLib.TokenPosition[] memory tokenPositions = _tokenPositionsPerPosition[msg.sender][_positionId];
 
-        position.collected = true;
+        // TODO test
+        if (_tokenPositionsPerPosition[msg.sender][_positionId].length > 0)
+            delete _tokenPositionsPerPosition[msg.sender][_positionId];
 
         (
             uint[] memory dcaWithdrawnAmounts,
