@@ -85,8 +85,8 @@ describe('VaultManager#investUsingStrategy', () => {
                     .to
                     .emit(vaultManager, 'PositionCreated')
                     .withArgs(
-                        await vault.getAddress(),
                         await strategyManager.getAddress(),
+                        await vault.getAddress(),
                         Fees.deductProductFee(
                             amountToDeposit,
                             true,

@@ -22,7 +22,7 @@ contract VaultManager is HubOwnable, UseFee, OnlyStrategyManager {
         uint32 nonSubscriberFeeBP;
     }
 
-    event PositionCreated(address vault, address user, uint amount);
+    event PositionCreated(address user, address vault, uint amount);
 
     function initialize(InitializeParams calldata _initializeParams) public initializer {
         __Ownable_init();
@@ -70,6 +70,6 @@ contract VaultManager is HubOwnable, UseFee, OnlyStrategyManager {
         vault.deposit(_amount);
         vault.safeTransfer(msg.sender, vault.balanceOf(address(this)));
 
-        emit PositionCreated(_vault, msg.sender, _amount);
+        emit PositionCreated(msg.sender, _vault, _amount);
     }
 }
