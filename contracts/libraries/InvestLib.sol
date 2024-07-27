@@ -41,8 +41,8 @@ library InvestLib {
         IERC20Upgradeable token0;
         IERC20Upgradeable token1;
         uint24 fee;
-        uint16 lowerPricePercentage;
-        uint16 upperPricePercentage;
+        uint24 lowerPricePercentage;
+        uint24 upperPricePercentage;
         uint8 percentage;
     }
 
