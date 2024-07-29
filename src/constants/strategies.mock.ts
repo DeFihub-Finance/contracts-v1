@@ -110,4 +110,45 @@ export const mockStrategies = [
             },
         ],
     },
+    {
+        name: 'Crypto Liquidity',
+        bio: 'This strategy is designed to provide liquidity to the crypto market. It is a simple strategy that is easy to understand and execute. It is suitable for beginners who want to invest in crypto but do not have the time or expertise to actively manage investments.',
+        liquidityInvestments: [
+            {
+                tokenA: tokens[ChainIds.BNB_TESTNET].wbnb,
+                tokenB: tokens[ChainIds.BNB_TESTNET].wbtc,
+                lowerPricePercentage: 10,
+                upperPricePercentage: 30,
+                percentage: 20,
+            },
+            {
+                tokenA: tokens[ChainIds.BNB_TESTNET].wbnb,
+                tokenB: tokens[ChainIds.BNB_TESTNET].weth,
+                lowerPricePercentage: 10,
+                upperPricePercentage: 30,
+                percentage: 20,
+            },
+            {
+                tokenA: tokens[ChainIds.BNB_TESTNET].wbtc,
+                tokenB: tokens[ChainIds.BNB_TESTNET].weth,
+                lowerPricePercentage: 20,
+                upperPricePercentage: 10,
+                percentage: 60,
+            },
+        ],
+    },
+    {
+        name: 'Buy N Hodl',
+        bio: 'This strategy is designed to buy crypto and hold it for a long time. It is a simple strategy that is easy to understand and execute.',
+        tokenInvestments: [
+            {
+                token: tokens[ChainIds.BNB_TESTNET].wbtc,
+                percentage: 50,
+            },
+            {
+                token: tokens[ChainIds.BNB_TESTNET].weth,
+                percentage: 40,
+            },
+        ],
+    },
 ]

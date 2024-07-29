@@ -42,8 +42,8 @@ async function createMockStrategy() {
 
             await sendTransaction(
                 await strategyManager.createStrategy.populateTransaction({
-                    dcaInvestments: strategy.dcaInvestments,
-                    vaultInvestments: strategy.vaultInvestments,
+                    dcaInvestments: strategy.dcaInvestments || [],
+                    vaultInvestments: strategy.vaultInvestments || [],
                     liquidityInvestments: strategy.liquidityInvestments
                         ? await Promise.all(
                             strategy.liquidityInvestments.map(async investment => {
