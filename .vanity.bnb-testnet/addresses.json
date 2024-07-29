@@ -1,0 +1,21 @@
+{
+    "GnosisSafe": "0xab5660b67a4e31ec8826b217e1dec38c7edd20a0",
+    "Stablecoin": "0x713f648bff48f5641d4ea9a53a9fc77089b23174",
+    "WrappedEthereum": "0x1c62b750292313a11b95265e52c84dc96d0d8c9e",
+    "UniswapFactoryV3": "0xf4e303a45bbcdf5883fe78220f26c0fcc661556a",
+    "UniswapRouterV3": "0x80e01d482d5ac3e32200f1abc5aa5eac2fa23869",
+    "UniswapPositionManagerV3": "0x33f0264480e7168954a4cb50f6eeb43553386d24",
+    "UniswapFactoryV2": "0x6f0386a8c11995016f3192a727a424c9e094db67",
+    "UniswapRouterV2": "0x6f15e8221f5c657e348362f597cdfd4356e8e452",
+    "ProjectDeployer": "0x2439cefe7696c647afc34f46df6acfd9a340bb54",
+    "SubscriptionManager": "0xf2a1b4d0540eb4307c84b68e3d157eb9f5a95e5f",
+    "InvestLib": "0xb00b5ff59180e4ae22d7c6f3b15d029b845cd055",
+    "StrategyManager": "0x85e52060c1e0f9b1a8dd7d9a9f2351787d136f7c",
+    "DollarCostAverage": "0xa6174536702bf10e22869624c7b94e49650680c1",
+    "VaultManager": "0x29f37af7f6ce5444a74e1e2fec4ab3ad88c79628",
+    "LiquidityManager": "0x0a5370fa482cad3ae4ea933f89a3f92e14b853b2",
+    "ExchangeManager": "0x35df527b7409cf4500b93bac0f92380c747a0b53",
+    "ZapManager": "0x7bbf670e4671c9a56e28be3b2168a8088bc40657",
+    "ZapperUniswapV2": "0xffcaab89379c27d866a0d91e9dc5ab15b4e293d8",
+    "ZapperUniswapV3": "0xcff16fdb9611963bdc7ccac8eb417e0766dab080"
+}
