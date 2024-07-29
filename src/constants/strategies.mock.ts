@@ -147,7 +147,7 @@ export const mockStrategies = [
             },
             {
                 token: tokens[ChainIds.BNB_TESTNET].weth,
-                percentage: 40,
+                percentage: 50,
             },
         ],
     },
