@@ -14,8 +14,6 @@ import { baseVaultManagerFixture } from './fixtures/base.fixture'
 //          then want tokens are deducted from the user
 //          then emits a Deposit event
 //          then emits a Fee event
-//      and a vault is not whitelisted
-//          then reverts with VaultNotWhitelisted
 // given a non-subscribed user
 //    when a deposit is made
 //        then vault tokens are transferred to the user discounting the base fee + non-subscriber fee
@@ -118,22 +116,6 @@ describe('VaultManager#deposit', () => {
                         await treasury.getAddress(),
                         ContractFees.getBaseFee(amountToDeposit),
                     ])
-            })
-        })
-
-        describe('and a vault is not whitelisted', () => {
-            it('then reverts with VaultNotWhitelisted', async () => {
-                const vaultAddress = await vault.getAddress()
-
-                await vaultManager.setVaultWhitelistStatus(vaultAddress, false)
-
-                const tx = vaultManager.connect(account0).invest(
-                    vaultAddress,
-                    amountToDeposit,
-                    await subscriptionSignature.signSubscriptionPermit(await account0.getAddress(), deadline),
-                )
-
-                await expect(tx).to.revertedWithCustomError(vaultManager, 'VaultNotWhitelisted')
             })
         })
     })

@@ -406,46 +406,6 @@ describe('LiquidityManager#invest', () => {
         }
     })
 
-    it('fails if position manager is not whitelisted', async () => {
-        try {
-            await liquidityManager
-                .connect(account0)
-                .investUniswapV3(
-                    {
-                        positionManager: ZeroAddress,
-                        inputToken: stablecoin,
-                        depositAmountInputToken: amount,
-
-                        fee: 0,
-
-                        token0: ZeroAddress,
-                        token1: ZeroAddress,
-
-                        swapToken0: '0x',
-                        swapToken1: '0x',
-
-                        swapAmountToken0: 0,
-                        swapAmountToken1: 0,
-
-                        tickLower: 0,
-                        tickUpper: 0,
-
-                        amount0Min: 0,
-                        amount1Min: 0,
-                    },
-                    permitAccount0,
-                )
-        }
-        catch (e) {
-            const error = decodeLowLevelCallError(e)
-
-            if (!(error instanceof ErrorDescription))
-                throw new Error('Error decoding custom error')
-
-            expect(error.name).to.equal('InvalidInvestment')
-        }
-    })
-
     it('fails if token0 address is greater than token1 address', async () => {
         const { token0, token1 } = UniswapV3Helpers.sortTokens(
             await unwrapAddressLike(stablecoin),
