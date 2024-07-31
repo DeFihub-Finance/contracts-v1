@@ -26,7 +26,7 @@ describe('StrategyManager#createStrategy', () => {
     let vaultStrategyPosition: InvestLib.VaultInvestmentStruct[]
     let subscriptionSignature: SubscriptionSignature
     let deadline: number
-    const nameBioHash = keccak256(new TextEncoder().encode('Name' + 'Bio'))
+    const metadataHash = keccak256(new TextEncoder().encode('Name' + 'Bio'))
 
     beforeEach(async () => {
         ({
@@ -54,7 +54,7 @@ describe('StrategyManager#createStrategy', () => {
                     await account0.getAddress(),
                     await NetworkService.getBlockTimestamp() + 10_000,
                 ),
-                metadataHash: nameBioHash,
+                metadataHash,
             })
         })
 
@@ -81,7 +81,7 @@ describe('StrategyManager#createStrategy', () => {
                 .withArgs(
                     await account0.getAddress(),
                     0,
-                    nameBioHash,
+                    metadataHash,
                 )
         })
     })
@@ -99,7 +99,7 @@ describe('StrategyManager#createStrategy', () => {
                     await account0.getAddress(),
                     deadline,
                 ),
-                metadataHash: nameBioHash,
+                metadataHash,
             })
 
             expect(await strategyManager.getStrategiesLength()).to.be.equal(1)
@@ -117,7 +117,7 @@ describe('StrategyManager#createStrategy', () => {
                     await account1.getAddress(),
                     0,
                 ),
-                metadataHash: nameBioHash,
+                metadataHash,
             })
 
             await expect(tx).to.be.revertedWithCustomError(strategyManager, 'Unauthorized')
@@ -143,7 +143,7 @@ describe('StrategyManager#createStrategy', () => {
                     await account0.getAddress(),
                     deadline,
                 ),
-                metadataHash: nameBioHash,
+                metadataHash,
             })
 
             await expect(tx).to.be.revertedWithCustomError(strategyManager, 'LimitExceeded')
@@ -168,7 +168,7 @@ describe('StrategyManager#createStrategy', () => {
                     await account0.getAddress(),
                     deadline,
                 ),
-                metadataHash: nameBioHash,
+                metadataHash,
             })
 
             await expect(tx).to.be.revertedWithCustomError(strategyManager, 'LimitExceeded')
@@ -202,7 +202,7 @@ describe('StrategyManager#createStrategy', () => {
                     await account0.getAddress(),
                     deadline,
                 ),
-                metadataHash: nameBioHash,
+                metadataHash,
             })
 
             await expect(tx).to.be.revertedWithCustomError(strategyManager, 'LimitExceeded')
@@ -218,7 +218,7 @@ describe('StrategyManager#createStrategy', () => {
                     await account0.getAddress(),
                     deadline,
                 ),
-                metadataHash: nameBioHash,
+                metadataHash,
             })
 
             await expect(tx0).to.be.revertedWithCustomError(strategyManager, 'InvalidTotalPercentage')
@@ -233,7 +233,7 @@ describe('StrategyManager#createStrategy', () => {
                     await account0.getAddress(),
                     deadline,
                 ),
-                metadataHash: nameBioHash,
+                metadataHash,
             })
 
             await expect(tx1).to.be.revertedWithCustomError(strategyManager, 'InvalidTotalPercentage')

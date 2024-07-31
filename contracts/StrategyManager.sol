@@ -251,19 +251,13 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         for (uint i; i < _params.vaultInvestments.length; ++i) {
             InvestLib.VaultInvestment memory vaultStrategy = _params.vaultInvestments[i];
 
-            if (!vaultManager.whitelistedVaults(vaultStrategy.vault))
-                revert InvalidInvestment();
-
             _vaultInvestmentsPerStrategy[strategyId].push(vaultStrategy);
         }
 
         for (uint i; i < _params.liquidityInvestments.length; ++i) {
             InvestLib.LiquidityInvestment memory liquidityStrategy = _params.liquidityInvestments[i];
 
-            if (
-                !liquidityManager.positionManagerWhitelist(address(liquidityStrategy.positionManager)) ||
-                liquidityStrategy.token0 >= liquidityStrategy.token1
-            )
+            if (liquidityStrategy.token0 >= liquidityStrategy.token1)
                 revert InvalidInvestment();
 
             _liquidityInvestmentsPerStrategy[strategyId].push(liquidityStrategy);

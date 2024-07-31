@@ -22,13 +22,7 @@ contract VaultManager is HubOwnable, UseFee, OnlyStrategyManager {
         uint32 nonSubscriberFeeBP;
     }
 
-    mapping(address => bool) public whitelistedVaults;
-    address[] public _vaultArray;
-
     event PositionCreated(address vault, address user, uint amount);
-    event VaultWhitelisted(address vault, bool whitelisted);
-
-    error VaultNotWhitelisted();
 
     function initialize(InitializeParams calldata _initializeParams) public initializer {
         __Ownable_init();
@@ -69,9 +63,6 @@ contract VaultManager is HubOwnable, UseFee, OnlyStrategyManager {
     }
 
     function _invest(address _vault, uint _amount) internal virtual {
-        if (!whitelistedVaults[_vault])
-            revert VaultNotWhitelisted();
-
         IBeefyVaultV7 vault = IBeefyVaultV7(_vault);
         IERC20Upgradeable want = vault.want();
 
@@ -80,37 +71,5 @@ contract VaultManager is HubOwnable, UseFee, OnlyStrategyManager {
         vault.safeTransfer(msg.sender, vault.balanceOf(address(this)));
 
         emit PositionCreated(_vault, msg.sender, _amount);
-    }
-
-    function setVaultWhitelistStatus(address _vault, bool _whitelisted) external virtual onlyOwner {
-        if (_whitelisted && !whitelistedVaults[_vault])
-            _vaultArray.push(_vault);
-
-        whitelistedVaults[_vault] = _whitelisted;
-
-        emit VaultWhitelisted(_vault, _whitelisted);
-    }
-
-    function getVaultsLength() external virtual view returns (uint) {
-        return _vaultArray.length;
-    }
-
-    function getVault(uint _index) external virtual view returns (address vault, bool whitelisted) {
-        return (_vaultArray[_index], whitelistedVaults[_vaultArray[_index]]);
-    }
-
-    // @dev Returns an array of vaults that are whitelisted. The array is the same length
-    // as the _vaultArray, but filled with 0x0 for non-whitelisted vaults.
-    function getWhitelistedVaults() external virtual view returns (address[] memory) {
-        address[] memory vaultArray = new address[](_vaultArray.length);
-
-        for (uint i; i < _vaultArray.length; ++i) {
-            address vault = _vaultArray[i];
-
-            if (whitelistedVaults[vault])
-                vaultArray[i] = _vaultArray[i];
-        }
-
-        return vaultArray;
     }
 }
