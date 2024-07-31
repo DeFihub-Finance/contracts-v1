@@ -75,8 +75,6 @@ describe('StrategyManager#invest (zap)', () => {
         await vault.initialize(strategy, 'Mock Vault', 'mooMV', 0)
         await strategy.initialize(vault, token)
 
-        await vaultManager.setVaultWhitelistStatus(vault, true)
-
         return vault
     }
 

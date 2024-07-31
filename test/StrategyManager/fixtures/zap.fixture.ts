@@ -156,8 +156,6 @@ export async function zapFixture() {
     const strategyId = await strategyManager.getStrategiesLength()
     const initialTreasuryBalance = await stablecoin.balanceOf(treasury)
 
-    await liquidityManager.setPositionManagerWhitelist(positionManagerUniV3, true)
-
     return {
         // accounts
         account0,

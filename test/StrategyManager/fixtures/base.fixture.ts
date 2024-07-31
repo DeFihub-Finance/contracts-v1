@@ -43,8 +43,6 @@ export async function baseStrategyManagerFixture() {
     ////////////////////////////////////
     const vault = await deployVaultFixture(await stablecoin.getAddress())
 
-    await vaultManager.setVaultWhitelistStatus(vault, true)
-
     const TOKEN_IN = await stablecoin.getAddress()
     const TOKEN_OUT = await weth.getAddress()
 
