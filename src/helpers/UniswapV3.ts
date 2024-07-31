@@ -20,7 +20,11 @@ import { NetworkService } from '@src/NetworkService'
 import { PathUniswapV3 } from '@defihub/shared'
 import { ethers } from 'hardhat'
 
-type UniswapV3Position = Awaited<ReturnType<UniswapPositionManager['positions']>>
+type UniswapV3Position = {
+    liquidity: bigint
+    tickLower: bigint
+    tickUpper: bigint
+}
 
 export class UniswapV3 {
     public static MAX_UINT_128 = 2n ** 128n - 1n

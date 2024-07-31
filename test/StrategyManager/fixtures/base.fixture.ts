@@ -107,7 +107,6 @@ export async function baseStrategyManagerFixture() {
     ])
 
     await subscriptionManager.connect(account0).subscribe()
-    await liquidityManager.setPositionManagerWhitelist(positionManagerUniV3, true)
 
     ////////////////////////////////////////////////////////
     // Creating strategies to be used to create strategy //

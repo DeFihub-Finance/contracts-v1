@@ -136,9 +136,11 @@ export class LiquidityHelpers {
 
         const { amount0, amount1 } = UniswapV3Helper.getPositionTokenAmounts(
             await UniswapV3Helper.getPoolByFactoryContract(factory, token0, token1, fee),
-            position.liquidity,
-            Number(tickLower),
-            Number(tickUpper),
+            {
+                liquidity: position.liquidity,
+                tickLower,
+                tickUpper,
+            },
         )
 
         return {
