@@ -188,12 +188,11 @@ export class UniswapV3 {
     public static getPositionFees(
         tokenId: bigint,
         positionManager: UniswapPositionManager,
-        recipient: AddressLike,
         from?: AddressLike,
     ) {
         return positionManager.connect(ethers.provider).collect.staticCall({
             tokenId,
-            recipient,
+            recipient: ZeroAddress,
             amount0Max: UniswapV3.MAX_UINT_128,
             amount1Max: UniswapV3.MAX_UINT_128,
         }, { from })

@@ -72,7 +72,6 @@ describe('StrategyManager#collectPosition', () => {
                 position,
                 positionManagerUniV3,
                 factoryUniV3,
-                account1,
                 strategyManager,
             )
 
@@ -177,7 +176,6 @@ describe('StrategyManager#collectPosition', () => {
                                 position,
                                 positionManagerUniV3,
                                 factoryUniV3,
-                                account1,
                                 strategyManager,
                             )),
                     )).map(({ fees }) => ([fees.amount0, fees.amount1]))

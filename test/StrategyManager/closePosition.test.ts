@@ -93,7 +93,6 @@ describe('StrategyManager#closePosition', () => {
                 liquidityPosition,
                 positionManagerUniV3,
                 factoryUniV3,
-                account1,
                 strategyManager,
             )
 
@@ -148,7 +147,6 @@ describe('StrategyManager#closePosition', () => {
                 position,
                 positionManagerUniV3,
                 factoryUniV3,
-                account1,
                 strategyManager,
             )
 

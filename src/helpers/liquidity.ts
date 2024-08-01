@@ -112,7 +112,6 @@ export class LiquidityHelpers {
         position: InvestLib.LiquidityPositionStructOutput,
         positionManager: UniswapPositionManager,
         factory: UniswapV3Factory,
-        recipient: AddressLike,
         from?: AddressLike,
     ) {
         const [
@@ -129,7 +128,6 @@ export class LiquidityHelpers {
             UniswapV3Helper.getPositionFees(
                 position.tokenId,
                 positionManager,
-                recipient,
                 from,
             ),
         ])
