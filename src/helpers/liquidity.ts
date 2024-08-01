@@ -115,13 +115,7 @@ export class LiquidityHelpers {
         from?: AddressLike,
     ) {
         const [
-            {
-                token0,
-                token1,
-                fee,
-                tickLower,
-                tickUpper,
-            },
+            uniV3Position,
             fees,
         ] = await Promise.all([
             positionManager.positions(position.tokenId),
@@ -132,13 +126,11 @@ export class LiquidityHelpers {
             ),
         ])
 
+        const { token0, token1, fee } = uniV3Position
+
         const { amount0, amount1 } = UniswapV3Helper.getPositionTokenAmounts(
             await UniswapV3Helper.getPoolByFactoryContract(factory, token0, token1, fee),
-            {
-                liquidity: position.liquidity,
-                tickLower,
-                tickUpper,
-            },
+            uniV3Position,
         )
 
         return {
