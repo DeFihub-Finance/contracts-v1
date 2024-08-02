@@ -428,7 +428,7 @@ library InvestLib {
             uint initialInputTokenBalance = inputToken.balanceOf(address(this));
             uint initialOutputTokenBalance = outputToken.balanceOf(address(this));
 
-            _dca.withdrawAll(positionId);
+            _dca.closePosition(positionId);
 
             uint inputTokenAmount = inputToken.balanceOf(address(this)) - initialInputTokenBalance;
             uint outputTokenAmount = outputToken.balanceOf(address(this)) - initialOutputTokenBalance;
@@ -555,7 +555,7 @@ library InvestLib {
             IERC20Upgradeable outputToken = IERC20Upgradeable(poolInfo.outputToken);
             uint initialOutputTokenBalance = outputToken.balanceOf(address(this));
 
-            _dca.withdrawSwapped(positionId);
+            _dca.collectPosition(positionId);
 
             uint outputTokenAmount = outputToken.balanceOf(address(this)) - initialOutputTokenBalance;
 

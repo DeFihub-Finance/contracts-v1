@@ -70,7 +70,7 @@ describe('DCA#withdrawAll', () => {
 
     describe('EFFECTS', () => {
         it('withdraws all tokens when no swap was executed', async () => {
-            await dca.connect(account0).withdrawAll(positionParams.poolId)
+            await dca.connect(account0).closePosition(positionParams.poolId)
 
             const userOutputTokenBalanceDelta = (await tokenOutBalance()) - userOutputTokenBalanceBefore
             const userInputTokenBalanceDelta = (await tokenInBalance()) - userInputTokenBalanceBefore
@@ -101,7 +101,7 @@ describe('DCA#withdrawAll', () => {
                 await NetworkService.fastForwardChain(TWENTY_FOUR_HOURS_IN_SECONDS)
             }
 
-            await dca.connect(account0).withdrawAll(positionParams.poolId)
+            await dca.connect(account0).closePosition(positionParams.poolId)
 
             const userOutputTokenBalanceDelta = (await tokenOutBalance()) - userOutputTokenBalanceBefore
             const userInputTokenBalanceDelta = (await tokenInBalance()) - userInputTokenBalanceBefore
@@ -138,7 +138,7 @@ describe('DCA#withdrawAll', () => {
                 await NetworkService.fastForwardChain(TWENTY_FOUR_HOURS_IN_SECONDS)
             }
 
-            await dca.connect(account0).withdrawAll(positionParams.poolId)
+            await dca.connect(account0).closePosition(positionParams.poolId)
 
             const userOutputTokenBalanceDelta = (await tokenOutBalance()) - userOutputTokenBalanceBefore
             const userInputTokenBalanceDelta = (await tokenInBalance()) - userInputTokenBalanceBefore
@@ -152,7 +152,7 @@ describe('DCA#withdrawAll', () => {
             })
         })
 
-        it('emits WithdrawSwapped event after user withdraw swapped tokens', async () => {
+        it('emits PositionClosed event after user withdraw swapped tokens', async () => {
             await dca.connect(swapper).swap([
                 {
                     poolId: positionParams.poolId,
@@ -165,9 +165,9 @@ describe('DCA#withdrawAll', () => {
                 positionParams.positionId,
             )
 
-            const tx = dca.connect(account0).withdrawSwapped(positionParams.positionId)
+            const tx = dca.connect(account0).collectPosition(positionParams.positionId)
 
-            await expect(tx).to.emit(dca, 'WithdrawSwapped').withArgs(
+            await expect(tx).to.emit(dca, 'PositionCollected').withArgs(
                 await account0.getAddress(),
                 positionParams.poolId,
                 positionParams.positionId,
@@ -186,7 +186,7 @@ describe('DCA#withdrawAll', () => {
                 await NetworkService.fastForwardChain(TWENTY_FOUR_HOURS_IN_SECONDS)
             }
 
-            await dca.connect(account0).withdrawAll(positionParams.poolId)
+            await dca.connect(account0).closePosition(positionParams.poolId)
 
             const positionId = 0
             const {
@@ -201,7 +201,7 @@ describe('DCA#withdrawAll', () => {
             expect(outputTokenBalance).to.be.deep.equals(0n)
         })
 
-        it('emits WithdrawAll event after user withdraw all assets', async () => {
+        it('emits PositionClosed event after user closes position', async () => {
             await dca.connect(swapper).swap([
                 {
                     poolId: positionParams.poolId,
@@ -217,9 +217,9 @@ describe('DCA#withdrawAll', () => {
                 positionParams.positionId,
             )
 
-            const tx = dca.connect(account0).withdrawAll(positionParams.positionId)
+            const tx = dca.connect(account0).closePosition(positionParams.positionId)
 
-            await expect(tx).to.emit(dca, 'WithdrawAll').withArgs(
+            await expect(tx).to.emit(dca, 'PositionClosed').withArgs(
                 await account0.getAddress(),
                 positionParams.poolId,
                 positionParams.positionId,
@@ -235,7 +235,7 @@ describe('DCA#withdrawAll', () => {
             const nextSwapAmount = async () => (await dca.getPool(positionParams.poolId)).nextSwapAmount
             const nextSwapAmountBefore = await nextSwapAmount()
 
-            await dca.connect(account0).withdrawAll(positionParams.poolId)
+            await dca.connect(account0).closePosition(positionParams.poolId)
 
             const nextSwapAmountDelta = (await nextSwapAmount()) - nextSwapAmountBefore
             const expectedSwapDelta = positionParams.depositAmount / positionParams.swaps * -1n
@@ -250,7 +250,7 @@ describe('DCA#withdrawAll', () => {
             )).lastUpdateSwap
             const lastUpdateSwapBefore = await lastUpdateSwap()
 
-            await dca.connect(account0).withdrawAll(positionParams.poolId)
+            await dca.connect(account0).closePosition(positionParams.poolId)
 
             const lastUpdateSwapDelta = await lastUpdateSwap() - lastUpdateSwapBefore
 
@@ -258,7 +258,7 @@ describe('DCA#withdrawAll', () => {
         })
 
         it('updates amountPerSwap to zero', async () => {
-            await dca.connect(account0).withdrawAll(positionParams.poolId)
+            await dca.connect(account0).closePosition(positionParams.poolId)
 
             const amountPerSwap = (await dca.getPosition(
                 await account0.getAddress(),
@@ -272,7 +272,7 @@ describe('DCA#withdrawAll', () => {
     describe('REVERTS', () => {
         it('if positionId is invalid', async () => {
             const invalidPoolId = 1
-            const tx = dca.withdrawAll(invalidPoolId)
+            const tx = dca.closePosition(invalidPoolId)
 
             await expect(tx).to.be.revertedWithCustomError(dca, 'InvalidPositionId')
         })
@@ -287,14 +287,14 @@ describe('DCA#withdrawAll', () => {
                 },
             ])
 
-            await dca.connect(account0).withdrawAll(positionParams.poolId)
+            await dca.connect(account0).closePosition(positionParams.poolId)
 
             const account0Address = await account0.getAddress()
 
             const tokenInBalanceBefore = await stablecoin.balanceOf(account0Address)
             const tokenOutBalanceBefore = await weth.balanceOf(account0Address)
 
-            await dca.connect(account0).withdrawAll(positionParams.poolId)
+            await dca.connect(account0).closePosition(positionParams.poolId)
 
             const tokenInBalanceAfter = await stablecoin.balanceOf(account0Address)
             const tokenOutBalanceAfter = await weth.balanceOf(account0Address)

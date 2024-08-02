@@ -86,8 +86,8 @@ contract DollarCostAverage is HubOwnable, UseFee, OnlyStrategyManager, Reentranc
 
     event PoolCreated(uint208 poolId, address inputToken, address outputToken, address router, bytes path, uint interval);
     event PositionCreated(address user, uint208 poolId, uint positionId, uint swaps, uint amountPerSwap, uint finalSwap);
-    event WithdrawSwapped(address user, uint208 poolId, uint positionId, uint tokenOutAmount);
-    event WithdrawAll(address user, uint208 poolId, uint positionId, uint tokenInAmount, uint tokenOutAmount);
+    event PositionCollected(address user, uint208 poolId, uint positionId, uint tokenOutAmount);
+    event PositionClosed(address user, uint208 poolId, uint positionId, uint tokenInAmount, uint tokenOutAmount);
     event Swap(uint208 poolId, uint amountIn, uint amountOut);
     event SetPoolPath(uint208 poolId, bytes oldPath, bytes newPath);
     event SetPoolRouter(uint208 poolId, address oldRouter, address newRouter);
@@ -258,19 +258,25 @@ contract DollarCostAverage is HubOwnable, UseFee, OnlyStrategyManager, Reentranc
         }
     }
 
-    function withdrawAll(uint _positionId) external virtual nonReentrant {
-        PositionInfo[] memory userPositions = positionInfo[msg.sender];
+    function closePosition(uint _positionId) external virtual nonReentrant {
+        PositionInfo[] storage userPositions = positionInfo[msg.sender];
 
         if (_positionId >= userPositions.length)
             revert InvalidPositionId();
 
-        PositionInfo memory position = userPositions[_positionId];
-        PoolInfo memory pool = poolInfo[position.poolId];
+        PositionInfo storage position = userPositions[_positionId];
+        PoolInfo storage pool = poolInfo[position.poolId];
 
         uint inputTokenAmount = _calculateInputTokenBalance(msg.sender, _positionId);
         uint outputTokenAmount = _calculateOutputTokenBalance(msg.sender, _positionId);
 
-        _closePosition(_positionId);
+        if (position.finalSwap > pool.performedSwaps) {
+            pool.nextSwapAmount -= position.amountPerSwap;
+            endingPositionDeduction[position.poolId][position.finalSwap + 1] -= position.amountPerSwap;
+        }
+
+        position.lastUpdateSwap = pool.performedSwaps;
+        position.amountPerSwap = 0;
 
         if (inputTokenAmount > 0)
             IERC20Upgradeable(pool.inputToken).safeTransfer(msg.sender, inputTokenAmount);
@@ -278,19 +284,10 @@ contract DollarCostAverage is HubOwnable, UseFee, OnlyStrategyManager, Reentranc
         if (outputTokenAmount > 0)
             IERC20Upgradeable(pool.outputToken).safeTransfer(msg.sender, outputTokenAmount);
 
-        emit WithdrawAll(msg.sender, position.poolId, _positionId, inputTokenAmount, outputTokenAmount);
+        emit PositionClosed(msg.sender, position.poolId, _positionId, inputTokenAmount, outputTokenAmount);
     }
 
-    function withdrawSwapped(uint _positionId) external virtual nonReentrant {
-        _withdrawSwapped(_positionId);
-    }
-
-    function withdrawSwappedMany(uint[] calldata _positionId) external virtual nonReentrant {
-        for (uint i; i < _positionId.length; ++i)
-            _withdrawSwapped(_positionId[i]);
-    }
-
-    function _withdrawSwapped(uint _positionId) internal virtual {
+    function collectPosition(uint _positionId) external virtual nonReentrant {
         PositionInfo[] storage userPositions = positionInfo[msg.sender];
 
         if (_positionId >= userPositions.length)
@@ -305,7 +302,7 @@ contract DollarCostAverage is HubOwnable, UseFee, OnlyStrategyManager, Reentranc
 
         IERC20Upgradeable(pool.outputToken).safeTransfer(msg.sender, outputTokenAmount);
 
-        emit WithdrawSwapped(msg.sender, position.poolId, _positionId, outputTokenAmount);
+        emit PositionCollected(msg.sender, position.poolId, _positionId, outputTokenAmount);
     }
 
     function setPoolRouterAndPath(
@@ -391,19 +388,6 @@ contract DollarCostAverage is HubOwnable, UseFee, OnlyStrategyManager, Reentranc
         poolInfo[_poolId].router = _router;
 
         emit SetPoolRouter(_poolId, oldRouter, _router);
-    }
-
-    function _closePosition(uint _positionId) internal virtual {
-        PositionInfo storage position = positionInfo[msg.sender][_positionId];
-        PoolInfo storage pool = poolInfo[position.poolId];
-
-        if (position.finalSwap > pool.performedSwaps) {
-            pool.nextSwapAmount -= position.amountPerSwap;
-            endingPositionDeduction[position.poolId][position.finalSwap + 1] -= position.amountPerSwap;
-        }
-
-        position.lastUpdateSwap = pool.performedSwaps;
-        position.amountPerSwap = 0;
     }
 
     function _calculateOutputTokenBalance(address _user, uint _positionId) internal virtual view returns (uint) {
