@@ -11,7 +11,6 @@ import {
     INonfungiblePositionManager,
     Quoter,
     TestERC20,
-    UniswapPositionManager,
     UniswapV3Factory,
     UniswapV3Pool__factory,
     type UniswapV3Pool,
@@ -20,15 +19,7 @@ import { NetworkService } from '@src/NetworkService'
 import { PathUniswapV3 } from '@defihub/shared'
 import { ethers } from 'hardhat'
 
-type UniswapV3Position = {
-    liquidity: bigint
-    tickLower: bigint
-    tickUpper: bigint
-}
-
 export class UniswapV3 {
-    public static MAX_UINT_128 = 2n ** 128n - 1n
-
     public static async getOutputTokenAmount(
         quoter: Quoter,
         inputToken: AddressLike,
@@ -167,47 +158,18 @@ export class UniswapV3 {
         )
     }
 
-    // TODO move to shared
-    public static getPositionTokenAmounts(
+    public static getBurnAmounts(
         pool: Pool,
-        { liquidity, tickLower, tickUpper }: UniswapV3Position,
+        liquidity: bigint,
+        tickLower: bigint,
+        tickUpper: bigint,
+        slippage: BigNumber = new BigNumber(0.01), // 1%
     ) {
         const { amount0, amount1 } = new Position({
             pool,
             liquidity: liquidity.toString(),
             tickLower: Number(tickLower),
             tickUpper: Number(tickUpper),
-        })
-
-        return {
-            amount0: BigInt(amount0.quotient.toString()),
-            amount1: BigInt(amount1.quotient.toString()),
-        }
-    }
-
-    public static getPositionFees(
-        tokenId: bigint,
-        positionManager: UniswapPositionManager,
-        from?: AddressLike,
-    ) {
-        return positionManager.connect(ethers.provider).collect.staticCall({
-            tokenId,
-            recipient: ZeroAddress,
-            amount0Max: UniswapV3.MAX_UINT_128,
-            amount1Max: UniswapV3.MAX_UINT_128,
-        }, { from })
-    }
-
-    public static getBurnAmounts(
-        pool: Pool,
-        position: UniswapV3Position,
-        slippage: BigNumber = new BigNumber(0.01), // 1%
-    ) {
-        const { amount0, amount1 } = new Position({
-            pool,
-            liquidity: position.liquidity.toString(),
-            tickLower: Number(position.tickLower),
-            tickUpper: Number(position.tickUpper),
         })
             .burnAmountsWithSlippage(new Percent(slippage.times(100).toString(), 100))
 

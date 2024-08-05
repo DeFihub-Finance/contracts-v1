@@ -90,7 +90,7 @@ describe('StrategyManager#closePosition', () => {
                 token0,
                 token1,
             } = await LiquidityHelpers.getLiquidityPositionInfo(
-                liquidityPosition,
+                liquidityPosition.tokenId,
                 positionManagerUniV3,
                 factoryUniV3,
                 strategyManager,
@@ -130,7 +130,9 @@ describe('StrategyManager#closePosition', () => {
                     position.token1,
                     position.fee,
                 ),
-                position,
+                position.liquidity,
+                position.tickLower,
+                position.tickUpper,
             )
         }))
     }
@@ -144,7 +146,7 @@ describe('StrategyManager#closePosition', () => {
                 amount1,
                 fees,
             } = await LiquidityHelpers.getLiquidityPositionInfo(
-                position,
+                position.tokenId,
                 positionManagerUniV3,
                 factoryUniV3,
                 strategyManager,

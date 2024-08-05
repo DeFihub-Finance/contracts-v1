@@ -1,10 +1,9 @@
 import { expect } from 'chai'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
-import { DollarCostAverage, StrategyManager, TestERC20, TestERC20__factory, UniswapPositionManager } from '@src/typechain'
+import { DollarCostAverage, StrategyManager, TestERC20, TestERC20__factory, UniswapPositionManager, UniswapV3Factory } from '@src/typechain'
 import { AddressLike, Signer } from 'ethers'
 import { runStrategy } from './fixtures/run-strategy.fixture'
 import { LiquidityHelpers } from '@src/helpers'
-import { UniswapFactoryV3 } from '@defihub/shared'
 
 // => Given an investor with a position in a strategy which contains a DCA pool
 //      => When the investor collects the position
@@ -30,7 +29,7 @@ describe('StrategyManager#collectPosition', () => {
     let liquidityStrategyId: bigint
 
     let positionManagerUniV3: UniswapPositionManager
-    let factoryUniV3: UniswapFactoryV3
+    let factoryUniV3: UniswapV3Factory
 
     const getDcaOutputTokenBalance = async () => dcaOutputToken.balanceOf(account1)
 
@@ -69,7 +68,7 @@ describe('StrategyManager#collectPosition', () => {
                 token0,
                 token1,
             } = await LiquidityHelpers.getLiquidityPositionInfo(
-                position,
+                position.tokenId,
                 positionManagerUniV3,
                 factoryUniV3,
                 strategyManager,
@@ -173,7 +172,7 @@ describe('StrategyManager#collectPosition', () => {
                     const liquidityWithdrawAmounts = (await Promise.all(
                         (await strategyManager.getPositionInvestments(account1, liquidityPositionId))
                             .liquidityPositions.map(position => LiquidityHelpers.getLiquidityPositionInfo(
-                                position,
+                                position.tokenId,
                                 positionManagerUniV3,
                                 factoryUniV3,
                                 strategyManager,
