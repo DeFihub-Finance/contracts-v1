@@ -2,7 +2,7 @@ import { StrategyManager, SubscriptionManager } from '@src/typechain'
 import { Signer, ZeroHash } from 'ethers'
 
 export async function createStrategy(
-    strategiest: Signer,
+    strategist: Signer,
     permit: SubscriptionManager.PermitStruct,
     strategyManager: StrategyManager,
     {
@@ -14,7 +14,7 @@ export async function createStrategy(
 ): Promise<bigint> {
     const strategyId = await strategyManager.getStrategiesLength()
 
-    await strategyManager.connect(strategiest).createStrategy({
+    await strategyManager.connect(strategist).createStrategy({
         dcaInvestments,
         vaultInvestments,
         liquidityInvestments,

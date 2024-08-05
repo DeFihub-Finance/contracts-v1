@@ -233,7 +233,7 @@ export class ProjectDeployer {
 
             subscriptionSignature,
             deadline,
-            /** Strategiest Permit */
+            /** strategist Permit */
             permitAccount0: await subscriptionSignature
                 .signSubscriptionPermit(await account0.getAddress(), deadline),
             expiredPermitAccount0: await subscriptionSignature

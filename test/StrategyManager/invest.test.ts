@@ -47,7 +47,7 @@ describe('StrategyManager#invest', () => {
     const amountToInvest = parseEther('10')
 
     // accounts
-    /** Strategiest */
+    /** strategist */
     let account0: Signer
     /** Subscribed Investor */
     let account1: Signer
@@ -93,14 +93,14 @@ describe('StrategyManager#invest', () => {
         amount: bigint,
         _strategyId: bigint = strategyId,
         subscribedUser = true,
-        subscribedStrategiest = true,
+        subscribedStrategist = true,
     ) {
         return Fees.deductStrategyFee(
             amount,
             strategyManager,
             _strategyId,
             subscribedUser,
-            subscribedStrategiest,
+            subscribedStrategist,
             dca,
             vaultManager,
             liquidityManager,
@@ -112,14 +112,14 @@ describe('StrategyManager#invest', () => {
         amount: bigint,
         _strategyId: bigint = strategyId,
         subscribedUser = true,
-        subscribedStrategiest = true,
+        subscribedStrategist = true,
     ) {
         return Fees.getStrategyFeeAmount(
             amount,
             strategyManager,
             _strategyId,
             subscribedUser,
-            subscribedStrategiest,
+            subscribedStrategist,
             dca,
             vaultManager,
             liquidityManager,
@@ -131,17 +131,17 @@ describe('StrategyManager#invest', () => {
         _amount = amountToInvest,
         _strategyId = strategyId,
         _investorSubscribed = true,
-        _strategiestSubscribed = true,
+        _strategistSubscribed = true,
     }: {
         _amount?: bigint,
         _strategyId?: bigint,
         _investorSubscribed?: boolean,
-        _strategiestSubscribed?: boolean,
+        _strategistSubscribed?: boolean,
     } = {
         _amount: amountToInvest,
         _strategyId: strategyId,
         _investorSubscribed: true,
-        _strategiestSubscribed: true,
+        _strategistSubscribed: true,
     }): Promise<StrategyManager.InvestParamsStruct> {
         const deadlineInvestor = _investorSubscribed ? deadline : 0
 
@@ -151,7 +151,7 @@ describe('StrategyManager#invest', () => {
             investorPermit,
         ] = await Promise.all([
             strategyManager.getStrategyInvestments(_strategyId),
-            deductFees(_amount, _strategyId, _investorSubscribed, _strategiestSubscribed),
+            deductFees(_amount, _strategyId, _investorSubscribed, _strategistSubscribed),
             subscriptionSignature
                 .signSubscriptionPermit(await investor.getAddress(), deadlineInvestor),
         ])
@@ -179,7 +179,7 @@ describe('StrategyManager#invest', () => {
             liquidityZaps,
             tokenSwaps: [], // TODO
             investorPermit,
-            strategistPermit: _strategiestSubscribed ? permitAccount0 : expiredPermitAccount0,
+            strategistPermit: _strategistSubscribed ? permitAccount0 : expiredPermitAccount0,
         }
     }
 
@@ -451,7 +451,7 @@ describe('StrategyManager#invest', () => {
             it('subscribed user sends strategist rewards to treasury', async () => {
                 const tx = await _invest(
                     account1,
-                    await getInvestParams(account1, { _strategiestSubscribed: false }),
+                    await getInvestParams(account1, { _strategistSubscribed: false }),
                 )
 
                 const finalStrategistRewards = await strategyManager
@@ -472,7 +472,7 @@ describe('StrategyManager#invest', () => {
             it('unsubscribed user sends strategist rewards to treasury', async () => {
                 const tx = await _invest(
                     account2,
-                    await getInvestParams(account2, { _investorSubscribed: false, _strategiestSubscribed: false }),
+                    await getInvestParams(account2, { _investorSubscribed: false, _strategistSubscribed: false }),
                 )
 
                 const finalStrategistRewards = await strategyManager
