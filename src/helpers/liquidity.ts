@@ -1,10 +1,11 @@
+import { ethers } from 'hardhat'
+import { AddressLike } from 'ethers'
 import { BigNumber } from '@ryze-blockchain/ethereum'
-import { ERC20Priced, Slippage, UniswapFactoryV3, UniswapV3, UseFee } from '@defihub/shared'
+import { ERC20Priced, Slippage, UniswapV3 } from '@defihub/shared'
 import { InvestLib } from '@src/typechain/artifacts/contracts/StrategyManager'
+import { NonFungiblePositionManager, UniswapV3Factory, UseFee } from '@src/typechain'
 import { UniswapV3ZapHelper } from './zap'
 import { UniswapV3 as UniswapV3Helper } from './UniswapV3'
-import { UniswapPositionManager, UniswapV3Factory } from '@src/typechain'
-import { AddressLike } from 'ethers'
 
 export class LiquidityHelpers {
     public static getMinOutput(
@@ -30,7 +31,7 @@ export class LiquidityHelpers {
         inputToken: ERC20Priced,
         token0: ERC20Priced,
         token1: ERC20Priced,
-        factory: UniswapFactoryV3,
+        factory: UniswapV3Factory,
         liquidityManager: UseFee,
         slippage = new BigNumber(0.01),
     ) {
@@ -109,28 +110,35 @@ export class LiquidityHelpers {
     }
 
     public static async getLiquidityPositionInfo(
-        position: InvestLib.LiquidityPositionStructOutput,
-        positionManager: UniswapPositionManager,
+        tokenId: bigint,
+        positionManager: NonFungiblePositionManager,
         factory: UniswapV3Factory,
-        from?: AddressLike,
+        from: AddressLike,
     ) {
         const [
-            uniV3Position,
+            {
+                token0,
+                token1,
+                fee,
+                liquidity,
+                tickLower,
+                tickUpper,
+            },
             fees,
         ] = await Promise.all([
-            positionManager.positions(position.tokenId),
-            UniswapV3Helper.getPositionFees(
-                position.tokenId,
-                positionManager,
+            positionManager.positions(tokenId),
+            UniswapV3.getPositionFees(
+                tokenId,
+                positionManager.connect(ethers.provider),
                 from,
             ),
         ])
 
-        const { token0, token1, fee } = uniV3Position
-
-        const { amount0, amount1 } = UniswapV3Helper.getPositionTokenAmounts(
+        const { amount0, amount1 } = UniswapV3.getPositionTokenAmounts(
             await UniswapV3Helper.getPoolByFactoryContract(factory, token0, token1, fee),
-            uniV3Position,
+            liquidity,
+            tickLower,
+            tickUpper,
         )
 
         return {
