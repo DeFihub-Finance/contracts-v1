@@ -9,7 +9,7 @@ export async function createStrategy(
         dcaInvestments,
         vaultInvestments,
         liquidityInvestments,
-        tokenInvestments,
+        buyInvestments,
     }: Omit<StrategyManager.CreateStrategyParamsStruct, 'permit' | 'metadataHash'>,
 ): Promise<bigint> {
     const strategyId = await strategyManager.getStrategiesLength()
@@ -18,7 +18,7 @@ export async function createStrategy(
         dcaInvestments,
         vaultInvestments,
         liquidityInvestments,
-        tokenInvestments,
+        buyInvestments,
         permit,
         metadataHash: ZeroHash,
     })

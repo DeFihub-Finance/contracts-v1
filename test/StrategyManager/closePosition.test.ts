@@ -169,7 +169,7 @@ describe('StrategyManager#closePosition', () => {
 
     describe('Given an open position with only DCA', () => {
         describe('When the owner of position calls closePosition', () => {
-            it('Then the user receives remaning tokens of all DCA positions in a strategy', async () => {
+            it('Then the user receives remaining tokens of all DCA positions in a strategy', async () => {
                 const account1Address = await account1.getAddress()
 
                 const strategyTokenBalancesBefore = await snapshotStrategyTokenBalances(dcaPositionId)

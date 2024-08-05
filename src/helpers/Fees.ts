@@ -18,13 +18,13 @@ export class Fees {
             dcaInvestments,
             vaultInvestments,
             liquidityInvestments,
-            tokenInvestments,
+            buyInvestments,
         } = await strategyManager.getStrategyInvestments(strategyId)
 
         const dcaPercentage = Fees._sumInvestmentPercentages(dcaInvestments)
         const vaultPercentage = Fees._sumInvestmentPercentages(vaultInvestments)
         const liquidityPercentage = Fees._sumInvestmentPercentages(liquidityInvestments)
-        const tokensPercentage = Fees._sumInvestmentPercentages(tokenInvestments)
+        const tokensPercentage = Fees._sumInvestmentPercentages(buyInvestments)
 
         const [
             strategistPercentage,

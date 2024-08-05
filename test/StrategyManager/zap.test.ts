@@ -8,7 +8,7 @@ import {
     BeefyMockStrategy__factory,
     BeefyVaultV7__factory,
     DollarCostAverage,
-    ExchangeManager,
+    BuyProduct,
     LiquidityManager,
     StrategyManager,
     SubscriptionManager,
@@ -53,7 +53,7 @@ describe('StrategyManager#invest (zap)', () => {
     let dca: DollarCostAverage
     let vaultManager: VaultManager
     let liquidityManager: LiquidityManager
-    let exchangeManager: ExchangeManager
+    let buyProduct: BuyProduct
     let zapManager: ZapManager
 
     // external test contracts
@@ -88,7 +88,7 @@ describe('StrategyManager#invest (zap)', () => {
             dca,
             vaultManager,
             liquidityManager,
-            exchangeManager,
+            buyProduct,
         )
     }
 
@@ -102,7 +102,7 @@ describe('StrategyManager#invest (zap)', () => {
             dca,
             vaultManager,
             liquidityManager,
-            exchangeManager,
+            buyProduct,
         )
     }
 
@@ -122,7 +122,7 @@ describe('StrategyManager#invest (zap)', () => {
             dca,
             vaultManager,
             liquidityManager,
-            exchangeManager,
+            buyProduct,
             zapManager,
 
             // external test contracts
@@ -187,7 +187,7 @@ describe('StrategyManager#invest (zap)', () => {
                 ],
                 vaultInvestments: [],
                 liquidityInvestments: [],
-                tokenInvestments: [],
+                buyInvestments: [],
                 permit: permitAccount0,
                 metadataHash: ZeroHash,
             })
@@ -219,7 +219,7 @@ describe('StrategyManager#invest (zap)', () => {
                         ),
                     ],
                     vaultSwaps: [],
-                    tokenSwaps: [],
+                    buySwaps: [],
                     liquidityZaps: [],
                     investorPermit: permitAccount0,
                     strategistPermit: permitAccount0,
@@ -250,7 +250,7 @@ describe('StrategyManager#invest (zap)', () => {
                         ),
                     ],
                     vaultSwaps: [],
-                    tokenSwaps: [],
+                    buySwaps: [],
                     liquidityZaps: [],
                     investorPermit: permitAccount0,
                     strategistPermit: permitAccount0,
@@ -285,7 +285,7 @@ describe('StrategyManager#invest (zap)', () => {
                         ),
                     ],
                     vaultSwaps: [],
-                    tokenSwaps: [],
+                    buySwaps: [],
                     liquidityZaps: [],
                     investorPermit: permitAccount0,
                     strategistPermit: permitAccount0,
@@ -318,7 +318,7 @@ describe('StrategyManager#invest (zap)', () => {
                             ),
                         ],
                         vaultSwaps: [],
-                        tokenSwaps: [],
+                        buySwaps: [],
                         liquidityZaps: [],
                         investorPermit: permitAccount0,
                         strategistPermit: permitAccount0,
@@ -354,7 +354,7 @@ describe('StrategyManager#invest (zap)', () => {
                     },
                 ],
                 liquidityInvestments: [],
-                tokenInvestments: [],
+                buyInvestments: [],
                 permit: permitAccount0,
                 metadataHash: ZeroHash,
             })
@@ -397,7 +397,7 @@ describe('StrategyManager#invest (zap)', () => {
                             factoryUniV2,
                         ),
                     ],
-                    tokenSwaps: [],
+                    buySwaps: [],
                     liquidityZaps: [],
                     investorPermit: permitAccount0,
                     strategistPermit: permitAccount0,
@@ -455,7 +455,7 @@ describe('StrategyManager#invest (zap)', () => {
                                 factoryUniV2,
                             ),
                         ],
-                        tokenSwaps: [],
+                        buySwaps: [],
                         liquidityZaps: [],
                         investorPermit: permitAccount0,
                         strategistPermit: permitAccount0,
@@ -479,7 +479,7 @@ describe('StrategyManager#invest (zap)', () => {
                 dcaInvestments: [],
                 vaultInvestments: [],
                 liquidityInvestments: [],
-                tokenInvestments: [
+                buyInvestments: [
                     {
                         token: wbtc,
                         percentage: 50n,
@@ -509,7 +509,7 @@ describe('StrategyManager#invest (zap)', () => {
                     inputTokenSwap: '0x',
                     dcaSwaps: [],
                     vaultSwaps: [],
-                    tokenSwaps: [
+                    buySwaps: [
                         await UniswapV2ZapHelper.encodeSwap(
                             amountPerInvestmentMinusFees,
                             stablecoin,
@@ -583,7 +583,7 @@ describe('StrategyManager#invest (zap)', () => {
                         inputTokenSwap: '0x',
                         dcaSwaps: [],
                         vaultSwaps: [],
-                        tokenSwaps: [
+                        buySwaps: [
                             await UniswapV2ZapHelper.encodeSwap(
                                 amountPerInvestmentMinusFees,
                                 stablecoin,
@@ -651,7 +651,7 @@ describe('StrategyManager#invest (zap)', () => {
                     },
                 ],
                 liquidityInvestments: [],
-                tokenInvestments: [],
+                buyInvestments: [],
                 permit: permitAccount0,
                 metadataHash: ZeroHash,
             })
@@ -705,7 +705,7 @@ describe('StrategyManager#invest (zap)', () => {
                             factoryUniV2,
                         ),
                     ],
-                    tokenSwaps: [],
+                    buySwaps: [],
                     liquidityZaps: [],
                     investorPermit: permitAccount0,
                     strategistPermit: permitAccount0,
@@ -780,7 +780,7 @@ describe('StrategyManager#invest (zap)', () => {
                                 factoryUniV2,
                             ),
                         ],
-                        tokenSwaps: [],
+                        buySwaps: [],
                         liquidityZaps: [],
                         investorPermit: permitAccount0,
                         strategistPermit: permitAccount0,
@@ -858,7 +858,7 @@ describe('StrategyManager#invest (zap)', () => {
                             factoryUniV2,
                         ),
                     ],
-                    tokenSwaps: [],
+                    buySwaps: [],
                     liquidityZaps: [],
                     investorPermit: permitAccount0,
                     strategistPermit: permitAccount0,

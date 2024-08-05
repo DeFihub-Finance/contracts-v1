@@ -12,7 +12,7 @@ import {
     UniswapV3Zapper__factory,
     InvestLib__factory,
     LiquidityManager,
-    ExchangeManager,
+    BuyProduct,
 } from '@src/typechain'
 import {
     vanityDeployer,
@@ -49,7 +49,7 @@ async function deployProject() {
     const dcaDeploymentInfo = await getDeploymentInfo(saltBuilder, 'DollarCostAverage')
     const vaultDeploymentInfo = await getDeploymentInfo(saltBuilder, 'VaultManager')
     const liquidityDeploymentInfo = await getDeploymentInfo(saltBuilder, 'LiquidityManager')
-    const exchangeDeploymentInfo = await getDeploymentInfo(saltBuilder, 'ExchangeManager')
+    const buyProductDeploymentInfo = await getDeploymentInfo(saltBuilder, 'BuyProduct')
     const zapManagerInfo = await getDeploymentInfo(saltBuilder, 'ZapManager')
 
     await sendTransaction(
@@ -83,8 +83,8 @@ async function deployProject() {
         deployer,
     )
     await sendTransaction(
-        await projectDeployer.deployExchangeManager
-            .populateTransaction(exchangeDeploymentInfo),
+        await projectDeployer.deployBuyProduct
+            .populateTransaction(buyProductDeploymentInfo),
         deployer,
     )
     await sendTransaction(
@@ -99,7 +99,7 @@ async function deployProject() {
         dca,
         vaultManager,
         liquidityManager,
-        exchangeManager,
+        buyProduct,
         subscriptionManager,
         zapManager,
     ] = (await Promise.all([
@@ -107,7 +107,7 @@ async function deployProject() {
         projectDeployer.dca(),
         projectDeployer.vaultManager(),
         projectDeployer.liquidityManager(),
-        projectDeployer.exchangeManager(),
+        projectDeployer.buyProduct(),
         projectDeployer.subscriptionManager(),
         projectDeployer.zapManager(),
     ]))
@@ -129,7 +129,7 @@ async function deployProject() {
         dca: dca.proxy,
         vaultManager: vaultManager.proxy,
         liquidityManager: liquidityManager.proxy,
-        exchangeManager: exchangeManager.proxy,
+        buyProduct: buyProduct.proxy,
         zapManager: vaultManager.proxy,
         strategistPercentage: 30n,
         hotStrategistPercentage: 50n,
@@ -165,7 +165,7 @@ async function deployProject() {
         nonSubscriberFeeBP: 30n,
     }
 
-    const exchangeManagerInitParams: ExchangeManager.InitializeParamsStruct = {
+    const buyProductInitParams: BuyProduct.InitializeParamsStruct = {
         owner: safe,
         treasury,
         subscriptionManager: subscriptionManager.proxy,
@@ -192,7 +192,7 @@ async function deployProject() {
             dcaInitParams,
             vaultManagerInitParams,
             liquidityManagerInitParams,
-            exchangeManagerInitParams,
+            buyProductInitParams,
             zapManagerInitParams,
         ),
         deployer,
@@ -213,7 +213,7 @@ async function deployProject() {
     await saveAddress('DollarCostAverage', dca.proxy)
     await saveAddress('VaultManager', vaultManager.proxy)
     await saveAddress('LiquidityManager',liquidityManager.proxy)
-    await saveAddress('ExchangeManager', exchangeManager.proxy)
+    await saveAddress('BuyProduct', buyProduct.proxy)
     await saveAddress('ZapManager', zapManager.proxy)
     await saveAddress('ZapperUniswapV2', zapperUniV2)
     await saveAddress('ZapperUniswapV3', zapperUniV3)
@@ -224,7 +224,7 @@ async function deployProject() {
         dca,
         vaultManager,
         liquidityManager,
-        exchangeManager,
+        buyProduct,
         zapManager,
     ]
 

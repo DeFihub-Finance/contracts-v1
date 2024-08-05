@@ -46,7 +46,7 @@ library InvestLib {
         uint8 percentage;
     }
 
-    struct TokenInvestment {
+    struct BuyInvestment {
         IERC20Upgradeable token;
         uint8 percentage;
     }
@@ -97,8 +97,8 @@ library InvestLib {
         LiquidityInvestZapParams[] zaps;
     }
 
-    struct TokenInvestParams {
-        TokenInvestment[] investments;
+    struct BuyInvestParams {
+        BuyInvestment[] investments;
         IERC20Upgradeable inputToken;
         uint amount;
         ZapManager zapManager;
@@ -124,8 +124,8 @@ library InvestLib {
         LiquidityInvestZapParams[] liquidityZaps;
         uint8 liquidityTotalPercentage;
         // tokens
-        TokenInvestment[] tokenInvestments;
-        bytes[] tokenSwaps;
+        BuyInvestment[] buyInvestments;
+        bytes[] buySwaps;
     }
 
     /**
@@ -146,7 +146,7 @@ library InvestLib {
         uint128 liquidity;
     }
 
-    struct TokenPosition {
+    struct BuyPosition {
         IERC20Upgradeable token;
         uint amount;
     }
@@ -173,7 +173,7 @@ library InvestLib {
         LiquidityPosition[] liquidityPositions;
         LiquidityMinOutputs[] liquidityMinOutputs;
         // tokens
-        TokenPosition[] tokenPositions;
+        BuyPosition[] buyPositions;
     }
 
     /**
@@ -189,7 +189,7 @@ library InvestLib {
         // liquidity
         LiquidityPosition[] liquidityPositions;
         // tokens
-        TokenPosition[] tokenPositions;
+        BuyPosition[] buyPositions;
     }
 
     function invest(
@@ -198,7 +198,7 @@ library InvestLib {
         uint[] memory dcaPositionIds,
         VaultPosition[] memory vaultPositions,
         LiquidityPosition[] memory liquidityPositions,
-        TokenPosition[] memory tokenPositions
+        BuyPosition[] memory buyPositions
     ) {
         dcaPositionIds = _investInDca(
             DcaInvestmentParams({
@@ -234,13 +234,13 @@ library InvestLib {
             })
         );
 
-        tokenPositions = _investInToken(
-            TokenInvestParams({
-                investments: _params.tokenInvestments,
+        buyPositions = _investInToken(
+            BuyInvestParams({
+                investments: _params.buyInvestments,
                 inputToken: _params.inputToken,
                 amount: _params.amount,
                 zapManager: _params.zapManager,
-                swaps: _params.tokenSwaps
+                swaps: _params.buySwaps
             })
         );
     }
@@ -371,15 +371,15 @@ library InvestLib {
     }
 
     function _investInToken(
-        TokenInvestParams memory _params
-    ) private returns (TokenPosition[] memory) {
+        BuyInvestParams memory _params
+    ) private returns (BuyPosition[] memory) {
         if (_params.swaps.length == 0)
-            return new TokenPosition[](0);
+            return new BuyPosition[](0);
 
-        TokenPosition[] memory tokenPositions = new TokenPosition[](_params.swaps.length);
+        BuyPosition[] memory buyPositions = new BuyPosition[](_params.swaps.length);
 
         for (uint i; i < _params.swaps.length; ++i) {
-            TokenInvestment memory investment = _params.investments[i];
+            BuyInvestment memory investment = _params.investments[i];
 
             uint swapOutput = ZapLib.zap(
                 _params.zapManager,
@@ -389,13 +389,10 @@ library InvestLib {
                 _params.amount * investment.percentage / 100
             );
 
-            tokenPositions[i] = TokenPosition(
-                investment.token,
-                swapOutput
-            );
+            buyPositions[i] = BuyPosition(investment.token, swapOutput);
         }
 
-        return tokenPositions;
+        return buyPositions;
     }
 
     function closePosition(ClosePositionParams memory _params) external returns (
@@ -408,7 +405,7 @@ library InvestLib {
             _closeDcaPositions(_params.dca, _params.dcaPositions),
             _closeVaultPositions(_params.vaultPositions),
             _closeLiquidityPositions(_params.liquidityPositions, _params.liquidityMinOutputs),
-            _closeTokenPositions(_params.tokenPositions)
+            _closeBuyPositions(_params.buyPositions)
         );
     }
 
@@ -513,13 +510,13 @@ library InvestLib {
         return withdrawnAmounts;
     }
 
-    function _closeTokenPositions(
-        TokenPosition[] memory _positions
+    function _closeBuyPositions(
+        BuyPosition[] memory _positions
     ) private returns (uint[] memory) {
         uint[] memory withdrawnAmounts = new uint[](_positions.length);
 
         for (uint i; i < _positions.length; ++i) {
-            TokenPosition memory position = _positions[i];
+            BuyPosition memory position = _positions[i];
 
             position.token.safeTransfer(msg.sender, position.amount);
 
@@ -539,7 +536,7 @@ library InvestLib {
         return (
             _collectPositionsDca(_params.dca, _params.dcaPositions),
             _collectPositionsLiquidity(_params.liquidityPositions),
-            _collectPositionsToken(_params.tokenPositions)
+            _collectPositionsToken(_params.buyPositions)
         );
     }
 
@@ -595,12 +592,12 @@ library InvestLib {
     }
 
     function _collectPositionsToken(
-        TokenPosition[] memory _positions
+        BuyPosition[] memory _positions
     ) private returns (uint[] memory) {
         uint[] memory withdrawnAmounts = new uint[](_positions.length);
 
         for (uint i; i < _positions.length; ++i) {
-            TokenPosition memory position = _positions[i];
+            BuyPosition memory position = _positions[i];
             uint initialBalance = position.token.balanceOf(address(this));
 
             position.token.safeTransfer(msg.sender, position.amount);

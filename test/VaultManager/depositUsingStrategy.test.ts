@@ -53,7 +53,7 @@ describe('VaultManager#investUsingStrategy', () => {
                         },
                     ],
                     liquidityInvestments: [],
-                    tokenInvestments: [],
+                    buyInvestments: [],
                 },
             )
 
@@ -73,7 +73,7 @@ describe('VaultManager#investUsingStrategy', () => {
                         inputTokenSwap: '0x',
                         dcaSwaps: [],
                         vaultSwaps: ['0x'],
-                        tokenSwaps: [],
+                        buySwaps: [],
                         liquidityZaps: [],
                         investorPermit: permitAccount0,
                         strategistPermit: permitAccount0,

@@ -65,7 +65,7 @@ describe('StrategyManager#invest', () => {
     let strategyManager: StrategyManager
     let liquidityManager: UseFee
     let vaultManager: UseFee
-    let exchangeManager: UseFee
+    let buyProduct: UseFee
 
     // external test contracts
     let positionManagerUniV3: UniswapPositionManager
@@ -104,7 +104,7 @@ describe('StrategyManager#invest', () => {
             dca,
             vaultManager,
             liquidityManager,
-            exchangeManager,
+            buyProduct,
         )
     }
 
@@ -123,7 +123,7 @@ describe('StrategyManager#invest', () => {
             dca,
             vaultManager,
             liquidityManager,
-            exchangeManager,
+            buyProduct,
         )
     }
 
@@ -177,7 +177,7 @@ describe('StrategyManager#invest', () => {
             dcaSwaps: dcaInvestments.map(_ => '0x'),
             vaultSwaps: vaultInvestments.map(_ => '0x'),
             liquidityZaps,
-            tokenSwaps: [], // TODO
+            buySwaps: [], // TODO
             investorPermit,
             strategistPermit: _strategistSubscribed ? permitAccount0 : expiredPermitAccount0,
         }
@@ -210,7 +210,7 @@ describe('StrategyManager#invest', () => {
             strategyManager,
             liquidityManager,
             vaultManager,
-            exchangeManager,
+            buyProduct,
 
             // external test contracts
             positionManagerUniV3,
