@@ -1,9 +1,9 @@
 import { ethers } from 'hardhat'
 import { AddressLike } from 'ethers'
 import { BigNumber } from '@ryze-blockchain/ethereum'
-import { ERC20Priced, Slippage, UniswapV3, unwrapAddressLike, UseFee } from '@defihub/shared'
+import { ERC20Priced, Slippage, UniswapV3 } from '@defihub/shared'
 import { InvestLib } from '@src/typechain/artifacts/contracts/StrategyManager'
-import { NonFungiblePositionManager, UniswapV3Factory } from '@src/typechain'
+import { NonFungiblePositionManager, UniswapV3Factory, UseFee } from '@src/typechain'
 import { UniswapV3ZapHelper } from './zap'
 import { UniswapV3 as UniswapV3Helper } from './UniswapV3'
 
