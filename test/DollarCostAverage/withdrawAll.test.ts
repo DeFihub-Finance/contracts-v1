@@ -169,7 +169,6 @@ describe('DCA#withdrawAll', () => {
 
             await expect(tx).to.emit(dca, 'PositionCollected').withArgs(
                 await account0.getAddress(),
-                positionParams.poolId,
                 positionParams.positionId,
                 outputTokenBalance,
             )
@@ -221,7 +220,6 @@ describe('DCA#withdrawAll', () => {
 
             await expect(tx).to.emit(dca, 'PositionClosed').withArgs(
                 await account0.getAddress(),
-                positionParams.poolId,
                 positionParams.positionId,
                 inputTokenBalance,
                 outputTokenBalance,
