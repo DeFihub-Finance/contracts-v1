@@ -62,7 +62,7 @@ async function createMockStrategy() {
                             }),
                         )
                         : [],
-                    tokenInvestments: strategy.tokenInvestments || [],
+                    buyInvestments: strategy.buyInvestments || [],
                     permit: signature,
                     metadataHash: toKeccak256([strategy.name, strategy.bio]),
                 }),

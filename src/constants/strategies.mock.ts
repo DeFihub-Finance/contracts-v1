@@ -99,7 +99,7 @@ export const mockStrategies = [
                 percentage: 10,
             },
         ],
-        tokenInvestments: [
+        buyInvestments: [
             {
                 token: tokens[ChainIds.BNB_TESTNET].wbtc,
                 percentage: 10,
@@ -140,7 +140,7 @@ export const mockStrategies = [
     {
         name: 'Buy N Hodl',
         bio: 'This strategy is designed to buy crypto and hold it for a long time. It is a simple strategy that is easy to understand and execute.',
-        tokenInvestments: [
+        buyInvestments: [
             {
                 token: tokens[ChainIds.BNB_TESTNET].wbtc,
                 percentage: 50,
