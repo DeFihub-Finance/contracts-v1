@@ -145,7 +145,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         InvestLib.TokenPosition[] tokenPositions
     );
     event PositionClosed(
-        address owner,
+        address user,
         uint strategyId,
         uint positionId,
         uint[][] dcaWithdrawnAmounts,
@@ -154,7 +154,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         uint[] tokenWithdrawnAmounts
     );
     event PositionCollected(
-        address owner,
+        address user,
         uint strategyId,
         uint positionId,
         uint[] dcaWithdrawnAmounts,

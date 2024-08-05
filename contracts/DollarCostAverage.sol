@@ -86,8 +86,8 @@ contract DollarCostAverage is HubOwnable, UseFee, OnlyStrategyManager, Reentranc
 
     event PoolCreated(uint208 poolId, address inputToken, address outputToken, address router, bytes path, uint interval);
     event PositionCreated(address user, uint208 poolId, uint positionId, uint swaps, uint amountPerSwap, uint finalSwap);
-    event PositionCollected(address user, uint208 poolId, uint positionId, uint tokenOutAmount);
-    event PositionClosed(address user, uint208 poolId, uint positionId, uint tokenInAmount, uint tokenOutAmount);
+    event PositionCollected(address user, uint positionId, uint outputTokenAmount);
+    event PositionClosed(address user, uint positionId, uint inputTokenAmount, uint outputTokenAmount);
     event Swap(uint208 poolId, uint amountIn, uint amountOut);
     event SetPoolPath(uint208 poolId, bytes oldPath, bytes newPath);
     event SetPoolRouter(uint208 poolId, address oldRouter, address newRouter);
@@ -284,7 +284,7 @@ contract DollarCostAverage is HubOwnable, UseFee, OnlyStrategyManager, Reentranc
         if (outputTokenAmount > 0)
             IERC20Upgradeable(pool.outputToken).safeTransfer(msg.sender, outputTokenAmount);
 
-        emit PositionClosed(msg.sender, position.poolId, _positionId, inputTokenAmount, outputTokenAmount);
+        emit PositionClosed(msg.sender, _positionId, inputTokenAmount, outputTokenAmount);
     }
 
     function collectPosition(uint _positionId) external virtual nonReentrant {
@@ -302,7 +302,7 @@ contract DollarCostAverage is HubOwnable, UseFee, OnlyStrategyManager, Reentranc
 
         IERC20Upgradeable(pool.outputToken).safeTransfer(msg.sender, outputTokenAmount);
 
-        emit PositionCollected(msg.sender, position.poolId, _positionId, outputTokenAmount);
+        emit PositionCollected(msg.sender, _positionId, outputTokenAmount);
     }
 
     function setPoolRouterAndPath(
