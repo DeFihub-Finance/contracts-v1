@@ -131,9 +131,9 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
     uint32 public strategistPercentage;
     uint32 public hotStrategistPercentage;
 
-    event StrategyCreated(address creator, uint strategyId, bytes32 metadataHash);
+    event StrategyCreated(address strategist, uint strategyId, bytes32 metadataHash);
     event PositionCreated(
-        address owner,
+        address user,
         uint strategyId,
         uint positionId,
         address inputToken,
@@ -151,7 +151,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         uint[][] dcaWithdrawnAmounts,
         uint[] vaultWithdrawnAmount,
         uint[][] liquidityWithdrawnAmounts,
-        uint[] tokenWithdrawnAmounts
+        uint[] buyWithdrawnAmounts
     );
     event PositionCollected(
         address user,
@@ -159,7 +159,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         uint positionId,
         uint[] dcaWithdrawnAmounts,
         uint[][] liquidityWithdrawnAmounts,
-        uint[] tokenWithdrawnAmounts
+        uint[] buyWithdrawnAmounts
     );
     event CollectedStrategistRewards(address strategist, uint amount);
     event StrategistPercentageUpdated(uint32 discountPercentage);

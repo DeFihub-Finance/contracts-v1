@@ -399,7 +399,7 @@ library InvestLib {
         uint[][] memory dcaWithdrawnAmounts,
         uint[] memory vaultWithdrawnAmounts,
         uint[][] memory liquidityWithdrawnAmounts,
-        uint[] memory tokenWithdrawnAmounts
+        uint[] memory buyWithdrawnAmounts
     ) {
         return (
             _closeDcaPositions(_params.dca, _params.dcaPositions),
@@ -531,7 +531,7 @@ library InvestLib {
     ) external returns (
         uint[] memory dcaWithdrawnAmounts,
         uint[][] memory liquidityWithdrawnAmounts,
-        uint[] memory tokenWithdrawnAmounts
+        uint[] memory buyWithdrawnAmounts
     ) {
         return (
             _collectPositionsDca(_params.dca, _params.dcaPositions),
