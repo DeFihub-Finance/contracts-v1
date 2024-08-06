@@ -6,7 +6,7 @@ import {HubOwnable} from "./abstract/HubOwnable.sol";
 import {UseFee} from "./abstract/UseFee.sol";
 
 /// @dev This contract is an implementation of the UseFee contract for the Tokens product used in strategies
-contract ExchangeManager is HubOwnable, UseFee {
+contract BuyProduct is HubOwnable, UseFee {
     struct InitializeParams {
         address owner;
         address treasury;

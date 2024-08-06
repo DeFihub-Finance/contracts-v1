@@ -1,5 +1,5 @@
-import { Pool } from '@uniswap/v3-sdk'
-import { Token } from '@uniswap/sdk-core'
+import { Pool, Position } from '@uniswap/v3-sdk'
+import { Percent, Token } from '@uniswap/sdk-core'
 import { BigNumber, ChainIds } from '@ryze-blockchain/ethereum'
 import {
     Signer,
@@ -12,10 +12,12 @@ import {
     Quoter,
     TestERC20,
     UniswapV3Factory,
+    UniswapV3Pool__factory,
     type UniswapV3Pool,
 } from '@src/typechain'
 import { NetworkService } from '@src/NetworkService'
 import { PathUniswapV3 } from '@defihub/shared'
+import { ethers } from 'hardhat'
 
 export class UniswapV3 {
     public static async getOutputTokenAmount(
@@ -125,5 +127,55 @@ export class UniswapV3 {
             liquidity.toString(),
             Number(tick),
         )
+    }
+
+    public static async getPoolByFactoryContract(
+        factory: UniswapV3Factory,
+        tokenA: string,
+        tokenB: string,
+        fee: bigint,
+    ) {
+        const pool = UniswapV3Pool__factory.connect(
+            await factory.getPool(tokenA, tokenB, fee),
+            ethers.provider,
+        )
+
+        const [
+            liquidity,
+            { sqrtPriceX96, tick },
+        ] = await Promise.all([
+            pool.liquidity(),
+            pool.slot0(),
+        ])
+
+        return new Pool(
+            new Token(ChainIds.ETH, tokenA, 18),
+            new Token(ChainIds.ETH, tokenB, 18),
+            Number(fee),
+            sqrtPriceX96.toString(),
+            liquidity.toString(),
+            Number(tick),
+        )
+    }
+
+    public static getBurnAmounts(
+        pool: Pool,
+        liquidity: bigint,
+        tickLower: bigint,
+        tickUpper: bigint,
+        slippage: BigNumber = new BigNumber(0.01), // 1%
+    ) {
+        const { amount0, amount1 } = new Position({
+            pool,
+            liquidity: liquidity.toString(),
+            tickLower: Number(tickLower),
+            tickUpper: Number(tickUpper),
+        })
+            .burnAmountsWithSlippage(new Percent(slippage.times(100).toString(), 100))
+
+        return {
+            minOutputToken0: BigInt(amount0.toString()),
+            minOutputToken1: BigInt(amount1.toString()),
+        }
     }
 }

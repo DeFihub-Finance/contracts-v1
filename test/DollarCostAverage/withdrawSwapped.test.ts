@@ -10,11 +10,11 @@ import { ContractFees } from '@src/ContractFees'
 import { UniswapV3 } from '@src/helpers'
 
 // EFFECTS
-// => withdraw swapped tokens of a position
-//      => withdraw when there's no swapped tokens
-//      => withdraw when there's no unswapped tokens
+// => collect swapped tokens of a position
+//      => collect when there's no swapped tokens
+//      => collect when there's no unswapped tokens
 // => position balances should return zero for swapped
-// => emit WithdrawSwapped event
+// => emit CollectPosition event
 //
 // SIDE EFFECTS
 // => position.lastUpdateSwap
@@ -23,8 +23,8 @@ import { UniswapV3 } from '@src/helpers'
 // => if position id is invalid
 //
 // ATTACKS
-// => tries to withdraw swapped twice
-describe('DCA#withdrawSwapped', () => {
+// => tries to collect swapped twice
+describe('DCA#collect', () => {
     let account0: Signer
     let swapper: Signer
     let dca: DollarCostAverage
@@ -57,7 +57,7 @@ describe('DCA#withdrawSwapped', () => {
 
     describe('EFFECTS', () => {
         it('withdraws swapped okens when no swap was executed', async () => {
-            await dca.connect(account0).withdrawSwapped(positionParams.poolId)
+            await dca.connect(account0).collectPosition(positionParams.poolId)
 
             const userOutputTokenBalanceDelta = (await tokenOutBalance()) - userOutputTokenBalanceBefore
 
@@ -85,7 +85,7 @@ describe('DCA#withdrawSwapped', () => {
                 await NetworkService.fastForwardChain(TWENTY_FOUR_HOURS_IN_SECONDS)
             }
 
-            await dca.connect(account0).withdrawSwapped(positionParams.poolId)
+            await dca.connect(account0).collectPosition(positionParams.poolId)
 
             const userOutputTokenBalanceDelta = (await tokenOutBalance()) - userOutputTokenBalanceBefore
 
@@ -116,7 +116,7 @@ describe('DCA#withdrawSwapped', () => {
                 await NetworkService.fastForwardChain(TWENTY_FOUR_HOURS_IN_SECONDS)
             }
 
-            await dca.connect(account0).withdrawSwapped(positionParams.poolId)
+            await dca.connect(account0).collectPosition(positionParams.poolId)
 
             const userOutputTokenBalanceDelta = (await tokenOutBalance()) - userOutputTokenBalanceBefore
 
@@ -128,7 +128,7 @@ describe('DCA#withdrawSwapped', () => {
         })
 
         it('returns zero for positions output token balance', async () => {
-            await dca.connect(account0).withdrawSwapped(positionParams.poolId)
+            await dca.connect(account0).collectPosition(positionParams.poolId)
 
             const {
                 outputTokenBalance,
@@ -146,7 +146,7 @@ describe('DCA#withdrawSwapped', () => {
             const lastUpdateSwap = async () => (await dca.getPosition(account0, positionParams.poolId)).lastUpdateSwap
             const lastUpdateSwapBefore = await lastUpdateSwap()
 
-            await dca.connect(account0).withdrawSwapped(positionParams.poolId)
+            await dca.connect(account0).collectPosition(positionParams.poolId)
 
             const lastUpdateSwapDelta = await lastUpdateSwap() - lastUpdateSwapBefore
 
@@ -157,7 +157,7 @@ describe('DCA#withdrawSwapped', () => {
     describe('REVERTS', () => {
         it('if positionId is invalid', async () => {
             const invalidPoolId = 1
-            const tx = dca.withdrawSwapped(invalidPoolId)
+            const tx = dca.collectPosition(invalidPoolId)
 
             await expect(tx).to.be.revertedWithCustomError(dca, 'InvalidPositionId')
         })
@@ -171,11 +171,11 @@ describe('DCA#withdrawSwapped', () => {
                     minOutputAmount: 0,
                 },
             ])
-            await dca.connect(account0).withdrawSwapped(positionParams.positionId)
+            await dca.connect(account0).collectPosition(positionParams.positionId)
 
             const userOutputTokenBalanceBefore = await tokenOutBalance()
 
-            await dca.connect(account0).withdrawSwapped(positionParams.positionId)
+            await dca.connect(account0).collectPosition(positionParams.positionId)
 
             const  userOutputTokenBalanceDelta = (await tokenOutBalance()) - userOutputTokenBalanceBefore
 

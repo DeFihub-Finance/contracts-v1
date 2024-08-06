@@ -1,29 +1,48 @@
 import { tokens } from '../tokens'
 import { ChainIds } from '@ryze-blockchain/ethereum'
+import { PathUniswapV3 } from '@defihub/shared'
 
-const bnbTestnetDcaPools = [
-    {
-        inputToken: tokens[ChainIds.BNB_TESTNET].usdt,
-        outputToken: tokens[ChainIds.BNB_TESTNET].wbtc,
-    },
-    {
-        inputToken: tokens[ChainIds.BNB_TESTNET].usdt,
-        outputToken: tokens[ChainIds.BNB_TESTNET].weth,
-    },
-    {
-        inputToken: tokens[ChainIds.BNB_TESTNET].usdt,
-        outputToken: tokens[ChainIds.BNB_TESTNET].wbnb,
-    },
-    {
-        inputToken: tokens[ChainIds.BNB_TESTNET].wbtc,
-        outputToken: tokens[ChainIds.BNB_TESTNET].usdt,
-    },
-    {
-        inputToken: tokens[ChainIds.BNB_TESTNET].weth,
-        outputToken: tokens[ChainIds.BNB_TESTNET].usdt,
-    },
-    {
-        inputToken: tokens[ChainIds.BNB_TESTNET].wbnb,
-        outputToken: tokens[ChainIds.BNB_TESTNET].usdt,
-    },
+const bnbTestnetTokens = tokens[ChainIds.BNB_TESTNET]
+
+export const bnbTestnetDcaPools = [
+    new PathUniswapV3(
+        bnbTestnetTokens.usdt,
+        [
+            {
+                token: bnbTestnetTokens.wbtc,
+                fee: 3_000,
+            },
+        ],
+    ),
+    new PathUniswapV3(
+        bnbTestnetTokens.usdt,
+        [
+            {
+                token: bnbTestnetTokens.weth,
+                fee: 3_000,
+            },
+        ],
+    ),
+    new PathUniswapV3(
+        bnbTestnetTokens.usdt,
+        [
+            {
+                token: bnbTestnetTokens.wbnb,
+                fee: 3_000,
+            },
+        ],
+    ),
+    new PathUniswapV3(
+        bnbTestnetTokens.wbtc,
+        [
+            {
+                token: bnbTestnetTokens.usdt,
+                fee: 3_000,
+            },
+            {
+                token: bnbTestnetTokens.weth,
+                fee: 3_000,
+            },
+        ],
+    ),
 ]

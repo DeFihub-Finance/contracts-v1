@@ -17,8 +17,6 @@ import {SubscriptionManager} from "./SubscriptionManager.sol";
 contract LiquidityManager is HubOwnable, UseFee, UseDust, OnlyStrategyManager {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
-    ZapManager public zapManager;
-
     struct InitializeParams {
         address owner;
         address treasury;
@@ -45,6 +43,10 @@ contract LiquidityManager is HubOwnable, UseFee, UseDust, OnlyStrategyManager {
         uint amount0Min;
         uint amount1Min;
     }
+
+    ZapManager public zapManager;
+
+    event PositionCreated(address user, address positionManager, uint tokenId, uint128 liquidity);
 
     error InsufficientFunds(uint requested, uint available);
     error InvalidInvestment();
@@ -104,14 +106,14 @@ contract LiquidityManager is HubOwnable, UseFee, UseDust, OnlyStrategyManager {
         uint tokenId,
         uint128 liquidity
     ) {
-        uint amountToken0 = ZapLib.zap(
+        uint inputAmount0 = ZapLib.zap(
             zapManager,
             _params.swapToken0,
             _params.inputToken,
             _params.token0,
             _params.swapAmountToken0
         );
-        uint amountToken1 = ZapLib.zap(
+        uint inputAmount1 = ZapLib.zap(
             zapManager,
             _params.swapToken1,
             _params.inputToken,
@@ -119,8 +121,8 @@ contract LiquidityManager is HubOwnable, UseFee, UseDust, OnlyStrategyManager {
             _params.swapAmountToken1
         );
 
-        _params.token0.safeIncreaseAllowance(address(_params.positionManager), amountToken0);
-        _params.token1.safeIncreaseAllowance(address(_params.positionManager), amountToken1);
+        _params.token0.safeIncreaseAllowance(address(_params.positionManager), inputAmount0);
+        _params.token1.safeIncreaseAllowance(address(_params.positionManager), inputAmount1);
 
         (tokenId, liquidity,,) = INonfungiblePositionManager(_params.positionManager).mint(
             INonfungiblePositionManager.MintParams({
@@ -129,14 +131,16 @@ contract LiquidityManager is HubOwnable, UseFee, UseDust, OnlyStrategyManager {
                 fee: _params.fee,
                 tickLower: _params.tickLower,
                 tickUpper: _params.tickUpper,
-                amount0Desired: amountToken0,
-                amount1Desired: amountToken1,
+                amount0Desired: inputAmount0,
+                amount1Desired: inputAmount1,
                 amount0Min: _params.amount0Min,
                 amount1Min: _params.amount1Min,
                 recipient: msg.sender,
                 deadline: block.timestamp
             })
         );
+
+        emit PositionCreated(msg.sender, _params.positionManager, tokenId, liquidity);
     }
 
     function sendDust(IERC20Upgradeable _token, address _to) external virtual onlyStrategyManager {

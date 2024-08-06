@@ -29,7 +29,6 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
     struct Position {
         uint strategyId;
         bool closed;
-        bool collected;
     }
 
     struct InitializeParams {
@@ -41,7 +40,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         DollarCostAverage dca;
         VaultManager vaultManager;
         LiquidityManager liquidityManager;
-        UseFee exchangeManager;
+        UseFee buyProduct;
         ZapManager zapManager;
         uint8 maxHottestStrategies;
         uint32 strategistPercentage;
@@ -52,7 +51,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         InvestLib.DcaInvestment[] dcaInvestments;
         InvestLib.VaultInvestment[] vaultInvestments;
         InvestLib.LiquidityInvestment[] liquidityInvestments;
-        InvestLib.TokenInvestment[] tokenInvestments;
+        InvestLib.BuyInvestment[] buyInvestments;
         SubscriptionManager.Permit permit;
         bytes32 metadataHash;
     }
@@ -67,7 +66,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         bytes inputTokenSwap;
         bytes[] dcaSwaps;
         bytes[] vaultSwaps;
-        bytes[] tokenSwaps;
+        bytes[] buySwaps;
         InvestLib.LiquidityInvestZapParams[] liquidityZaps;
         SubscriptionManager.Permit investorPermit;
         SubscriptionManager.Permit strategistPermit;
@@ -96,7 +95,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
     uint8 public constant PRODUCT_DCA = 0;
     uint8 public constant PRODUCT_VAULTS = 1;
     uint8 public constant PRODUCT_LIQUIDITY = 2;
-    uint8 public constant PRODUCT_TOKENS = 3;
+    uint8 public constant PRODUCT_BUY = 3;
 
     mapping(address => uint) internal _strategistRewards;
 
@@ -104,7 +103,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
     mapping(uint => InvestLib.DcaInvestment[]) internal _dcaInvestmentsPerStrategy;
     mapping(uint => InvestLib.VaultInvestment[]) internal _vaultInvestmentsPerStrategy;
     mapping(uint => InvestLib.LiquidityInvestment[]) internal _liquidityInvestmentsPerStrategy;
-    mapping(uint => InvestLib.TokenInvestment[]) internal _tokenInvestmentsPerStrategy;
+    mapping(uint => InvestLib.BuyInvestment[]) internal _buyInvestmentsPerStrategy;
 
     mapping(address => Position[]) internal _positions;
     // @dev investor => strategy position id => dca position ids
@@ -113,8 +112,8 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
     mapping(address => mapping(uint => InvestLib.VaultPosition[])) internal _vaultPositionsPerPosition;
     // @dev investor => strategy position id => liquidity positions
     mapping(address => mapping(uint => InvestLib.LiquidityPosition[])) internal _liquidityPositionsPerPosition;
-    // @dev investor => strategy position id => token positions
-    mapping(address => mapping(uint => InvestLib.TokenPosition[])) internal _tokenPositionsPerPosition;
+    // @dev investor => strategy position id => buy positions
+    mapping(address => mapping(uint => InvestLib.BuyPosition[])) internal _buyPositionsPerPosition;
 
     address public investLib;
     IERC20Upgradeable public stable;
@@ -123,7 +122,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
     DollarCostAverage public dca;
     VaultManager public vaultManager;
     LiquidityManager public liquidityManager;
-    UseFee public exchangeManager;
+    UseFee public buyProduct;
 
     mapping(uint => bool) internal _hottestStrategiesMapping;
     uint[] internal _hottestStrategiesArray;
@@ -132,9 +131,9 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
     uint32 public strategistPercentage;
     uint32 public hotStrategistPercentage;
 
-    event StrategyCreated(address creator, uint strategyId, bytes32 metadataHash);
+    event StrategyCreated(address strategist, uint strategyId, bytes32 metadataHash);
     event PositionCreated(
-        address owner,
+        address user,
         uint strategyId,
         uint positionId,
         address inputToken,
@@ -143,24 +142,24 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         uint[] dcaPositionIds,
         InvestLib.VaultPosition[] vaultPositions,
         InvestLib.LiquidityPosition[] liquidityPositions,
-        InvestLib.TokenPosition[] tokenPositions
+        InvestLib.BuyPosition[] tokenPositions
     );
     event PositionClosed(
-        address owner,
+        address user,
         uint strategyId,
         uint positionId,
         uint[][] dcaWithdrawnAmounts,
         uint[] vaultWithdrawnAmount,
         uint[][] liquidityWithdrawnAmounts,
-        uint[] tokenWithdrawnAmounts
+        uint[] buyWithdrawnAmounts
     );
     event PositionCollected(
-        address owner,
+        address user,
         uint strategyId,
         uint positionId,
         uint[] dcaWithdrawnAmounts,
         uint[][] liquidityWithdrawnAmounts,
-        uint[] tokenWithdrawnAmounts
+        uint[] buyWithdrawnAmounts
     );
     event CollectedStrategistRewards(address strategist, uint amount);
     event StrategistPercentageUpdated(uint32 discountPercentage);
@@ -194,7 +193,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         dca = _initializeParams.dca;
         vaultManager = _initializeParams.vaultManager;
         liquidityManager = _initializeParams.liquidityManager;
-        exchangeManager = _initializeParams.exchangeManager;
+        buyProduct = _initializeParams.buyProduct;
     }
 
     function createStrategy(CreateStrategyParams memory _params) external virtual {
@@ -220,8 +219,8 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         for (uint i; i < _params.liquidityInvestments.length; ++i)
             liquidityPercentage += _params.liquidityInvestments[i].percentage;
 
-        for (uint i; i < _params.tokenInvestments.length; ++i)
-            tokenPercentage += _params.tokenInvestments[i].percentage;
+        for (uint i; i < _params.buyInvestments.length; ++i)
+            tokenPercentage += _params.buyInvestments[i].percentage;
 
         if (dcaPercentage + vaultPercentage + liquidityPercentage + tokenPercentage != 100)
             revert InvalidTotalPercentage();
@@ -233,7 +232,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         strategy.percentages[PRODUCT_DCA] = dcaPercentage;
         strategy.percentages[PRODUCT_VAULTS] = vaultPercentage;
         strategy.percentages[PRODUCT_LIQUIDITY] = liquidityPercentage;
-        strategy.percentages[PRODUCT_TOKENS] = tokenPercentage;
+        strategy.percentages[PRODUCT_BUY] = tokenPercentage;
 
         // Assigning isn't possible because you can't convert an array of structs from memory to storage
         for (uint i; i < _params.dcaInvestments.length; ++i) {
@@ -263,8 +262,8 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
             _liquidityInvestmentsPerStrategy[strategyId].push(liquidityStrategy);
         }
 
-        for (uint i; i < _params.tokenInvestments.length; ++i)
-            _tokenInvestmentsPerStrategy[strategyId].push(_params.tokenInvestments[i]);
+        for (uint i; i < _params.buyInvestments.length; ++i)
+            _buyInvestmentsPerStrategy[strategyId].push(_params.buyInvestments[i]);
 
         emit StrategyCreated(msg.sender, strategyId, _params.metadataHash);
     }
@@ -290,7 +289,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
             uint[] memory dcaPositionIds,
             InvestLib.VaultPosition[] memory vaultPositions,
             InvestLib.LiquidityPosition[] memory liquidityPositions,
-            InvestLib.TokenPosition[] memory tokenPositions
+            InvestLib.BuyPosition[] memory buyPositions
         ) = abi.decode(
             _callInvestLib(
                 abi.encodeWithSelector(
@@ -313,13 +312,13 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
                         liquidityInvestments: _liquidityInvestmentsPerStrategy[_params.strategyId],
                         liquidityZaps: _params.liquidityZaps,
                         liquidityTotalPercentage: strategy.percentages[PRODUCT_LIQUIDITY],
-                    // token
-                        tokenInvestments: _tokenInvestmentsPerStrategy[_params.strategyId],
-                        tokenSwaps: _params.tokenSwaps
+                    // buy
+                        buyInvestments: _buyInvestmentsPerStrategy[_params.strategyId],
+                        buySwaps: _params.buySwaps
                     })
                 )
             ),
-            (uint[], InvestLib.VaultPosition[], InvestLib.LiquidityPosition[], InvestLib.TokenPosition[])
+            (uint[], InvestLib.VaultPosition[], InvestLib.LiquidityPosition[], InvestLib.BuyPosition[])
         );
 
         uint positionId = _positions[msg.sender].length;
@@ -335,8 +334,8 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         for (uint i; i < liquidityPositions.length; ++i)
             _liquidityPositionsPerPosition[msg.sender][positionId].push(liquidityPositions[i]);
 
-        for (uint i; i < tokenPositions.length; ++i)
-            _tokenPositionsPerPosition[msg.sender][positionId].push(tokenPositions[i]);
+        for (uint i; i < buyPositions.length; ++i)
+            _buyPositionsPerPosition[msg.sender][positionId].push(buyPositions[i]);
 
         emit PositionCreated(
             msg.sender,
@@ -348,7 +347,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
             dcaPositionIds,
             vaultPositions,
             liquidityPositions,
-            tokenPositions
+            buyPositions
         );
     }
 
@@ -361,18 +360,13 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         if (position.closed)
             revert PositionAlreadyClosed();
 
-        InvestLib.TokenPosition[] memory tokenPositions = position.collected
-            ? new InvestLib.TokenPosition[](0)
-            : _tokenPositionsPerPosition[msg.sender][_positionId];
-
         position.closed = true;
-        position.collected = true;
 
         (
             uint[][] memory dcaWithdrawnAmounts,
             uint[] memory vaultWithdrawnAmounts,
             uint[][] memory liquidityWithdrawnAmounts,
-            uint[] memory tokenWithdrawnAmounts
+            uint[] memory buyWithdrawnAmounts
         ) = abi.decode(
             _callInvestLib(
                 abi.encodeWithSelector(
@@ -383,7 +377,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
                         vaultPositions: _vaultPositionsPerPosition[msg.sender][_positionId],
                         liquidityPositions: _liquidityPositionsPerPosition[msg.sender][_positionId],
                         liquidityMinOutputs: _liquidityMinOutputs,
-                        tokenPositions: tokenPositions
+                        buyPositions: _buyPositionsPerPosition[msg.sender][_positionId]
                     })
                 )
             ),
@@ -397,7 +391,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
             dcaWithdrawnAmounts,
             vaultWithdrawnAmounts,
             liquidityWithdrawnAmounts,
-            tokenWithdrawnAmounts
+            buyWithdrawnAmounts
         );
     }
 
@@ -410,16 +404,16 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         if (position.closed)
             revert PositionAlreadyClosed();
 
-        InvestLib.TokenPosition[] memory tokenPositions = position.collected
-            ? new InvestLib.TokenPosition[](0)
-            : _tokenPositionsPerPosition[msg.sender][_positionId];
+        InvestLib.BuyPosition[] memory buyPositions = _buyPositionsPerPosition[msg.sender][_positionId];
 
-        position.collected = true;
+        // TODO test
+        if (_buyPositionsPerPosition[msg.sender][_positionId].length > 0)
+            delete _buyPositionsPerPosition[msg.sender][_positionId];
 
         (
             uint[] memory dcaWithdrawnAmounts,
             uint[][] memory liquidityWithdrawnAmounts,
-            uint[] memory tokenWithdrawnAmounts
+            uint[] memory buyWithdrawnAmounts
         ) = abi.decode(
             _callInvestLib(
                 abi.encodeWithSelector(
@@ -428,7 +422,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
                         dca: dca,
                         dcaPositions: _dcaPositionsPerPosition[msg.sender][_positionId],
                         liquidityPositions: _liquidityPositionsPerPosition[msg.sender][_positionId],
-                        tokenPositions: tokenPositions
+                        buyPositions: buyPositions
                     })
                 )
             ),
@@ -441,7 +435,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
             _positionId,
             dcaWithdrawnAmounts,
             liquidityWithdrawnAmounts,
-            tokenWithdrawnAmounts
+            buyWithdrawnAmounts
         );
     }
 
@@ -480,13 +474,13 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         uint[] memory dcaPositions,
         InvestLib.VaultPosition[] memory vaultPositions,
         InvestLib.LiquidityPosition[] memory liquidityPositions,
-        InvestLib.TokenPosition[] memory tokenPositions
+        InvestLib.BuyPosition[] memory buyPositions
     ) {
         return (
             _dcaPositionsPerPosition[_investor][_positionId],
             _vaultPositionsPerPosition[_investor][_positionId],
             _liquidityPositionsPerPosition[_investor][_positionId],
-            _tokenPositionsPerPosition[_investor][_positionId]
+            _buyPositionsPerPosition[_investor][_positionId]
         );
     }
 
@@ -504,13 +498,13 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         InvestLib.DcaInvestment[] memory dcaInvestments,
         InvestLib.VaultInvestment[] memory vaultInvestments,
         InvestLib.LiquidityInvestment[] memory liquidityInvestments,
-        InvestLib.TokenInvestment[] memory tokenInvestments
+        InvestLib.BuyInvestment[] memory buyInvestments
     ) {
         return (
             _dcaInvestmentsPerStrategy[_strategyId],
             _vaultInvestmentsPerStrategy[_strategyId],
             _liquidityInvestmentsPerStrategy[_strategyId],
-            _tokenInvestmentsPerStrategy[_strategyId]
+            _buyInvestmentsPerStrategy[_strategyId]
         );
     }
 
@@ -564,22 +558,13 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
             _params.inputToken.balanceOf(address(this)) - initialInputTokenBalance
         );
 
-        uint totalFeePercentage;
-
-        if (strategy.percentages[PRODUCT_DCA] > 0)
-            totalFeePercentage = dca.getFeePercentage(userSubscribed) * strategy.percentages[PRODUCT_DCA];
-
-        if (strategy.percentages[PRODUCT_VAULTS] > 0)
-            totalFeePercentage += vaultManager.getFeePercentage(userSubscribed) * strategy.percentages[PRODUCT_VAULTS];
-
-        if (strategy.percentages[PRODUCT_LIQUIDITY] > 0)
-            totalFeePercentage += liquidityManager.getFeePercentage(userSubscribed) * strategy.percentages[PRODUCT_LIQUIDITY];
-
-        if (strategy.percentages[PRODUCT_TOKENS] > 0)
-            totalFeePercentage += exchangeManager.getFeePercentage(userSubscribed) * strategy.percentages[PRODUCT_TOKENS];
-
         // Divided by multiplier 10_000 (fee percentage) * 100 (strategy percentage per investment) = 1M
-        uint totalFee = stableAmount * totalFeePercentage / 1_000_000;
+        uint totalFee = stableAmount * (
+            _getProductFee(strategy.percentages[PRODUCT_DCA], dca, userSubscribed)
+            + _getProductFee(strategy.percentages[PRODUCT_VAULTS], vaultManager, userSubscribed)
+            + _getProductFee(strategy.percentages[PRODUCT_LIQUIDITY], liquidityManager, userSubscribed)
+            + _getProductFee(strategy.percentages[PRODUCT_BUY], buyProduct, userSubscribed)
+        ) / 1_000_000;
         uint strategistFee;
 
         if (strategistSubscribed) {
@@ -606,6 +591,17 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
             stableAmount - (protocolFee + strategistFee),
             strategistFee
         );
+    }
+
+    function _getProductFee(
+        uint8 _productPercentage,
+        UseFee _product,
+        bool _userSubscribed
+    ) internal view returns (uint32) {
+        if (_productPercentage == 0)
+            return 0;
+
+        return _product.getFeePercentage(_userSubscribed) * _productPercentage;
     }
 
     /**
