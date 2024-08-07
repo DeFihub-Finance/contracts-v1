@@ -78,6 +78,34 @@ describe('StrategyManager#invest (zap)', () => {
         return vault
     }
 
+    function getStrategyFeeAmount(amount: bigint) {
+        return Fees.getStrategyFeeAmount(
+            amount,
+            strategyManager,
+            strategyId,
+            true,
+            true,
+            dca,
+            vaultManager,
+            liquidityManager,
+            exchangeManager,
+        )
+    }
+
+    function deductStrategyFee(amount: bigint) {
+        return Fees.deductStrategyFee(
+            amount,
+            strategyManager,
+            strategyId,
+            true,
+            true,
+            dca,
+            vaultManager,
+            liquidityManager,
+            exchangeManager,
+        )
+    }
+
     beforeEach(async () => {
         ({
             // accounts
@@ -133,16 +161,7 @@ describe('StrategyManager#invest (zap)', () => {
                 tolerance,
             })
 
-            const { protocolFee, strategistFee } = await Fees.getStrategyFeeAmount(
-                amount,
-                strategyManager,
-                strategyId,
-                true,
-                dca,
-                vaultManager,
-                liquidityManager,
-                exchangeManager,
-            )
+            const { protocolFee, strategistFee } = await getStrategyFeeAmount(amount)
 
             expect(await stablecoin.balanceOf(treasury)).to.equal(initialTreasuryBalance + protocolFee)
             expect(await stablecoin.balanceOf(zapManager)).to.equal(0)
@@ -176,16 +195,7 @@ describe('StrategyManager#invest (zap)', () => {
             await stablecoin.connect(account0).mint(account0, amount)
             await stablecoin.connect(account0).approve(strategyManager, amount)
 
-            amountPerInvestmentMinusFees = await Fees.deductStrategyFee(
-                amount * 50n / 100n,
-                strategyManager,
-                strategyId,
-                true,
-                dca,
-                vaultManager,
-                liquidityManager,
-                exchangeManager,
-            )
+            amountPerInvestmentMinusFees = await deductStrategyFee(amount * 50n / 100n)
         })
 
         it('zaps with 1% slippage uni v2', async () => {
@@ -285,16 +295,7 @@ describe('StrategyManager#invest (zap)', () => {
         })
 
         it('fails with 0% slippage', async () => {
-            const amountPerInvestmentMinusFees = await Fees.deductStrategyFee(
-                amount * 50n / 100n,
-                strategyManager,
-                strategyId,
-                true,
-                dca,
-                vaultManager,
-                liquidityManager,
-                exchangeManager,
-            )
+            const amountPerInvestmentMinusFees = await deductStrategyFee(amount * 50n / 100n)
 
             try {
                 await strategyManager
@@ -361,16 +362,7 @@ describe('StrategyManager#invest (zap)', () => {
             await stablecoin.connect(account0).mint(account0, amount)
             await stablecoin.connect(account0).approve(strategyManager, amount)
 
-            amountPerInvestmentMinusFees = await Fees.deductStrategyFee(
-                amount * 50n / 100n,
-                strategyManager,
-                strategyId,
-                true,
-                dca,
-                vaultManager,
-                liquidityManager,
-                exchangeManager,
-            )
+            amountPerInvestmentMinusFees = await deductStrategyFee(amount * 50n / 100n)
         })
 
         it('zaps with 1% slippage', async () => {
@@ -504,16 +496,7 @@ describe('StrategyManager#invest (zap)', () => {
             await stablecoin.connect(account0).mint(account0, amount)
             await stablecoin.connect(account0).approve(strategyManager, amount)
 
-            amountPerInvestmentMinusFees = await Fees.deductStrategyFee(
-                amount * 50n / 100n,
-                strategyManager,
-                strategyId,
-                true,
-                dca,
-                vaultManager,
-                liquidityManager,
-                exchangeManager,
-            )
+            amountPerInvestmentMinusFees = await deductStrategyFee(amount * 50n / 100n)
         })
 
         it('zaps with 1% slippage', async () => {
@@ -676,16 +659,7 @@ describe('StrategyManager#invest (zap)', () => {
             await stablecoin.connect(account0).mint(account0, amount)
             await stablecoin.connect(account0).approve(strategyManager, amount)
 
-            amountPerInvestmentMinusFees = await Fees.deductStrategyFee(
-                amount * 25n / 100n,
-                strategyManager,
-                strategyId,
-                true,
-                dca,
-                vaultManager,
-                liquidityManager,
-                exchangeManager,
-            )
+            amountPerInvestmentMinusFees = await deductStrategyFee(amount * 25n / 100n)
         })
 
         it('zaps with 1% slippage', async () => {

@@ -1,4 +1,3 @@
-import hre from 'hardhat'
 import { expect } from 'chai'
 import type { Pool } from '@uniswap/v3-sdk'
 import { BigNumber } from '@ryze-blockchain/ethereum'
@@ -29,6 +28,8 @@ import { zapFixture } from 'test/StrategyManager/fixtures/zap.fixture'
 describe('LiquidityManager#invest', () => {
     const amount = parseEther('1000')
     const SLIPPAGE_BN = new BigNumber(0.01)
+    const TEN_PERCENT = new BigNumber(0.1)
+
     let amountWithDeductedFees: BigNumber
 
     // prices
@@ -56,13 +57,7 @@ describe('LiquidityManager#invest', () => {
     let permitAccount0: SubscriptionManager.PermitStruct
 
     async function deductFees(amount: bigint) {
-        return Fees.deductProductFee(
-            liquidityManager,
-            amount,
-            account0,
-            permitAccount0,
-            hre.ethers.provider,
-        )
+        return Fees.deductProductFee(amount, true, liquidityManager)
     }
 
     async function isSameToken(tokenA: AddressLike, tokenB: AddressLike) {
@@ -246,8 +241,8 @@ describe('LiquidityManager#invest', () => {
             pool,
             token0.price,
             token1.price,
-            10, // 10% lower
-            10, // 10% upper
+            TEN_PERCENT, // 10% lower
+            TEN_PERCENT, // 10% upper
         )
 
         const [
@@ -289,8 +284,8 @@ describe('LiquidityManager#invest', () => {
             pool,
             token0.price,
             token1.price,
-            10, // 10% lower
-            10, // 10% upper
+            TEN_PERCENT, // 10% lower
+            TEN_PERCENT, // 10% upper
         )
 
         const [
@@ -332,8 +327,8 @@ describe('LiquidityManager#invest', () => {
             pool,
             token0.price,
             token1.price,
-            10, // 10% lower
-            -20, // -20% upper
+            TEN_PERCENT, // 10% lower
+            new BigNumber(-0.05), // -5% upper
         )
 
         const [
