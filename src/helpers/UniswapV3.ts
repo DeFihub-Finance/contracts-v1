@@ -33,20 +33,27 @@ export class UniswapV3 {
     }
 
     public static calculateSqrtPriceX96(
-        price0: number,
-        price1: number,
+        price0: BigNumber,
+        price1: BigNumber,
         decimals0 = 18,
         decimals1 = 18,
     ): bigint {
-        const priceRatio = new BigNumber(price0)
+        // Clone and config BigNumber's for this specific function to improve precision.
+        const bn = BigNumber.clone()
+
+        bn.config({ EXPONENTIAL_AT: 999999, DECIMAL_PLACES: 40 })
+
+        const priceAdjusted = new bn(price0)
             .div(price1)
-            .times(new BigNumber(10).pow(decimals0 - decimals1))
+            .shiftedBy(decimals1 - decimals0)
 
-        // BigNumber.sqrt() calculates the square root, and we scale it by 2^96, adjusting for fixed-point representation
-        const sqrtPrice = priceRatio.sqrt()
-        const sqrtPriceX96 = sqrtPrice.times(new BigNumber(2).pow(96))
-
-        return BigInt(sqrtPriceX96.toFixed(0))
+        return BigInt(
+            priceAdjusted
+                .sqrt()
+                .times(new bn(2).pow(96))
+                .integerValue(3)
+                .toFixed(0),
+        )
     }
 
     public static async mintAndAddLiquidity(
@@ -74,13 +81,18 @@ export class UniswapV3 {
         const tokenAIsToken0 = addressA === token0
 
         if (await factory.getPool(token0, token1, 3000) === ZeroAddress) {
+            const decimalsA = Number(await tokenA.decimals())
+            const decimalsB = Number(await tokenB.decimals())
+
             await positionManager.createAndInitializePoolIfNecessary(
                 token0,
                 token1,
                 3000,
                 UniswapV3.calculateSqrtPriceX96(
-                    tokenAIsToken0 ? priceA.toNumber() : priceB.toNumber(),
-                    tokenAIsToken0 ? priceB.toNumber() : priceA.toNumber(),
+                    tokenAIsToken0 ? priceA : priceB,
+                    tokenAIsToken0 ? priceB : priceA,
+                    tokenAIsToken0 ? decimalsA : decimalsB,
+                    tokenAIsToken0 ? decimalsB : decimalsA,
                 ),
             )
         }
