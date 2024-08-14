@@ -1,6 +1,6 @@
 import { BigNumber } from '@ryze-blockchain/ethereum'
 import { ERC20Priced, Slippage, UniswapV3 } from '@defihub/shared'
-import { ContractTransactionReceipt, MaxUint256, parseEther, Signer } from 'ethers'
+import { ContractTransactionReceipt, parseEther, Signer } from 'ethers'
 
 import { Compare } from '@src/Compare'
 import { NetworkService } from '@src/NetworkService'
@@ -18,6 +18,7 @@ import { uniswapV3Fixture } from 'test/UniswapV3/fixtures/base.fixture'
 
 describe('Uniswap V3', () => {
     const SLIPPAGE_BN = new BigNumber(0.01)
+    const TEN_PERCENT = new BigNumber(0.1)
     const AMOUNT_TO_INVEST = parseEther('1000')
     const AMOUNT_TO_INVEST_BN = new BigNumber(AMOUNT_TO_INVEST.toString()).shiftedBy(-18)
 
@@ -46,18 +47,18 @@ describe('Uniswap V3', () => {
     async function mintAndApprove(
         token0: ERC20Priced,
         token1: ERC20Priced,
-        amountA: bigint,
-        amountB: bigint,
+        amount0: bigint,
+        amount1: bigint,
         to: Signer,
     ) {
         const contractToken0 = TestERC20__factory.connect(token0.address, deployer)
         const contractToken1 = TestERC20__factory.connect(token1.address, deployer)
 
-        await contractToken0.mint(to, amountA)
-        await contractToken1.mint(to, amountB)
+        await contractToken0.mint(to, amount0)
+        await contractToken1.mint(to, amount1)
 
-        await contractToken0.connect(to).approve(positionManagerUniV3, MaxUint256)
-        await contractToken1.connect(to).approve(positionManagerUniV3, MaxUint256)
+        await contractToken0.connect(to).approve(positionManagerUniV3, amount0)
+        await contractToken1.connect(to).approve(positionManagerUniV3, amount1)
     }
 
     function validateTransaction(
@@ -126,19 +127,19 @@ describe('Uniswap V3', () => {
 
     describe('Using tokens with same amount of decimals', () => {
         it('should be able to add liquidity with expected token amounts', async () => {
+            const pool = await UniswapV3Helpers.getPoolByContract(stableBtcLpUniV3)
             const { token0, token1 } = UniswapV3.sortTokens(
                 await mockTokenWithAddress(BTC_PRICE_BN, 18, wbtc),
                 await mockTokenWithAddress(USD_PRICE_BN, 18, stablecoin),
             )
-            const pool = await UniswapV3Helpers.getPoolByContract(stableBtcLpUniV3)
 
             const { amount0, amount1, tickLower, tickUpper } = UniswapV3.getMintPositionInfo(
                 AMOUNT_TO_INVEST_BN,
                 pool,
                 token0.price,
                 token1.price,
-                new BigNumber(0.1),
-                new BigNumber(0.1),
+                TEN_PERCENT,
+                TEN_PERCENT,
             )
 
             await mintAndApprove(
@@ -171,19 +172,19 @@ describe('Uniswap V3', () => {
 
     describe('Using tokens with unusual amount of decimals', () => {
         it('should be able to add liquidity with expected token amounts', async () => {
+            const pool = await UniswapV3Helpers.getPoolByContract(usdcEthLpUniV3)
             const { token0, token1 } = UniswapV3.sortTokens(
                 await mockTokenWithAddress(USD_PRICE_BN, 6, usdc),
                 await mockTokenWithAddress(ETH_PRICE_BN, 18, weth),
             )
-            const pool = await UniswapV3Helpers.getPoolByContract(usdcEthLpUniV3)
 
             const { amount0, amount1, tickLower, tickUpper } = UniswapV3.getMintPositionInfo(
-                new BigNumber(1_000),
+                AMOUNT_TO_INVEST_BN,
                 pool,
                 token0.price,
                 token1.price,
-                new BigNumber(0.1),
-                new BigNumber(0.1),
+                TEN_PERCENT,
+                TEN_PERCENT,
             )
 
             await mintAndApprove(
