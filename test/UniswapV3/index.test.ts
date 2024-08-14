@@ -16,7 +16,7 @@ import {
 } from '@src/typechain'
 import { uniswapV3Fixture } from 'test/UniswapV3/fixtures/base.fixture'
 
-describe.only('Uniswap V3', () => {
+describe('Uniswap V3', () => {
     const SLIPPAGE_BN = new BigNumber(0.01)
     const AMOUNT_TO_INVEST = parseEther('1000')
     const AMOUNT_TO_INVEST_BN = new BigNumber(AMOUNT_TO_INVEST.toString()).shiftedBy(-18)
