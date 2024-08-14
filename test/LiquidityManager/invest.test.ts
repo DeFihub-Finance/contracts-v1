@@ -225,7 +225,7 @@ describe('LiquidityManager#invest', () => {
         await stablecoin.connect(account0).mint(account0, amount)
         await stablecoin.connect(account0).approve(liquidityManager, amount)
 
-        amountWithDeductedFees = new BigNumber((await deductFees(amount)).toString())
+        amountWithDeductedFees = new BigNumber((await deductFees(amount)).toString()).shiftedBy(-18)
     })
 
     it('should add liquidity and mint a position with expected token amounts', async () => {
