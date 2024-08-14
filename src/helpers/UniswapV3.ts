@@ -11,6 +11,7 @@ import {
     INonfungiblePositionManager,
     Quoter,
     TestERC20,
+    TestERC20__factory,
     UniswapV3Factory,
     UniswapV3Pool__factory,
     type UniswapV3Pool,
@@ -131,9 +132,17 @@ export class UniswapV3 {
             contract.slot0(),
         ])
 
+        const [
+            token0Decimals,
+            token1Decimals,
+        ] = await Promise.all([
+            TestERC20__factory.connect(token0, ethers.provider).decimals(),
+            TestERC20__factory.connect(token1, ethers.provider).decimals(),
+        ]).then(values => values.map(Number))
+
         return new Pool(
-            new Token(ChainIds.ETH, token0, 18),
-            new Token(ChainIds.ETH, token1, 18),
+            new Token(ChainIds.ETH, token0, token0Decimals),
+            new Token(ChainIds.ETH, token1, token1Decimals),
             3000,
             sqrtPriceX96.toString(),
             liquidity.toString(),
@@ -155,14 +164,18 @@ export class UniswapV3 {
         const [
             liquidity,
             { sqrtPriceX96, tick },
+            decimalsTokenA,
+            decimalsTokenB,
         ] = await Promise.all([
             pool.liquidity(),
             pool.slot0(),
+            TestERC20__factory.connect(tokenA, ethers.provider).decimals(),
+            TestERC20__factory.connect(tokenB, ethers.provider).decimals(),
         ])
 
         return new Pool(
-            new Token(ChainIds.ETH, tokenA, 18),
-            new Token(ChainIds.ETH, tokenB, 18),
+            new Token(ChainIds.ETH, tokenA, Number(decimalsTokenA)),
+            new Token(ChainIds.ETH, tokenB, Number(decimalsTokenB)),
             Number(fee),
             sqrtPriceX96.toString(),
             liquidity.toString(),
