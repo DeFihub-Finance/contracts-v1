@@ -65,8 +65,8 @@ export async function investFixture() {
                     token0: token0.address,
                     token1: token1.address,
                     fee: 3000,
-                    lowerPricePercentage: 10,
-                    upperPricePercentage: 10,
+                    lowerPricePercentage: 1_000, // 10%
+                    upperPricePercentage: 1_000, // 10%
                     percentage: 100,
                 },
             ],

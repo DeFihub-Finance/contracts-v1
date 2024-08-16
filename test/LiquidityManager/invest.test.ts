@@ -28,6 +28,8 @@ import { zapFixture } from 'test/StrategyManager/fixtures/zap.fixture'
 describe('LiquidityManager#invest', () => {
     const amount = parseEther('1000')
     const SLIPPAGE_BN = new BigNumber(0.01)
+    const TEN_PERCENT = new BigNumber(0.1)
+
     let amountWithDeductedFees: BigNumber
 
     // prices
@@ -223,7 +225,7 @@ describe('LiquidityManager#invest', () => {
         await stablecoin.connect(account0).mint(account0, amount)
         await stablecoin.connect(account0).approve(liquidityManager, amount)
 
-        amountWithDeductedFees = new BigNumber((await deductFees(amount)).toString())
+        amountWithDeductedFees = new BigNumber((await deductFees(amount)).toString()).shiftedBy(-18)
     })
 
     it('should add liquidity and mint a position with expected token amounts', async () => {
@@ -239,8 +241,8 @@ describe('LiquidityManager#invest', () => {
             pool,
             token0.price,
             token1.price,
-            10, // 10% lower
-            10, // 10% upper
+            TEN_PERCENT, // 10% lower
+            TEN_PERCENT, // 10% upper
         )
 
         const [
@@ -282,8 +284,8 @@ describe('LiquidityManager#invest', () => {
             pool,
             token0.price,
             token1.price,
-            10, // 10% lower
-            10, // 10% upper
+            TEN_PERCENT, // 10% lower
+            TEN_PERCENT, // 10% upper
         )
 
         const [
@@ -325,8 +327,8 @@ describe('LiquidityManager#invest', () => {
             pool,
             token0.price,
             token1.price,
-            10, // 10% lower
-            -20, // -20% upper
+            TEN_PERCENT, // 10% lower
+            new BigNumber(-0.05), // -5% upper
         )
 
         const [

@@ -406,8 +406,8 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
 
         InvestLib.BuyPosition[] memory buyPositions = _buyPositionsPerPosition[msg.sender][_positionId];
 
-        // TODO test
-        if (_buyPositionsPerPosition[msg.sender][_positionId].length > 0)
+        // TODO test delete functionality and also test if can use storage with delete to save gas
+        if (buyPositions.length > 0)
             delete _buyPositionsPerPosition[msg.sender][_positionId];
 
         (

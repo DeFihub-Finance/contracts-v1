@@ -50,9 +50,11 @@ export class ProjectDeployer {
         const projectDeployerFactory = new ProjectDeployer__factory(deployer)
         const projectDeployer = await projectDeployerFactory.deploy()
 
-        const stablecoin = await new TestERC20__factory(deployer).deploy()
-        const weth = await new TestERC20__factory(deployer).deploy()
-        const wbtc = await new TestERC20__factory(account0).deploy()
+        const stablecoin = await new TestERC20__factory(deployer).deploy(18)
+        // Originally USDC uses 6 decimals, thats why the name choice
+        const usdc = await new TestERC20__factory(deployer).deploy(6)
+        const weth = await new TestERC20__factory(deployer).deploy(18)
+        const wbtc = await new TestERC20__factory(account0).deploy(18)
         const { factoryUniV2, routerUniV2 } = await this.deployUniV2(deployer, weth)
         const {
             factoryUniV3,
@@ -222,6 +224,7 @@ export class ProjectDeployer {
 
             // Test contracts
             stablecoin,
+            usdc,
             weth,
             wbtc,
             factoryUniV2,

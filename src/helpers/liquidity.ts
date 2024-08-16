@@ -8,6 +8,8 @@ import { UniswapV3ZapHelper } from './zap'
 import { UniswapV3 as UniswapV3Helper } from './UniswapV3'
 
 export class LiquidityHelpers {
+    public static PRICE_PERCENTAGE_DECIMALS = 4
+
     public static getMinOutput(
         amount: bigint,
         inputToken: ERC20Priced,
@@ -48,12 +50,12 @@ export class LiquidityHelpers {
             tickLower,
             tickUpper,
         } = UniswapV3.getMintPositionInfo(
-            new BigNumber((amount * investment.percentage / 100n).toString()),
+            new BigNumber((amount * investment.percentage / 100n).toString()).shiftedBy(-18),
             pool,
             token0.price,
             token1.price,
-            Number(investment.lowerPricePercentage),
-            Number(investment.upperPricePercentage),
+            LiquidityHelpers.parsePricePercentage(investment.lowerPricePercentage),
+            LiquidityHelpers.parsePricePercentage(investment.upperPricePercentage),
         )
 
         const [
@@ -148,5 +150,10 @@ export class LiquidityHelpers {
             amount1,
             fees,
         }
+    }
+
+    public static parsePricePercentage(value: bigint) {
+        return new BigNumber(value.toString())
+            .shiftedBy(-LiquidityHelpers.PRICE_PERCENTAGE_DECIMALS)
     }
 }
