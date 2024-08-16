@@ -49,7 +49,7 @@ describe('StrategyManager#createStrategy', () => {
                 dcaInvestments: dcaStrategyPositions,
                 vaultInvestments: vaultStrategyPosition,
                 liquidityInvestments: [],
-                tokenInvestments: [],
+                buyInvestments: [],
                 permit: await subscriptionSignature.signSubscriptionPermit(
                     await account0.getAddress(),
                     await NetworkService.getBlockTimestamp() + 10_000,
@@ -94,7 +94,7 @@ describe('StrategyManager#createStrategy', () => {
                 dcaInvestments: dcaStrategyPositions,
                 vaultInvestments: vaultStrategyPosition,
                 liquidityInvestments: [],
-                tokenInvestments: [],
+                buyInvestments: [],
                 permit: await subscriptionSignature.signSubscriptionPermit(
                     await account0.getAddress(),
                     deadline,
@@ -112,7 +112,7 @@ describe('StrategyManager#createStrategy', () => {
                 dcaInvestments: dcaStrategyPositions,
                 vaultInvestments: vaultStrategyPosition,
                 liquidityInvestments: [],
-                tokenInvestments: [],
+                buyInvestments: [],
                 permit: await subscriptionSignature.signSubscriptionPermit(
                     await account1.getAddress(),
                     0,
@@ -138,7 +138,7 @@ describe('StrategyManager#createStrategy', () => {
                 dcaInvestments: investments,
                 vaultInvestments: [],
                 liquidityInvestments: [],
-                tokenInvestments: [],
+                buyInvestments: [],
                 permit: await subscriptionSignature.signSubscriptionPermit(
                     await account0.getAddress(),
                     deadline,
@@ -163,7 +163,7 @@ describe('StrategyManager#createStrategy', () => {
                 dcaInvestments: [],
                 vaultInvestments: investments,
                 liquidityInvestments: [],
-                tokenInvestments: [],
+                buyInvestments: [],
                 permit: await subscriptionSignature.signSubscriptionPermit(
                     await account0.getAddress(),
                     deadline,
@@ -197,7 +197,7 @@ describe('StrategyManager#createStrategy', () => {
                 dcaInvestments,
                 vaultInvestments,
                 liquidityInvestments: [],
-                tokenInvestments: [],
+                buyInvestments: [],
                 permit: await subscriptionSignature.signSubscriptionPermit(
                     await account0.getAddress(),
                     deadline,
@@ -213,7 +213,7 @@ describe('StrategyManager#createStrategy', () => {
                 dcaInvestments: [],
                 vaultInvestments: [],
                 liquidityInvestments: [],
-                tokenInvestments: [],
+                buyInvestments: [],
                 permit: await subscriptionSignature.signSubscriptionPermit(
                     await account0.getAddress(),
                     deadline,
@@ -228,7 +228,7 @@ describe('StrategyManager#createStrategy', () => {
                 dcaInvestments: [...dcaStrategyPositions, ...dcaStrategyPositions],
                 vaultInvestments: [],
                 liquidityInvestments: [],
-                tokenInvestments: [],
+                buyInvestments: [],
                 permit: await subscriptionSignature.signSubscriptionPermit(
                     await account0.getAddress(),
                     deadline,

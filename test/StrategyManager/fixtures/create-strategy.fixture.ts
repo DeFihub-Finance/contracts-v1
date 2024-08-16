@@ -67,7 +67,7 @@ export async function createStrategyFixture() {
                 percentage: 25,
             },
         ],
-        tokenInvestments: [],
+        buyInvestments: [],
     }
 
     const strategyId = await createStrategy(
