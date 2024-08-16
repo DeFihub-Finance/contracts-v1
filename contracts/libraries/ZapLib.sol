@@ -8,6 +8,8 @@ import {ZapManager} from "../zap/ZapManager.sol";
 library ZapLib {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
+    error InvalidZap();
+
     /**
      * @notice Performs a zap operation using the specified protocol call data.
      * @param _encodedProtocolCall - Encoded version of ZapManager.ProtocolCall
@@ -23,8 +25,12 @@ library ZapLib {
         IERC20Upgradeable _outputToken,
         uint _amount
     ) internal returns (uint outputAmount) {
-        if (_encodedProtocolCall.length == 0)
-            return _amount;
+        if (_encodedProtocolCall.length == 0) {
+            if (_inputToken == _outputToken)
+                return _amount;
+            else
+                revert InvalidZap();
+        }
 
         uint initialOutputBalance = _outputToken.balanceOf(address(this));
 
