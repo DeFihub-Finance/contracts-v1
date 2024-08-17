@@ -15,6 +15,7 @@ export class UniswapV3ZapHelper {
         outputPrice: BigNumber,
         slippage: BigNumber,
         recipient: AddressLike,
+        outputDecimals = 18,
     ) {
         const swapBytes = SwapRouter__factory.createInterface().encodeFunctionData(
             'exactInputSingle',
@@ -29,7 +30,7 @@ export class UniswapV3ZapHelper {
                     amountOutMinimum: Slippage.getMinOutput(
                         amount,
                         mockToken(inputPrice, 18),
-                        mockToken(outputPrice, 18),
+                        mockToken(outputPrice, outputDecimals),
                         slippage,
                     ),
                     sqrtPriceLimitX96: 0,
