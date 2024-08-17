@@ -2,6 +2,7 @@ import { expect } from 'chai'
 import type { Pool } from '@uniswap/v3-sdk'
 import { BigNumber } from '@ryze-blockchain/ethereum'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
+import { Fees, unwrapAddressLike, UniswapV3, ERC20Priced } from '@defihub/shared'
 import {
     type AddressLike,
     ErrorDescription,
@@ -13,8 +14,13 @@ import {
 import { Compare } from '@src/Compare'
 import { mockTokenWithAddress } from '@src/helpers/mock-token'
 import { decodeLowLevelCallError } from '@src/helpers/decode-call-error'
-import { UniswapV2ZapHelper, UniswapV3ZapHelper, UniswapV3 as UniswapV3Helpers, getEventLog } from '@src/helpers'
-import { Fees, Slippage, unwrapAddressLike, UniswapV3, ERC20Priced } from '@defihub/shared'
+import {
+    UniswapV2ZapHelper,
+    UniswapV3ZapHelper,
+    UniswapV3 as UniswapV3Helpers,
+    getEventLog,
+    LiquidityHelpers,
+} from '@src/helpers'
 import {
     LiquidityManager,
     NonFungiblePositionManager,
@@ -99,29 +105,16 @@ describe('LiquidityManager#invest', () => {
                 outputToken.price,
                 SLIPPAGE_BN,
                 liquidityManager,
+                outputToken.decimals,
             )
-    }
-
-    function getMinOutput(amount: bigint, tokenPrice: BigNumber) {
-        // Assume its stablecoin
-        if (tokenPrice.eq(USD_PRICE_BN))
-            return Slippage.deductSlippage(amount, SLIPPAGE_BN)
-
-        const amountBn = new BigNumber(amount.toString())
-
-        // Min output considering that we need to swap the token before
-        return Slippage.deductSlippage(
-            BigInt(amountBn.div(tokenPrice).toFixed(0)),
-            SLIPPAGE_BN.times(2),
-        )
     }
 
     async function invest(
         pool: Pool,
+        token0: ERC20Priced,
+        token1: ERC20Priced,
         swapToken0: string,
         swapToken1: string,
-        priceToken0: BigNumber,
-        priceToken1: BigNumber,
         {
             swapAmountToken0,
             swapAmountToken1,
@@ -151,8 +144,8 @@ describe('LiquidityManager#invest', () => {
                     tickLower,
                     tickUpper,
 
-                    amount0Min: getMinOutput(swapAmountToken0, priceToken0),
-                    amount1Min: getMinOutput(swapAmountToken1, priceToken1),
+                    amount0Min: LiquidityHelpers.getMinOutput(swapAmountToken0, inputToken, token0),
+                    amount1Min: LiquidityHelpers.getMinOutput(swapAmountToken1, inputToken, token1),
                 },
                 permitAccount0,
             )
@@ -255,10 +248,10 @@ describe('LiquidityManager#invest', () => {
 
         const receipt = await (await invest(
             pool,
+            token0,
+            token1,
             swapToken0,
             swapToken1,
-            token0.price,
-            token1.price,
             mintPositionInfo,
         )).wait()
 
@@ -298,10 +291,10 @@ describe('LiquidityManager#invest', () => {
 
         const receipt = await (await invest(
             pool,
+            token0,
+            token1,
             swapToken0,
             swapToken1,
-            token0.price,
-            token1.price,
             mintPositionInfo,
         )).wait()
 
@@ -341,10 +334,10 @@ describe('LiquidityManager#invest', () => {
 
         const receipt = await (await invest(
             pool,
+            token0,
+            token1,
             swapToken0,
             swapToken1,
-            token0.price,
-            token1.price,
             mintPositionInfo,
         )).wait()
 
