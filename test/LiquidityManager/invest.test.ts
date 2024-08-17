@@ -37,6 +37,7 @@ describe('LiquidityManager#invest', () => {
     const TEN_PERCENT = new BigNumber(0.1)
 
     let amountWithDeductedFees: BigNumber
+    let inputToken: ERC20Priced
 
     // prices
     let USD_PRICE_BN: BigNumber
@@ -224,7 +225,10 @@ describe('LiquidityManager#invest', () => {
         await stablecoin.connect(account0).mint(account0, amount)
         await stablecoin.connect(account0).approve(liquidityManager, amount)
 
-        amountWithDeductedFees = new BigNumber((await deductFees(amount)).toString()).shiftedBy(-18)
+        inputToken = await mockTokenWithAddress(USD_PRICE_BN, 18, stablecoin)
+        amountWithDeductedFees = new BigNumber(
+            (await deductFees(amount)).toString(),
+        ).shiftedBy(-inputToken.decimals)
     })
 
     it('should add liquidity and mint a position with expected token amounts', async () => {
@@ -236,6 +240,7 @@ describe('LiquidityManager#invest', () => {
         )
 
         const mintPositionInfo = UniswapV3.getMintPositionInfo(
+            inputToken,
             amountWithDeductedFees,
             pool,
             token0.price,
@@ -279,6 +284,7 @@ describe('LiquidityManager#invest', () => {
         )
 
         const mintPositionInfo = UniswapV3.getMintPositionInfo(
+            inputToken,
             amountWithDeductedFees,
             pool,
             token0.price,
@@ -322,6 +328,7 @@ describe('LiquidityManager#invest', () => {
         )
 
         const mintPositionInfo = UniswapV3.getMintPositionInfo(
+            inputToken,
             amountWithDeductedFees,
             pool,
             token0.price,

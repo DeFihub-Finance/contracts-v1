@@ -48,7 +48,8 @@ export class LiquidityHelpers {
             tickLower,
             tickUpper,
         } = UniswapV3.getMintPositionInfo(
-            new BigNumber((amount * investment.percentage / 100n).toString()).shiftedBy(-18),
+            inputToken,
+            new BigNumber((amount * investment.percentage / 100n).toString()).shiftedBy(-inputToken.decimals),
             pool,
             token0.price,
             token1.price,
