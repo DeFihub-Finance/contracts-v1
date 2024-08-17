@@ -4,7 +4,7 @@ import { UniswapV2, UniswapV3 } from '@src/helpers'
 import { NetworkService } from '@src/NetworkService'
 import { ProjectDeployer } from '@src/ProjectDeployer'
 import { UniswapV2Pair__factory, UniswapV3Pool__factory } from '@src/typechain'
-import { parseEther } from 'ethers'
+import { parseEther, parseUnits } from 'ethers'
 
 export async function zapFixture() {
     const USD_PRICE_BN = new BigNumber(1)
@@ -13,6 +13,7 @@ export async function zapFixture() {
     const ETH_PRICE = 10_000n
     const ETH_PRICE_BN = new BigNumber(ETH_PRICE.toString())
     const ONE_BILLION_ETH = parseEther('1000000000')
+    const ONE_BILLION_USDC = parseUnits('1000000000', 6)
 
     // global data
     const chainId = await NetworkService.getChainId()
@@ -27,6 +28,7 @@ export async function zapFixture() {
 
         // tokens
         stablecoin,
+        usdc,
         weth,
         wbtc,
 
@@ -109,6 +111,30 @@ export async function zapFixture() {
     await UniswapV3.mintAndAddLiquidity(
         factoryUniV3,
         positionManagerUniV3,
+        stablecoin,
+        usdc,
+        ONE_BILLION_ETH,
+        ONE_BILLION_USDC,
+        USD_PRICE_BN,
+        USD_PRICE_BN,
+        account1,
+    )
+
+    await UniswapV3.mintAndAddLiquidity(
+        factoryUniV3,
+        positionManagerUniV3,
+        weth,
+        usdc,
+        ONE_BILLION_ETH / ETH_PRICE,
+        ONE_BILLION_USDC,
+        ETH_PRICE_BN,
+        USD_PRICE_BN,
+        account1,
+    )
+
+    await UniswapV3.mintAndAddLiquidity(
+        factoryUniV3,
+        positionManagerUniV3,
         weth,
         wbtc,
         ONE_BILLION_ETH / ETH_PRICE,
@@ -125,6 +151,11 @@ export async function zapFixture() {
 
     const stableBtcLpUniV3 = UniswapV3Pool__factory.connect(
         await factoryUniV3.getPool(stablecoin, wbtc, 3000),
+        account0,
+    )
+
+    const usdcEthLpUniV3 = UniswapV3Pool__factory.connect(
+        await factoryUniV3.getPool(usdc, weth, 3000),
         account0,
     )
 
@@ -165,6 +196,7 @@ export async function zapFixture() {
 
         // tokens
         stablecoin,
+        usdc,
         weth,
         wbtc,
 
@@ -192,6 +224,7 @@ export async function zapFixture() {
         permitAccount0,
         btcEthLpUniV2,
         stableBtcLpUniV3,
+        usdcEthLpUniV3,
         btcEthLpUniV3,
 
         // constants,

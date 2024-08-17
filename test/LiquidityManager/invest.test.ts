@@ -49,6 +49,7 @@ describe('LiquidityManager#invest', () => {
 
     // tokens
     let stablecoin: TestERC20
+    let usdc: TestERC20
     let weth: TestERC20
     let wbtc: TestERC20
 
@@ -58,6 +59,7 @@ describe('LiquidityManager#invest', () => {
     // external test contracts
     let positionManagerUniV3: NonFungiblePositionManager
     let stableBtcLpUniV3: UniswapV3Pool
+    let usdcEthLpUniV3: UniswapV3Pool
     let btcEthLpUniV3: UniswapV3Pool
 
     // global data
@@ -206,6 +208,7 @@ describe('LiquidityManager#invest', () => {
             account0,
 
             // tokens
+            usdc,
             weth,
             wbtc,
             stablecoin,
@@ -219,6 +222,7 @@ describe('LiquidityManager#invest', () => {
             // external test contracts
             positionManagerUniV3,
             stableBtcLpUniV3,
+            usdcEthLpUniV3,
             btcEthLpUniV3,
         } = await loadFixture(zapFixture))
 
@@ -357,6 +361,50 @@ describe('LiquidityManager#invest', () => {
         expect(mintPositionInfo.amount0
             ? mintPositionInfo.amount1
             : mintPositionInfo.amount0).to.be.eq(0)
+
+        validateInvestTransaction(
+            receipt,
+            token0,
+            token1,
+            mintPositionInfo.amount0,
+            mintPositionInfo.amount1,
+        )
+    })
+
+    it('should be able to add liquidity using a token with unusual amount of decimals', async () => {
+        const pool = await UniswapV3Helpers.getPoolByContract(usdcEthLpUniV3)
+
+        const { token0, token1 } = UniswapV3.sortTokens(
+            await mockTokenWithAddress(USD_PRICE_BN, 6, usdc),
+            await mockTokenWithAddress(ETH_PRICE_BN, 18, weth),
+        )
+
+        const mintPositionInfo = UniswapV3.getMintPositionInfo(
+            inputToken,
+            amountWithDeductedFees,
+            pool,
+            token0.price,
+            token1.price,
+            TEN_PERCENT,
+            TEN_PERCENT,
+        )
+
+        const [
+            swapToken0,
+            swapToken1,
+        ] = await Promise.all([
+            getEncodedSwap(mintPositionInfo.swapAmountToken0, token0, 'uniswapV3'),
+            getEncodedSwap(mintPositionInfo.swapAmountToken1, token1, 'uniswapV3'),
+        ])
+
+        const receipt = await (await invest(
+            pool,
+            token0,
+            token1,
+            swapToken0,
+            swapToken1,
+            mintPositionInfo,
+        )).wait()
 
         validateInvestTransaction(
             receipt,
