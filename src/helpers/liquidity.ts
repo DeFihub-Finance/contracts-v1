@@ -8,8 +8,6 @@ import { UniswapV3ZapHelper } from './zap'
 import { UniswapV3 as UniswapV3Helper } from './UniswapV3'
 
 export class LiquidityHelpers {
-    public static PRICE_PERCENTAGE_DECIMALS = 4
-
     public static getMinOutput(
         amount: bigint,
         inputToken: ERC20Priced,
@@ -154,6 +152,6 @@ export class LiquidityHelpers {
 
     public static parsePricePercentage(value: bigint) {
         return new BigNumber(value.toString())
-            .shiftedBy(-LiquidityHelpers.PRICE_PERCENTAGE_DECIMALS)
+            .shiftedBy(-UniswapV3.PRICE_PERCENTAGE_DECIMALS)
     }
 }
