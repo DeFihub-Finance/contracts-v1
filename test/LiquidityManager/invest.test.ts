@@ -153,10 +153,10 @@ describe('LiquidityManager#invest', () => {
 
     function validateInvestTransaction(
         receipt: ContractTransactionReceipt | null,
+        token0: ERC20Priced,
+        token1: ERC20Priced,
         amount0: bigint,
-        price0: BigNumber,
         amount1: bigint,
-        price1: BigNumber,
     ) {
         expect(receipt).to.be.an.instanceof(ContractTransactionReceipt)
 
@@ -177,12 +177,18 @@ describe('LiquidityManager#invest', () => {
             tolerance: new BigNumber('0.01'),
         })
 
+        const valueMintedAmount0 = new BigNumber(mintedAmount0.toString())
+            .times(token0.price)
+            .shiftedBy(inputToken.decimals - token0.decimals)
+
+        const valueMintedAmount1 = new BigNumber(mintedAmount1.toString())
+            .times(token1.price)
+            .shiftedBy(inputToken.decimals - token1.decimals)
+
         Compare.almostEqualPercentage({
             target: amount,
             value: BigInt(
-                new BigNumber(amount0.toString()).times(price0)
-                    .plus(new BigNumber(amount1.toString()).times(price1))
-                    .toString(),
+                valueMintedAmount0.plus(valueMintedAmount1).toString(),
             ),
             tolerance: new BigNumber('0.01'),
         })
@@ -257,10 +263,10 @@ describe('LiquidityManager#invest', () => {
 
         validateInvestTransaction(
             receipt,
+            token0,
+            token1,
             mintPositionInfo.amount0,
-            token0.price,
             mintPositionInfo.amount1,
-            token1.price,
         )
     })
 
@@ -300,10 +306,10 @@ describe('LiquidityManager#invest', () => {
 
         validateInvestTransaction(
             receipt,
+            token0,
+            token1,
             mintPositionInfo.amount0,
-            token0.price,
             mintPositionInfo.amount1,
-            token1.price,
         )
     })
 
@@ -347,10 +353,10 @@ describe('LiquidityManager#invest', () => {
 
         validateInvestTransaction(
             receipt,
+            token0,
+            token1,
             mintPositionInfo.amount0,
-            token0.price,
             mintPositionInfo.amount1,
-            token1.price,
         )
     })
 
