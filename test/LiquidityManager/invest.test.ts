@@ -371,7 +371,7 @@ describe('LiquidityManager#invest', () => {
         )
     })
 
-    it('should be able to add liquidity using a token with unusual amount of decimals', async () => {
+    it('should be able to add liquidity to a pool that have a token with unusual amount of decimals', async () => {
         const pool = await UniswapV3Helpers.getPoolByContract(usdcEthLpUniV3)
 
         const { token0, token1 } = UniswapV3.sortTokens(
