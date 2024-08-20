@@ -52,7 +52,7 @@ export class UniswapV3 {
             priceAdjusted
                 .sqrt()
                 .times(new bn(2).pow(96))
-                .integerValue(3)
+                .integerValue(BigNumber.ROUND_FLOOR)
                 .toFixed(0),
         )
     }
