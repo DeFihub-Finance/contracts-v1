@@ -4,11 +4,11 @@ import { BigNumber } from '@ryze-blockchain/ethereum'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import { Fees, unwrapAddressLike, UniswapV3, ERC20Priced } from '@defihub/shared'
 import {
-    type AddressLike,
     ErrorDescription,
     type Signer,
     ZeroAddress,
     parseEther,
+    parseUnits,
     ContractTransactionReceipt,
 } from 'ethers'
 import { Compare } from '@src/Compare'
@@ -110,14 +110,16 @@ describe('LiquidityManager#invest', () => {
             tickLower,
             tickUpper,
         }: ReturnType<typeof UniswapV3.getMintPositionInfo>,
+        _inputToken = inputToken,
+        depositAmountInputToken = amount,
     ) {
         return liquidityManager
             .connect(account0)
             .investUniswapV3(
                 {
                     positionManager: positionManagerUniV3,
-                    inputToken: stablecoin,
-                    depositAmountInputToken: amount,
+                    inputToken: _inputToken.address,
+                    depositAmountInputToken,
 
                     fee: pool.fee,
 
@@ -146,6 +148,8 @@ describe('LiquidityManager#invest', () => {
         token1: ERC20Priced,
         amount0: bigint,
         amount1: bigint,
+        _inputToken = inputToken,
+        depositedAmount = amount,
     ) {
         expect(receipt).to.be.an.instanceof(ContractTransactionReceipt)
 
@@ -168,16 +172,16 @@ describe('LiquidityManager#invest', () => {
 
         const valueMintedAmount0 = new BigNumber(mintedAmount0.toString())
             .times(token0.price)
-            .shiftedBy(inputToken.decimals - token0.decimals)
+            .shiftedBy(_inputToken.decimals - token0.decimals)
 
         const valueMintedAmount1 = new BigNumber(mintedAmount1.toString())
             .times(token1.price)
-            .shiftedBy(inputToken.decimals - token1.decimals)
+            .shiftedBy(_inputToken.decimals - token1.decimals)
 
         Compare.almostEqualPercentage({
-            target: amount,
+            target: depositedAmount,
             value: BigInt(
-                valueMintedAmount0.plus(valueMintedAmount1).toString(),
+                valueMintedAmount0.plus(valueMintedAmount1).toFixed(0),
             ),
             tolerance: new BigNumber('0.01'),
         })
@@ -398,6 +402,64 @@ describe('LiquidityManager#invest', () => {
             token1,
             mintPositionInfo.amount0,
             mintPositionInfo.amount1,
+        )
+    })
+
+    it('should be able to add liquidity using an input token with unusual amount of decimals', async () => {
+        const depositAmountUsdc = parseUnits('1000', 6)
+
+        await usdc.connect(account0).mint(account0, depositAmountUsdc)
+        await usdc.connect(account0).approve(liquidityManager, depositAmountUsdc)
+
+        const inputToken = await mockTokenWithAddress(USD_PRICE_BN, 6, usdc)
+        const amountWithDeductedFees = new BigNumber(
+            (await deductFees(depositAmountUsdc)).toString(),
+        ).shiftedBy(-inputToken.decimals)
+
+        const pool = await UniswapV3Helpers.getPoolByContract(usdcEthLpUniV3)
+
+        const { token0, token1 } = UniswapV3.sortTokens(
+            inputToken,
+            await mockTokenWithAddress(ETH_PRICE_BN, 18, weth),
+        )
+
+        const mintPositionInfo = UniswapV3.getMintPositionInfo(
+            inputToken,
+            amountWithDeductedFees,
+            pool,
+            token0.price,
+            token1.price,
+            TEN_PERCENT,
+            TEN_PERCENT,
+        )
+
+        const [
+            swapToken0,
+            swapToken1,
+        ] = await Promise.all([
+            getEncodedSwap(mintPositionInfo.swapAmountToken0, inputToken, token0, 'uniswapV3'),
+            getEncodedSwap(mintPositionInfo.swapAmountToken1, inputToken, token1, 'uniswapV3'),
+        ])
+
+        const receipt = await (await invest(
+            pool,
+            token0,
+            token1,
+            swapToken0,
+            swapToken1,
+            mintPositionInfo,
+            inputToken,
+            depositAmountUsdc,
+        )).wait()
+
+        validateInvestTransaction(
+            receipt,
+            token0,
+            token1,
+            mintPositionInfo.amount0,
+            mintPositionInfo.amount1,
+            inputToken,
+            depositAmountUsdc,
         )
     })
 
