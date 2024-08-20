@@ -69,24 +69,13 @@ describe('LiquidityManager#invest', () => {
         return Fees.deductProductFee(amount, true, liquidityManager)
     }
 
-    async function isSameToken(tokenA: AddressLike, tokenB: AddressLike) {
-        const [
-            addressTokenA,
-            addressTokenB,
-        ] = await Promise.all([
-            unwrapAddressLike(tokenA),
-            unwrapAddressLike(tokenB),
-        ])
-
-        return addressTokenA.toLowerCase() === addressTokenB.toLowerCase()
-    }
-
     async function getEncodedSwap(
         amount: bigint,
+        inputToken: ERC20Priced,
         outputToken: ERC20Priced,
         protocol: 'uniswapV2' | 'uniswapV3' = 'uniswapV2',
     ) {
-        if (!amount || await isSameToken(stablecoin, outputToken.address))
+        if (!amount || inputToken.address === outputToken.address)
             return '0x'
 
         return protocol === 'uniswapV2'
@@ -101,14 +90,11 @@ describe('LiquidityManager#invest', () => {
             )
             : UniswapV3ZapHelper.encodeExactInputSingle(
                 amount,
-                stablecoin,
-                outputToken.address,
+                inputToken,
+                outputToken,
                 3000,
-                USD_PRICE_BN,
-                outputToken.price,
                 SLIPPAGE_BN,
                 liquidityManager,
-                outputToken.decimals,
             )
     }
 
@@ -257,8 +243,8 @@ describe('LiquidityManager#invest', () => {
             swapToken0,
             swapToken1,
         ] = await Promise.all([
-            getEncodedSwap(mintPositionInfo.swapAmountToken0, token0),
-            getEncodedSwap(mintPositionInfo.swapAmountToken1, token1),
+            getEncodedSwap(mintPositionInfo.swapAmountToken0, inputToken, token0),
+            getEncodedSwap(mintPositionInfo.swapAmountToken1, inputToken, token1),
         ])
 
         const receipt = await (await invest(
@@ -301,8 +287,8 @@ describe('LiquidityManager#invest', () => {
             swapToken0,
             swapToken1,
         ] = await Promise.all([
-            getEncodedSwap(mintPositionInfo.swapAmountToken0, token0),
-            getEncodedSwap(mintPositionInfo.swapAmountToken1, token1, 'uniswapV3'),
+            getEncodedSwap(mintPositionInfo.swapAmountToken0, inputToken, token0),
+            getEncodedSwap(mintPositionInfo.swapAmountToken1, inputToken, token1, 'uniswapV3'),
         ])
 
         const receipt = await (await invest(
@@ -345,8 +331,8 @@ describe('LiquidityManager#invest', () => {
             swapToken0,
             swapToken1,
         ] = await Promise.all([
-            getEncodedSwap(mintPositionInfo.swapAmountToken0, token0),
-            getEncodedSwap(mintPositionInfo.swapAmountToken1, token1),
+            getEncodedSwap(mintPositionInfo.swapAmountToken0, inputToken, token0),
+            getEncodedSwap(mintPositionInfo.swapAmountToken1, inputToken, token1),
         ])
 
         const receipt = await (await invest(
@@ -393,8 +379,8 @@ describe('LiquidityManager#invest', () => {
             swapToken0,
             swapToken1,
         ] = await Promise.all([
-            getEncodedSwap(mintPositionInfo.swapAmountToken0, token0, 'uniswapV3'),
-            getEncodedSwap(mintPositionInfo.swapAmountToken1, token1, 'uniswapV3'),
+            getEncodedSwap(mintPositionInfo.swapAmountToken0, inputToken, token0, 'uniswapV3'),
+            getEncodedSwap(mintPositionInfo.swapAmountToken1, inputToken, token1, 'uniswapV3'),
         ])
 
         const receipt = await (await invest(
