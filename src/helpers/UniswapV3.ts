@@ -158,6 +158,7 @@ export class UniswapV3 {
         )
     }
 
+    // TODO move to shared
     public static getBurnAmounts(
         pool: Pool,
         liquidity: bigint,
