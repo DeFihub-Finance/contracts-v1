@@ -27,6 +27,7 @@ import { Compare } from '@src/Compare'
 import { zapFixture } from './fixtures/zap.fixture'
 import { decodeLowLevelCallError } from '@src/helpers'
 import { Fees } from '@src/helpers/Fees'
+import { mockTokenWithAddress } from '@src/helpers/mock-token'
 
 describe('StrategyManager#invest (zap)', () => {
     const amount = parseEther('1000')
@@ -240,11 +241,9 @@ describe('StrategyManager#invest (zap)', () => {
                         '0x',
                         await UniswapV3ZapHelper.encodeExactInputSingle(
                             amountPerInvestmentMinusFees,
-                            stablecoin,
-                            wbtc,
+                            await mockTokenWithAddress(USD_PRICE_BN, 18, stablecoin),
+                            await mockTokenWithAddress(BTC_PRICE_BN, 18, wbtc),
                             3000,
-                            USD_PRICE_BN,
-                            BTC_PRICE_BN,
                             new BigNumber(0.01),
                             strategyManager,
                         ),
