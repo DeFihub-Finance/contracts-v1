@@ -1,5 +1,5 @@
-import { Pool } from '@uniswap/v3-sdk'
-import { Token } from '@uniswap/sdk-core'
+import { Pool, Position } from '@uniswap/v3-sdk'
+import { Percent, Token } from '@uniswap/sdk-core'
 import { BigNumber, ChainIds } from '@ryze-blockchain/ethereum'
 import {
     Signer,
@@ -11,11 +11,14 @@ import {
     INonfungiblePositionManager,
     Quoter,
     TestERC20,
+    TestERC20__factory,
     UniswapV3Factory,
+    UniswapV3Pool__factory,
     type UniswapV3Pool,
 } from '@src/typechain'
 import { NetworkService } from '@src/NetworkService'
 import { PathUniswapV3 } from '@defihub/shared'
+import { ethers } from 'hardhat'
 
 export class UniswapV3 {
     public static async getOutputTokenAmount(
@@ -31,20 +34,27 @@ export class UniswapV3 {
     }
 
     public static calculateSqrtPriceX96(
-        price0: number,
-        price1: number,
+        price0: BigNumber,
+        price1: BigNumber,
         decimals0 = 18,
         decimals1 = 18,
     ): bigint {
-        const priceRatio = new BigNumber(price0)
+        // Clone and config BigNumber's for this specific function to improve precision.
+        const bn = BigNumber.clone()
+
+        bn.config({ EXPONENTIAL_AT: 999999, DECIMAL_PLACES: 40 })
+
+        const priceAdjusted = new bn(price0)
             .div(price1)
-            .times(new BigNumber(10).pow(decimals0 - decimals1))
+            .shiftedBy(decimals1 - decimals0)
 
-        // BigNumber.sqrt() calculates the square root, and we scale it by 2^96, adjusting for fixed-point representation
-        const sqrtPrice = priceRatio.sqrt()
-        const sqrtPriceX96 = sqrtPrice.times(new BigNumber(2).pow(96))
-
-        return BigInt(sqrtPriceX96.toFixed(0))
+        return BigInt(
+            priceAdjusted
+                .sqrt()
+                .times(new bn(2).pow(96))
+                .integerValue(BigNumber.ROUND_FLOOR)
+                .toFixed(0),
+        )
     }
 
     public static async mintAndAddLiquidity(
@@ -72,13 +82,18 @@ export class UniswapV3 {
         const tokenAIsToken0 = addressA === token0
 
         if (await factory.getPool(token0, token1, 3000) === ZeroAddress) {
+            const decimalsA = Number(await tokenA.decimals())
+            const decimalsB = Number(await tokenB.decimals())
+
             await positionManager.createAndInitializePoolIfNecessary(
                 token0,
                 token1,
                 3000,
                 UniswapV3.calculateSqrtPriceX96(
-                    tokenAIsToken0 ? priceA.toNumber() : priceB.toNumber(),
-                    tokenAIsToken0 ? priceB.toNumber() : priceA.toNumber(),
+                    tokenAIsToken0 ? priceA : priceB,
+                    tokenAIsToken0 ? priceB : priceA,
+                    tokenAIsToken0 ? decimalsA : decimalsB,
+                    tokenAIsToken0 ? decimalsB : decimalsA,
                 ),
             )
         }
@@ -117,13 +132,76 @@ export class UniswapV3 {
             contract.slot0(),
         ])
 
+        const [
+            token0Decimals,
+            token1Decimals,
+        ] = await Promise.all([
+            TestERC20__factory.connect(token0, ethers.provider).decimals(),
+            TestERC20__factory.connect(token1, ethers.provider).decimals(),
+        ]).then(values => values.map(Number))
+
         return new Pool(
-            new Token(ChainIds.ETH, token0, 18),
-            new Token(ChainIds.ETH, token1, 18),
+            new Token(ChainIds.ETH, token0, token0Decimals),
+            new Token(ChainIds.ETH, token1, token1Decimals),
             3000,
             sqrtPriceX96.toString(),
             liquidity.toString(),
             Number(tick),
         )
+    }
+
+    public static async getPoolByFactoryContract(
+        factory: UniswapV3Factory,
+        tokenA: string,
+        tokenB: string,
+        fee: bigint,
+    ) {
+        const pool = UniswapV3Pool__factory.connect(
+            await factory.getPool(tokenA, tokenB, fee),
+            ethers.provider,
+        )
+
+        const [
+            liquidity,
+            { sqrtPriceX96, tick },
+            decimalsTokenA,
+            decimalsTokenB,
+        ] = await Promise.all([
+            pool.liquidity(),
+            pool.slot0(),
+            TestERC20__factory.connect(tokenA, ethers.provider).decimals(),
+            TestERC20__factory.connect(tokenB, ethers.provider).decimals(),
+        ])
+
+        return new Pool(
+            new Token(ChainIds.ETH, tokenA, Number(decimalsTokenA)),
+            new Token(ChainIds.ETH, tokenB, Number(decimalsTokenB)),
+            Number(fee),
+            sqrtPriceX96.toString(),
+            liquidity.toString(),
+            Number(tick),
+        )
+    }
+
+    // TODO move to shared
+    public static getBurnAmounts(
+        pool: Pool,
+        liquidity: bigint,
+        tickLower: bigint,
+        tickUpper: bigint,
+        slippage: BigNumber = new BigNumber(0.01), // 1%
+    ) {
+        const { amount0, amount1 } = new Position({
+            pool,
+            liquidity: liquidity.toString(),
+            tickLower: Number(tickLower),
+            tickUpper: Number(tickUpper),
+        })
+            .burnAmountsWithSlippage(new Percent(slippage.times(100).toString(), 100))
+
+        return {
+            minOutputToken0: BigInt(amount0.toString()),
+            minOutputToken1: BigInt(amount1.toString()),
+        }
     }
 }

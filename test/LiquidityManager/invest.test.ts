@@ -1,21 +1,26 @@
-import hre from 'hardhat'
 import { expect } from 'chai'
 import type { Pool } from '@uniswap/v3-sdk'
 import { BigNumber } from '@ryze-blockchain/ethereum'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
+import { Fees, unwrapAddressLike, UniswapV3, ERC20Priced } from '@defihub/shared'
 import {
-    type AddressLike,
     ErrorDescription,
     type Signer,
     ZeroAddress,
     parseEther,
+    parseUnits,
     ContractTransactionReceipt,
 } from 'ethers'
 import { Compare } from '@src/Compare'
 import { mockTokenWithAddress } from '@src/helpers/mock-token'
 import { decodeLowLevelCallError } from '@src/helpers/decode-call-error'
-import { UniswapV2ZapHelper, UniswapV3ZapHelper, UniswapV3 as UniswapV3Helpers, getEventLog } from '@src/helpers'
-import { Fees, Slippage, unwrapAddressLike, UniswapV3, ERC20Priced } from '@defihub/shared'
+import {
+    UniswapV2ZapHelper,
+    UniswapV3ZapHelper,
+    UniswapV3 as UniswapV3Helpers,
+    getEventLog,
+    LiquidityHelpers,
+} from '@src/helpers'
 import {
     LiquidityManager,
     NonFungiblePositionManager,
@@ -29,7 +34,10 @@ import { zapFixture } from 'test/StrategyManager/fixtures/zap.fixture'
 describe('LiquidityManager#invest', () => {
     const amount = parseEther('1000')
     const SLIPPAGE_BN = new BigNumber(0.01)
+    const TEN_PERCENT = new BigNumber(0.1)
+
     let amountWithDeductedFees: BigNumber
+    let inputToken: ERC20Priced
 
     // prices
     let USD_PRICE_BN: BigNumber
@@ -41,6 +49,7 @@ describe('LiquidityManager#invest', () => {
 
     // tokens
     let stablecoin: TestERC20
+    let usdc: TestERC20
     let weth: TestERC20
     let wbtc: TestERC20
 
@@ -50,39 +59,23 @@ describe('LiquidityManager#invest', () => {
     // external test contracts
     let positionManagerUniV3: NonFungiblePositionManager
     let stableBtcLpUniV3: UniswapV3Pool
+    let usdcEthLpUniV3: UniswapV3Pool
     let btcEthLpUniV3: UniswapV3Pool
 
     // global data
     let permitAccount0: SubscriptionManager.PermitStruct
 
     async function deductFees(amount: bigint) {
-        return Fees.deductProductFee(
-            liquidityManager,
-            amount,
-            account0,
-            permitAccount0,
-            hre.ethers.provider,
-        )
-    }
-
-    async function isSameToken(tokenA: AddressLike, tokenB: AddressLike) {
-        const [
-            addressTokenA,
-            addressTokenB,
-        ] = await Promise.all([
-            unwrapAddressLike(tokenA),
-            unwrapAddressLike(tokenB),
-        ])
-
-        return addressTokenA.toLowerCase() === addressTokenB.toLowerCase()
+        return Fees.deductProductFee(amount, true, liquidityManager)
     }
 
     async function getEncodedSwap(
         amount: bigint,
+        inputToken: ERC20Priced,
         outputToken: ERC20Priced,
         protocol: 'uniswapV2' | 'uniswapV3' = 'uniswapV2',
     ) {
-        if (!amount || await isSameToken(stablecoin, outputToken.address))
+        if (!amount || inputToken.address === outputToken.address)
             return '0x'
 
         return protocol === 'uniswapV2'
@@ -97,50 +90,36 @@ describe('LiquidityManager#invest', () => {
             )
             : UniswapV3ZapHelper.encodeExactInputSingle(
                 amount,
-                stablecoin,
-                outputToken.address,
+                inputToken,
+                outputToken,
                 3000,
-                USD_PRICE_BN,
-                outputToken.price,
                 SLIPPAGE_BN,
                 liquidityManager,
             )
     }
 
-    function getMinOutput(amount: bigint, tokenPrice: BigNumber) {
-        // Assume its stablecoin
-        if (tokenPrice.eq(USD_PRICE_BN))
-            return Slippage.deductSlippage(amount, SLIPPAGE_BN)
-
-        const amountBn = new BigNumber(amount.toString())
-
-        // Min output considering that we need to swap the token before
-        return Slippage.deductSlippage(
-            BigInt(amountBn.div(tokenPrice).toFixed(0)),
-            SLIPPAGE_BN.times(2),
-        )
-    }
-
     async function invest(
         pool: Pool,
+        token0: ERC20Priced,
+        token1: ERC20Priced,
         swapToken0: string,
         swapToken1: string,
-        priceToken0: BigNumber,
-        priceToken1: BigNumber,
         {
             swapAmountToken0,
             swapAmountToken1,
             tickLower,
             tickUpper,
         }: ReturnType<typeof UniswapV3.getMintPositionInfo>,
+        _inputToken = inputToken,
+        depositAmountInputToken = amount,
     ) {
         return liquidityManager
             .connect(account0)
             .investUniswapV3(
                 {
                     positionManager: positionManagerUniV3,
-                    inputToken: stablecoin,
-                    depositAmountInputToken: amount,
+                    inputToken: _inputToken.address,
+                    depositAmountInputToken,
 
                     fee: pool.fee,
 
@@ -156,8 +135,8 @@ describe('LiquidityManager#invest', () => {
                     tickLower,
                     tickUpper,
 
-                    amount0Min: getMinOutput(swapAmountToken0, priceToken0),
-                    amount1Min: getMinOutput(swapAmountToken1, priceToken1),
+                    amount0Min: LiquidityHelpers.getMinOutput(swapAmountToken0, inputToken, token0),
+                    amount1Min: LiquidityHelpers.getMinOutput(swapAmountToken1, inputToken, token1),
                 },
                 permitAccount0,
             )
@@ -165,10 +144,12 @@ describe('LiquidityManager#invest', () => {
 
     function validateInvestTransaction(
         receipt: ContractTransactionReceipt | null,
+        token0: ERC20Priced,
+        token1: ERC20Priced,
         amount0: bigint,
-        price0: BigNumber,
         amount1: bigint,
-        price1: BigNumber,
+        _inputToken = inputToken,
+        depositedAmount = amount,
     ) {
         expect(receipt).to.be.an.instanceof(ContractTransactionReceipt)
 
@@ -189,12 +170,18 @@ describe('LiquidityManager#invest', () => {
             tolerance: new BigNumber('0.01'),
         })
 
+        const valueMintedAmount0 = new BigNumber(mintedAmount0.toString())
+            .times(token0.price)
+            .shiftedBy(_inputToken.decimals - token0.decimals)
+
+        const valueMintedAmount1 = new BigNumber(mintedAmount1.toString())
+            .times(token1.price)
+            .shiftedBy(_inputToken.decimals - token1.decimals)
+
         Compare.almostEqualPercentage({
-            target: amount,
+            target: depositedAmount,
             value: BigInt(
-                new BigNumber(amount0.toString()).times(price0)
-                    .plus(new BigNumber(amount1.toString()).times(price1))
-                    .toString(),
+                valueMintedAmount0.plus(valueMintedAmount1).toFixed(0),
             ),
             tolerance: new BigNumber('0.01'),
         })
@@ -211,6 +198,7 @@ describe('LiquidityManager#invest', () => {
             account0,
 
             // tokens
+            usdc,
             weth,
             wbtc,
             stablecoin,
@@ -224,13 +212,17 @@ describe('LiquidityManager#invest', () => {
             // external test contracts
             positionManagerUniV3,
             stableBtcLpUniV3,
+            usdcEthLpUniV3,
             btcEthLpUniV3,
         } = await loadFixture(zapFixture))
 
         await stablecoin.connect(account0).mint(account0, amount)
         await stablecoin.connect(account0).approve(liquidityManager, amount)
 
-        amountWithDeductedFees = new BigNumber((await deductFees(amount)).toString())
+        inputToken = await mockTokenWithAddress(USD_PRICE_BN, 18, stablecoin)
+        amountWithDeductedFees = new BigNumber(
+            (await deductFees(amount)).toString(),
+        ).shiftedBy(-inputToken.decimals)
     })
 
     it('should add liquidity and mint a position with expected token amounts', async () => {
@@ -242,37 +234,38 @@ describe('LiquidityManager#invest', () => {
         )
 
         const mintPositionInfo = UniswapV3.getMintPositionInfo(
+            inputToken,
             amountWithDeductedFees,
             pool,
             token0.price,
             token1.price,
-            10, // 10% lower
-            10, // 10% upper
+            TEN_PERCENT, // 10% lower
+            TEN_PERCENT, // 10% upper
         )
 
         const [
             swapToken0,
             swapToken1,
         ] = await Promise.all([
-            getEncodedSwap(mintPositionInfo.swapAmountToken0, token0),
-            getEncodedSwap(mintPositionInfo.swapAmountToken1, token1),
+            getEncodedSwap(mintPositionInfo.swapAmountToken0, inputToken, token0),
+            getEncodedSwap(mintPositionInfo.swapAmountToken1, inputToken, token1),
         ])
 
         const receipt = await (await invest(
             pool,
+            token0,
+            token1,
             swapToken0,
             swapToken1,
-            token0.price,
-            token1.price,
             mintPositionInfo,
         )).wait()
 
         validateInvestTransaction(
             receipt,
+            token0,
+            token1,
             mintPositionInfo.amount0,
-            token0.price,
             mintPositionInfo.amount1,
-            token1.price,
         )
     })
 
@@ -285,37 +278,38 @@ describe('LiquidityManager#invest', () => {
         )
 
         const mintPositionInfo = UniswapV3.getMintPositionInfo(
+            inputToken,
             amountWithDeductedFees,
             pool,
             token0.price,
             token1.price,
-            10, // 10% lower
-            10, // 10% upper
+            TEN_PERCENT, // 10% lower
+            TEN_PERCENT, // 10% upper
         )
 
         const [
             swapToken0,
             swapToken1,
         ] = await Promise.all([
-            getEncodedSwap(mintPositionInfo.swapAmountToken0, token0),
-            getEncodedSwap(mintPositionInfo.swapAmountToken1, token1, 'uniswapV3'),
+            getEncodedSwap(mintPositionInfo.swapAmountToken0, inputToken, token0),
+            getEncodedSwap(mintPositionInfo.swapAmountToken1, inputToken, token1, 'uniswapV3'),
         ])
 
         const receipt = await (await invest(
             pool,
+            token0,
+            token1,
             swapToken0,
             swapToken1,
-            token0.price,
-            token1.price,
             mintPositionInfo,
         )).wait()
 
         validateInvestTransaction(
             receipt,
+            token0,
+            token1,
             mintPositionInfo.amount0,
-            token0.price,
             mintPositionInfo.amount1,
-            token1.price,
         )
     })
 
@@ -328,28 +322,29 @@ describe('LiquidityManager#invest', () => {
         )
 
         const mintPositionInfo = UniswapV3.getMintPositionInfo(
+            inputToken,
             amountWithDeductedFees,
             pool,
             token0.price,
             token1.price,
-            10, // 10% lower
-            -20, // -20% upper
+            TEN_PERCENT, // 10% lower
+            new BigNumber(-0.05), // -5% upper
         )
 
         const [
             swapToken0,
             swapToken1,
         ] = await Promise.all([
-            getEncodedSwap(mintPositionInfo.swapAmountToken0, token0),
-            getEncodedSwap(mintPositionInfo.swapAmountToken1, token1),
+            getEncodedSwap(mintPositionInfo.swapAmountToken0, inputToken, token0),
+            getEncodedSwap(mintPositionInfo.swapAmountToken1, inputToken, token1),
         ])
 
         const receipt = await (await invest(
             pool,
+            token0,
+            token1,
             swapToken0,
             swapToken1,
-            token0.price,
-            token1.price,
             mintPositionInfo,
         )).wait()
 
@@ -359,10 +354,112 @@ describe('LiquidityManager#invest', () => {
 
         validateInvestTransaction(
             receipt,
+            token0,
+            token1,
             mintPositionInfo.amount0,
-            token0.price,
             mintPositionInfo.amount1,
+        )
+    })
+
+    it('should be able to add liquidity to a pool that have a token with unusual amount of decimals', async () => {
+        const pool = await UniswapV3Helpers.getPoolByContract(usdcEthLpUniV3)
+
+        const { token0, token1 } = UniswapV3.sortTokens(
+            await mockTokenWithAddress(USD_PRICE_BN, 6, usdc),
+            await mockTokenWithAddress(ETH_PRICE_BN, 18, weth),
+        )
+
+        const mintPositionInfo = UniswapV3.getMintPositionInfo(
+            inputToken,
+            amountWithDeductedFees,
+            pool,
+            token0.price,
             token1.price,
+            TEN_PERCENT,
+            TEN_PERCENT,
+        )
+
+        const [
+            swapToken0,
+            swapToken1,
+        ] = await Promise.all([
+            getEncodedSwap(mintPositionInfo.swapAmountToken0, inputToken, token0, 'uniswapV3'),
+            getEncodedSwap(mintPositionInfo.swapAmountToken1, inputToken, token1, 'uniswapV3'),
+        ])
+
+        const receipt = await (await invest(
+            pool,
+            token0,
+            token1,
+            swapToken0,
+            swapToken1,
+            mintPositionInfo,
+        )).wait()
+
+        validateInvestTransaction(
+            receipt,
+            token0,
+            token1,
+            mintPositionInfo.amount0,
+            mintPositionInfo.amount1,
+        )
+    })
+
+    it('should be able to add liquidity using an input token with unusual amount of decimals', async () => {
+        const depositAmountUsdc = parseUnits('1000', 6)
+
+        await usdc.connect(account0).mint(account0, depositAmountUsdc)
+        await usdc.connect(account0).approve(liquidityManager, depositAmountUsdc)
+
+        const inputToken = await mockTokenWithAddress(USD_PRICE_BN, 6, usdc)
+        const amountWithDeductedFees = new BigNumber(
+            (await deductFees(depositAmountUsdc)).toString(),
+        ).shiftedBy(-inputToken.decimals)
+
+        const pool = await UniswapV3Helpers.getPoolByContract(usdcEthLpUniV3)
+
+        const { token0, token1 } = UniswapV3.sortTokens(
+            inputToken,
+            await mockTokenWithAddress(ETH_PRICE_BN, 18, weth),
+        )
+
+        const mintPositionInfo = UniswapV3.getMintPositionInfo(
+            inputToken,
+            amountWithDeductedFees,
+            pool,
+            token0.price,
+            token1.price,
+            TEN_PERCENT,
+            TEN_PERCENT,
+        )
+
+        const [
+            swapToken0,
+            swapToken1,
+        ] = await Promise.all([
+            getEncodedSwap(mintPositionInfo.swapAmountToken0, inputToken, token0, 'uniswapV3'),
+            getEncodedSwap(mintPositionInfo.swapAmountToken1, inputToken, token1, 'uniswapV3'),
+        ])
+
+        const receipt = await (await invest(
+            pool,
+            token0,
+            token1,
+            swapToken0,
+            swapToken1,
+            mintPositionInfo,
+            inputToken,
+            depositAmountUsdc,
+        )).wait()
+
+        validateInvestTransaction(
+            receipt,
+            token0,
+            token1,
+            mintPositionInfo.amount0,
+            mintPositionInfo.amount1,
+            inputToken,
+            depositAmountUsdc,
         )
     })
 

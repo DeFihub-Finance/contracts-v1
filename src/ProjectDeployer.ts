@@ -23,8 +23,8 @@ import {
     InvestLib__factory,
     LiquidityManager,
     LiquidityManager__factory,
-    ExchangeManager__factory,
-    ExchangeManager,
+    BuyProduct,
+    BuyProduct__factory,
 } from '@src/typechain'
 import { ZeroHash, ZeroAddress, Signer } from 'ethers'
 import { NetworkService } from '@src/NetworkService'
@@ -50,9 +50,11 @@ export class ProjectDeployer {
         const projectDeployerFactory = new ProjectDeployer__factory(deployer)
         const projectDeployer = await projectDeployerFactory.deploy()
 
-        const stablecoin = await new TestERC20__factory(deployer).deploy()
-        const weth = await new TestERC20__factory(deployer).deploy()
-        const wbtc = await new TestERC20__factory(account0).deploy()
+        const stablecoin = await new TestERC20__factory(deployer).deploy(18)
+        // Originally USDC uses 6 decimals, thats why the name choice
+        const usdc = await new TestERC20__factory(deployer).deploy(6)
+        const weth = await new TestERC20__factory(deployer).deploy(18)
+        const wbtc = await new TestERC20__factory(account0).deploy(18)
         const { factoryUniV2, routerUniV2 } = await this.deployUniV2(deployer, weth)
         const {
             factoryUniV3,
@@ -67,7 +69,7 @@ export class ProjectDeployer {
         const vaultManagerDeployParams = this.getDeploymentInfo(VaultManager__factory)
         const liquidityManagerDeployParams = this.getDeploymentInfo(LiquidityManager__factory)
         const zapManagerDeployParams = this.getDeploymentInfo(ZapManager__factory)
-        const exchangeManagerDeployParams = this.getDeploymentInfo(ExchangeManager__factory)
+        const buyProductDeployParams = this.getDeploymentInfo(BuyProduct__factory)
 
         await projectDeployer.deployInvestLib(InvestLib__factory.bytecode, ZeroHash)
         await projectDeployer.deploySubscriptionManager(subscriptionManagerDeployParams)
@@ -76,7 +78,7 @@ export class ProjectDeployer {
         await projectDeployer.deployVaultManager(vaultManagerDeployParams)
         await projectDeployer.deployLiquidityManager(liquidityManagerDeployParams)
         await projectDeployer.deployZapManager(zapManagerDeployParams)
-        await projectDeployer.deployExchangeManager(exchangeManagerDeployParams)
+        await projectDeployer.deployBuyProduct(buyProductDeployParams)
 
         const investLib = await projectDeployer.investLib()
         const [
@@ -85,7 +87,7 @@ export class ProjectDeployer {
             dca,
             vaultManager,
             liquidityManager,
-            exchangeManager,
+            buyProduct,
             zapManager,
         ] = (await Promise.all([
             projectDeployer.strategyManager(),
@@ -93,7 +95,7 @@ export class ProjectDeployer {
             projectDeployer.dca(),
             projectDeployer.vaultManager(),
             projectDeployer.liquidityManager(),
-            projectDeployer.exchangeManager(),
+            projectDeployer.buyProduct(),
             projectDeployer.zapManager(),
         ])).map(({ proxy }) => proxy)
 
@@ -119,7 +121,7 @@ export class ProjectDeployer {
             dca,
             vaultManager,
             liquidityManager,
-            exchangeManager,
+            buyProduct,
             zapManager,
             maxHottestStrategies: 10n,
             strategistPercentage: 20n,
@@ -155,7 +157,7 @@ export class ProjectDeployer {
             nonSubscriberFeeBP: 30n,
         }
 
-        const exchangeManagerInit: ExchangeManager.InitializeParamsStruct = {
+        const buyProductManagerInit: BuyProduct.InitializeParamsStruct = {
             owner: owner.address,
             treasury: treasury.address,
             subscriptionManager,
@@ -181,7 +183,7 @@ export class ProjectDeployer {
             dcaInitParams,
             vaultManagerInit,
             liquidityManagerInit,
-            exchangeManagerInit,
+            buyProductManagerInit,
             zapManagerInit,
         )
 
@@ -198,7 +200,7 @@ export class ProjectDeployer {
             dca: DollarCostAverage__factory.connect(dca, owner),
             vaultManager: VaultManager__factory.connect(vaultManager, owner),
             zapManager: ZapManager__factory.connect(zapManager, owner),
-            exchangeManager: ExchangeManager__factory.connect(exchangeManager, owner),
+            buyProduct: BuyProduct__factory.connect(buyProduct, owner),
             liquidityManager: LiquidityManager__factory.connect(liquidityManager, owner),
 
             // EOA with contract roles
@@ -222,6 +224,7 @@ export class ProjectDeployer {
 
             // Test contracts
             stablecoin,
+            usdc,
             weth,
             wbtc,
             factoryUniV2,
@@ -233,8 +236,11 @@ export class ProjectDeployer {
 
             subscriptionSignature,
             deadline,
-            permit: await subscriptionSignature
+            /** strategist Permit */
+            permitAccount0: await subscriptionSignature
                 .signSubscriptionPermit(await account0.getAddress(), deadline),
+            expiredPermitAccount0: await subscriptionSignature
+                .signSubscriptionPermit(await account0.getAddress(), 0),
         }
     }
 

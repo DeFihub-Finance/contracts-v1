@@ -15,12 +15,14 @@ import { ERC20, StrategyManager, ZapManager } from '@src/typechain'
 //          => then the strategist's balance remains unchanged
 //          => then emits a CollectedStrategistRewards event
 describe('StrategyManager#collectStrategistRewards', () => {
+    /** strategist */
     let account0: Signer
+    /** Subscribed Investor */
     let account1: Signer
+
     let strategyManager: StrategyManager
     let zapManager: ZapManager
     let stablecoin: ERC20
-    let strategistAddress: string
 
     const strategistBalance = async () => stablecoin.balanceOf(account0)
 
@@ -29,7 +31,6 @@ describe('StrategyManager#collectStrategistRewards', () => {
             account0,
             account1,
             strategyManager,
-            strategistAddress,
             zapManager,
             stablecoin,
         } = await loadFixture(investFixture))
@@ -39,7 +40,7 @@ describe('StrategyManager#collectStrategistRewards', () => {
         describe('when the strategist collects the rewards', () => {
             it('then the strategist\'s balance increases proportionally to the rewards collected', async () => {
                 const balanceBefore = await strategistBalance()
-                const toCollect = await strategyManager.getStrategistRewards(strategistAddress)
+                const toCollect = await strategyManager.getStrategistRewards(account0)
 
                 await strategyManager.connect(account0).collectStrategistRewards()
                 const balanceDelta = (await strategistBalance()) - balanceBefore
@@ -51,15 +52,15 @@ describe('StrategyManager#collectStrategistRewards', () => {
 
             it('then the strategist\'s rewards is set to zero', async () => {
                 await strategyManager.connect(account0).collectStrategistRewards()
-                expect(await strategyManager.getStrategistRewards(strategistAddress)).to.equal(0n)
+                expect(await strategyManager.getStrategistRewards(account0)).to.equal(0n)
             })
 
             it('then emits a CollectedStrategistRewards event', async () => {
-                const toCollect = await strategyManager.getStrategistRewards(strategistAddress)
+                const toCollect = await strategyManager.getStrategistRewards(account0)
 
                 await expect(strategyManager.connect(account0).collectStrategistRewards())
                     .to.emit(strategyManager, 'CollectedStrategistRewards')
-                    .withArgs(strategistAddress, toCollect)
+                    .withArgs(account0, toCollect)
             })
 
             it('calculates rewards properly', async () => {
