@@ -17,7 +17,7 @@ export async function investFixture() {
         dca,
         vaultManager,
         liquidityManager,
-        exchangeManager,
+        buyProduct,
         subscriptionSignature,
         stablecoin,
         stablecoinPriced,
@@ -47,7 +47,7 @@ export async function investFixture() {
             ],
             vaultInvestments: [],
             liquidityInvestments: [],
-            tokenInvestments: [],
+            buyInvestments: [],
         },
     )
 
@@ -65,12 +65,12 @@ export async function investFixture() {
                     token0: token0.address,
                     token1: token1.address,
                     fee: 3000,
-                    lowerPricePercentage: 10,
-                    upperPricePercentage: 10,
+                    lowerPricePercentage: 100_000, // 10%
+                    upperPricePercentage: 100_000, // 10%
                     percentage: 100,
                 },
             ],
-            tokenInvestments: [],
+            buyInvestments: [],
         },
     )
 
@@ -83,7 +83,7 @@ export async function investFixture() {
         inputTokenSwap: '0x',
         dcaSwaps: ['0x', '0x'],
         vaultSwaps: [],
-        tokenSwaps: [],
+        buySwaps: [],
         liquidityZaps: [],
         investorPermit: permitAccount1,
         strategistPermit: permitAccount0,
@@ -99,7 +99,7 @@ export async function investFixture() {
         dca,
         vaultManager,
         liquidityManager,
-        exchangeManager,
+        buyProduct,
     )
     const liquidityZaps = await Promise.all(liquidityInvestments.map(
         investment => LiquidityHelpers.getLiquidityZap(
@@ -122,7 +122,7 @@ export async function investFixture() {
         inputTokenSwap: '0x',
         dcaSwaps: [],
         vaultSwaps: [],
-        tokenSwaps: [],
+        buySwaps: [],
         liquidityZaps,
         investorPermit: permitAccount1,
         strategistPermit: permitAccount0,
@@ -135,7 +135,7 @@ export async function investFixture() {
         dca,
         vaultManager,
         liquidityManager,
-        exchangeManager,
+        buyProduct,
         dcaStrategyId,
         liquidityStrategyId,
         dcaPositionId,

@@ -48,12 +48,13 @@ export class LiquidityHelpers {
             tickLower,
             tickUpper,
         } = UniswapV3.getMintPositionInfo(
-            new BigNumber((amount * investment.percentage / 100n).toString()),
+            inputToken,
+            new BigNumber((amount * investment.percentage / 100n).toString()).shiftedBy(-inputToken.decimals),
             pool,
             token0.price,
             token1.price,
-            Number(investment.lowerPricePercentage),
-            Number(investment.upperPricePercentage),
+            LiquidityHelpers.parsePricePercentage(investment.lowerPricePercentage),
+            LiquidityHelpers.parsePricePercentage(investment.upperPricePercentage),
         )
 
         const [
@@ -62,21 +63,17 @@ export class LiquidityHelpers {
         ] = await Promise.all([
             LiquidityHelpers.getEncodedSwap(
                 swapAmountToken0,
-                inputToken.address,
-                token0.address,
+                inputToken,
+                token0,
                 pool.fee,
-                inputToken.price,
-                token0.price,
                 slippage,
                 liquidityManager,
             ),
             LiquidityHelpers.getEncodedSwap(
                 swapAmountToken1,
-                inputToken.address,
-                token1.address,
+                inputToken,
+                token1,
                 pool.fee,
-                inputToken.price,
-                token1.price,
                 slippage,
                 liquidityManager,
             ),
@@ -103,7 +100,7 @@ export class LiquidityHelpers {
             outputToken,
         ] = args
 
-        if (!amount || inputToken === outputToken)
+        if (!amount || inputToken.address === outputToken.address)
             return '0x'
 
         return UniswapV3ZapHelper.encodeExactInputSingle(...args)
@@ -148,5 +145,10 @@ export class LiquidityHelpers {
             amount1,
             fees,
         }
+    }
+
+    public static parsePricePercentage(value: bigint) {
+        return new BigNumber(value.toString())
+            .shiftedBy(-UniswapV3.PRICE_PERCENTAGE_DECIMALS)
     }
 }

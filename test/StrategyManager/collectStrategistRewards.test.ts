@@ -15,7 +15,7 @@ import { ERC20, StrategyManager, ZapManager } from '@src/typechain'
 //          => then the strategist's balance remains unchanged
 //          => then emits a CollectedStrategistRewards event
 describe('StrategyManager#collectStrategistRewards', () => {
-    /** Strategiest */
+    /** strategist */
     let account0: Signer
     /** Subscribed Investor */
     let account1: Signer

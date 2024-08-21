@@ -11,7 +11,7 @@ import { mockTokenWithAddress } from '@src/helpers/mock-token'
 
 export async function baseStrategyManagerFixture() {
     const [deployer] = await ethers.getSigners()
-    const anotherToken = await new TestERC20__factory(deployer).deploy()
+    const anotherToken = await new TestERC20__factory(deployer).deploy(18)
 
     const USD_PRICE_BN = new BigNumber(1)
     const ETH_PRICE = 3_000n

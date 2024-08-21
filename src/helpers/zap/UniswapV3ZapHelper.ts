@@ -1,4 +1,4 @@
-import { unwrapAddressLike, PathUniswapV3, Slippage, Zapper, ZapProtocols } from '@defihub/shared'
+import { unwrapAddressLike, PathUniswapV3, Slippage, Zapper, ZapProtocols, ERC20Priced } from '@defihub/shared'
 import { NetworkService } from '@src/NetworkService'
 import { AddressLike, BigNumberish } from 'ethers'
 import { BigNumber } from '@ryze-blockchain/ethereum'
@@ -8,11 +8,9 @@ import { mockToken } from '@src/helpers/mock-token'
 export class UniswapV3ZapHelper {
     public static async encodeExactInputSingle(
         amount: bigint,
-        inputToken: AddressLike,
-        outputToken: AddressLike,
+        inputToken: ERC20Priced,
+        outputToken: ERC20Priced,
         fee: BigNumberish,
-        inputPrice: BigNumber,
-        outputPrice: BigNumber,
         slippage: BigNumber,
         recipient: AddressLike,
     ) {
@@ -20,16 +18,16 @@ export class UniswapV3ZapHelper {
             'exactInputSingle',
             [
                 {
-                    tokenIn: await unwrapAddressLike(inputToken),
-                    tokenOut: await unwrapAddressLike(outputToken),
+                    tokenIn: inputToken.address,
+                    tokenOut: outputToken.address,
                     fee,
                     recipient: await unwrapAddressLike(recipient),
                     deadline: await NetworkService.getDeadline(),
                     amountIn: amount,
                     amountOutMinimum: Slippage.getMinOutput(
                         amount,
-                        mockToken(inputPrice, 18),
-                        mockToken(outputPrice, 18),
+                        inputToken,
+                        outputToken,
                         slippage,
                     ),
                     sqrtPriceLimitX96: 0,
@@ -39,10 +37,10 @@ export class UniswapV3ZapHelper {
 
         return Zapper.encodeProtocolCall(
             ZapProtocols.UniswapV3,
-            inputToken,
-            outputToken,
+            inputToken.address,
+            outputToken.address,
             'swap(bytes)',
-            await Zapper.encodeSwap(inputToken, amount, swapBytes),
+            await Zapper.encodeSwap(inputToken.address, amount, swapBytes),
         )
     }
 

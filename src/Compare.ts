@@ -20,7 +20,6 @@ export class Compare {
         )
     }
 
-    // @param tolerance 10_000 = 100% | 100 = 1%
     public static almostEqualPercentage({
         value,
         target,
