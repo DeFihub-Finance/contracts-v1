@@ -5,26 +5,21 @@ pragma solidity 0.8.26;
 import {IERC20Upgradeable, SafeERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 
 import {HubOwnable} from "./abstract/HubOwnable.sol";
-import {UseTreasury} from "./abstract/UseTreasury.sol";
 import {UseFee} from "./abstract/UseFee.sol";
+import {StrategyManagerStorage} from "./abstract/StrategyManagerStorage.sol";
 import {ICall} from './interfaces/ICall.sol';
 import {IBeefyVaultV7} from './interfaces/IBeefyVaultV7.sol';
-import {ZapManager} from './zap/ZapManager.sol';
 import {SubscriptionManager} from "./SubscriptionManager.sol";
+import {ZapManager} from './zap/ZapManager.sol';
+import {LiquidityManager} from './LiquidityManager.sol';
 import {VaultManager} from "./VaultManager.sol";
 import {DollarCostAverage} from './DollarCostAverage.sol';
 import {InvestLib} from "./libraries/InvestLib.sol";
 import {ZapLib} from "./libraries/ZapLib.sol";
-import {LiquidityManager} from './LiquidityManager.sol';
+import {StrategyFunding} from "./abstract/StrategyFunding.sol";
 
-contract StrategyManager is HubOwnable, UseTreasury, ICall {
+contract StrategyManager is StrategyManagerStorage, HubOwnable, ICall {
     using SafeERC20Upgradeable for IERC20Upgradeable;
-
-    // @notice percentages is a mapping from product id to its percentage
-    struct Strategy {
-        address creator;
-        mapping(uint8 => uint8) percentages;
-    }
 
     struct Position {
         uint strategyId;
@@ -78,28 +73,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         bytes[] swaps;
     }
 
-    struct PullFundsParams {
-        uint strategyId;
-        IERC20Upgradeable inputToken;
-        uint inputAmount;
-        bytes inputTokenSwap;
-        SubscriptionManager.Permit investorPermit;
-        SubscriptionManager.Permit strategistPermit;
-    }
 
-    struct PullFundsResult {
-        uint remainingAmount;
-        uint strategistFee;
-    }
-
-    uint8 public constant PRODUCT_DCA = 0;
-    uint8 public constant PRODUCT_VAULTS = 1;
-    uint8 public constant PRODUCT_LIQUIDITY = 2;
-    uint8 public constant PRODUCT_BUY = 3;
-
-    mapping(address => uint) internal _strategistRewards;
-
-    Strategy[] internal _strategies;
     mapping(uint => InvestLib.DcaInvestment[]) internal _dcaInvestmentsPerStrategy;
     mapping(uint => InvestLib.VaultInvestment[]) internal _vaultInvestmentsPerStrategy;
     mapping(uint => InvestLib.LiquidityInvestment[]) internal _liquidityInvestmentsPerStrategy;
@@ -116,20 +90,10 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
     mapping(address => mapping(uint => InvestLib.BuyPosition[])) internal _buyPositionsPerPosition;
 
     address public investLib;
-    IERC20Upgradeable public stable;
-    ZapManager public zapManager;
-    SubscriptionManager public subscriptionManager;
-    DollarCostAverage public dca;
-    VaultManager public vaultManager;
-    LiquidityManager public liquidityManager;
-    UseFee public buyProduct;
 
     mapping(uint => bool) internal _hottestStrategiesMapping;
     uint[] internal _hottestStrategiesArray;
     uint8 public maxHottestStrategies;
-
-    uint32 public strategistPercentage;
-    uint32 public hotStrategistPercentage;
 
     event StrategyCreated(address strategist, uint strategyId, bytes32 metadataHash);
     event PositionCreated(
@@ -274,15 +238,23 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
 
         Strategy storage strategy = _strategies[_params.strategyId];
 
-        PullFundsResult memory pullFundsResult = _pullFunds(
-            PullFundsParams({
-                strategyId: _params.strategyId,
-                inputToken: _params.inputToken,
-                inputAmount: _params.inputAmount,
-                inputTokenSwap: _params.inputTokenSwap,
-                investorPermit: _params.investorPermit,
-                strategistPermit: _params.strategistPermit
-            })
+        StrategyFunding.PullFundsResult memory pullFundsResult = abi.decode(
+            _makeDelegateCall(
+                address(this), // todo set correct address
+                abi.encodeWithSelector(
+                    StrategyFunding.pullFunds.selector,
+                    StrategyFunding.PullFundsParams({
+                        strategyId: _params.strategyId,
+                        isHot: isHot(_params.strategyId),
+                        inputToken: _params.inputToken,
+                        inputAmount: _params.inputAmount,
+                        inputTokenSwap: _params.inputTokenSwap,
+                        investorPermit: _params.investorPermit,
+                        strategistPermit: _params.strategistPermit
+                    })
+                )
+            ),
+            (StrategyFunding.PullFundsResult)
         );
 
         (
@@ -291,7 +263,8 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
             InvestLib.LiquidityPosition[] memory liquidityPositions,
             InvestLib.BuyPosition[] memory buyPositions
         ) = abi.decode(
-            _callInvestLib(
+            _makeDelegateCall(
+                address(investLib),
                 abi.encodeWithSelector(
                     InvestLib.invest.selector,
                     InvestLib.InvestParams({
@@ -368,7 +341,8 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
             uint[][] memory liquidityWithdrawnAmounts,
             uint[] memory buyWithdrawnAmounts
         ) = abi.decode(
-            _callInvestLib(
+            _makeDelegateCall(
+                address(investLib),
                 abi.encodeWithSelector(
                     InvestLib.closePosition.selector,
                     InvestLib.ClosePositionParams({
@@ -415,7 +389,8 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
             uint[][] memory liquidityWithdrawnAmounts,
             uint[] memory buyWithdrawnAmounts
         ) = abi.decode(
-            _callInvestLib(
+            _makeDelegateCall(
+                address(investLib),
                 abi.encodeWithSelector(
                     InvestLib.collectPosition.selector,
                     InvestLib.CollectPositionParams({
@@ -524,7 +499,8 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
      * ----- Internal functions -----
      */
 
-    function _callInvestLib(
+    function _makeDelegateCall(
+        address _target,
         bytes memory _callData
     ) internal returns (
         bytes memory
@@ -532,76 +508,9 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         (bool success, bytes memory resultData) = investLib.delegatecall(_callData);
 
         if (!success)
-            revert LowLevelCallFailed(address(investLib), "", resultData);
+            revert LowLevelCallFailed(_target, "", resultData);
 
         return resultData;
-    }
-
-    function _pullFunds(
-        PullFundsParams memory _params
-    ) internal virtual returns (
-        PullFundsResult memory
-    ) {
-        Strategy storage strategy = _strategies[_params.strategyId];
-
-        bool strategistSubscribed = subscriptionManager.isSubscribed(strategy.creator, _params.strategistPermit);
-        bool userSubscribed = subscriptionManager.isSubscribed(msg.sender, _params.investorPermit);
-        uint initialInputTokenBalance = _params.inputToken.balanceOf(address(this));
-
-        _params.inputToken.safeTransferFrom(msg.sender, address(this), _params.inputAmount);
-
-        uint stableAmount = ZapLib.zap(
-            zapManager,
-            _params.inputTokenSwap,
-            _params.inputToken,
-            stable,
-            _params.inputToken.balanceOf(address(this)) - initialInputTokenBalance
-        );
-
-        // Divided by multiplier 10_000 (fee percentage) * 100 (strategy percentage per investment) = 1M
-        uint totalFee = stableAmount * (
-            _getProductFee(strategy.percentages[PRODUCT_DCA], dca, userSubscribed)
-            + _getProductFee(strategy.percentages[PRODUCT_VAULTS], vaultManager, userSubscribed)
-            + _getProductFee(strategy.percentages[PRODUCT_LIQUIDITY], liquidityManager, userSubscribed)
-            + _getProductFee(strategy.percentages[PRODUCT_BUY], buyProduct, userSubscribed)
-        ) / 1_000_000;
-        uint strategistFee;
-
-        if (strategistSubscribed) {
-            uint currentStrategistPercentage = isHot(_params.strategyId)
-                ? hotStrategistPercentage
-                : strategistPercentage;
-
-            strategistFee = totalFee * currentStrategistPercentage / 100;
-        }
-
-        uint protocolFee = totalFee - strategistFee;
-
-        stable.safeTransfer(treasury, protocolFee);
-
-        if (strategistFee > 0) {
-            _strategistRewards[strategy.creator] += strategistFee;
-
-            emit UseFee.Fee(msg.sender, strategy.creator, strategistFee, abi.encode(_params.strategyId));
-        }
-
-        emit UseFee.Fee(msg.sender, treasury, protocolFee, abi.encode(_params.strategyId));
-
-        return PullFundsResult(
-            stableAmount - (protocolFee + strategistFee),
-            strategistFee
-        );
-    }
-
-    function _getProductFee(
-        uint8 _productPercentage,
-        UseFee _product,
-        bool _userSubscribed
-    ) internal view returns (uint32) {
-        if (_productPercentage == 0)
-            return 0;
-
-        return _product.getFeePercentage(_userSubscribed) * _productPercentage;
     }
 
     /**
