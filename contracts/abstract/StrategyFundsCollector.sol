@@ -6,10 +6,10 @@ import {IERC20Upgradeable, SafeERC20Upgradeable} from "@openzeppelin/contracts-u
 
 import {ZapLib} from "../libraries/ZapLib.sol";
 import {SubscriptionManager} from "../SubscriptionManager.sol";
-import {StrategyManagerStorage} from "./StrategyManagerStorage.sol";
+import {StrategyStorage} from "./StrategyStorage.sol";
 import {UseFee} from "./UseFee.sol";
 
-contract StrategyFunding is StrategyManagerStorage {
+contract StrategyFundsCollector is StrategyStorage {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     struct PullFundsParams {

@@ -13,7 +13,7 @@ import {DollarCostAverage} from '../DollarCostAverage.sol';
 import {UseTreasury} from "./UseTreasury.sol";
 import {UseFee} from "./UseFee.sol";
 
-contract StrategyManagerStorage is UseTreasury {
+contract StrategyStorage is UseTreasury {
     // @notice percentages is a mapping from product id to its percentage
     struct Strategy {
         address creator;

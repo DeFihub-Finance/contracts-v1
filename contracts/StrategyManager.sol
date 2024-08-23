@@ -6,7 +6,7 @@ import {IERC20Upgradeable, SafeERC20Upgradeable} from "@openzeppelin/contracts-u
 
 import {HubOwnable} from "./abstract/HubOwnable.sol";
 import {UseFee} from "./abstract/UseFee.sol";
-import {StrategyManagerStorage} from "./abstract/StrategyManagerStorage.sol";
+import {StrategyStorage} from "./abstract/StrategyStorage.sol";
 import {ICall} from './interfaces/ICall.sol';
 import {IBeefyVaultV7} from './interfaces/IBeefyVaultV7.sol';
 import {SubscriptionManager} from "./SubscriptionManager.sol";
@@ -16,9 +16,9 @@ import {VaultManager} from "./VaultManager.sol";
 import {DollarCostAverage} from './DollarCostAverage.sol';
 import {InvestLib} from "./libraries/InvestLib.sol";
 import {ZapLib} from "./libraries/ZapLib.sol";
-import {StrategyFunding} from "./abstract/StrategyFunding.sol";
+import {StrategyFundsCollector} from "./abstract/StrategyFundsCollector.sol";
 
-contract StrategyManager is StrategyManagerStorage, HubOwnable, ICall {
+contract StrategyManager is StrategyStorage, HubOwnable, ICall {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     struct Position {
@@ -30,6 +30,7 @@ contract StrategyManager is StrategyManagerStorage, HubOwnable, ICall {
         address owner;
         address treasury;
         address investLib;
+        address strategyFundsCollector;
         IERC20Upgradeable stable;
         SubscriptionManager subscriptionManager;
         DollarCostAverage dca;
@@ -73,7 +74,6 @@ contract StrategyManager is StrategyManagerStorage, HubOwnable, ICall {
         bytes[] swaps;
     }
 
-
     mapping(uint => InvestLib.DcaInvestment[]) internal _dcaInvestmentsPerStrategy;
     mapping(uint => InvestLib.VaultInvestment[]) internal _vaultInvestmentsPerStrategy;
     mapping(uint => InvestLib.LiquidityInvestment[]) internal _liquidityInvestmentsPerStrategy;
@@ -90,6 +90,7 @@ contract StrategyManager is StrategyManagerStorage, HubOwnable, ICall {
     mapping(address => mapping(uint => InvestLib.BuyPosition[])) internal _buyPositionsPerPosition;
 
     address public investLib;
+    address public strategyFundsCollector;
 
     mapping(uint => bool) internal _hottestStrategiesMapping;
     uint[] internal _hottestStrategiesArray;
@@ -152,6 +153,7 @@ contract StrategyManager is StrategyManagerStorage, HubOwnable, ICall {
 
         zapManager = _initializeParams.zapManager;
         investLib = _initializeParams.investLib;
+        strategyFundsCollector = _initializeParams.strategyFundsCollector;
         stable = _initializeParams.stable;
         subscriptionManager = _initializeParams.subscriptionManager;
         dca = _initializeParams.dca;
@@ -238,12 +240,12 @@ contract StrategyManager is StrategyManagerStorage, HubOwnable, ICall {
 
         Strategy storage strategy = _strategies[_params.strategyId];
 
-        StrategyFunding.PullFundsResult memory pullFundsResult = abi.decode(
+        StrategyFundsCollector.PullFundsResult memory pullFundsResult = abi.decode(
             _makeDelegateCall(
-                address(this), // todo set correct address
+                strategyFundsCollector,
                 abi.encodeWithSelector(
-                    StrategyFunding.pullFunds.selector,
-                    StrategyFunding.PullFundsParams({
+                    StrategyFundsCollector.pullFunds.selector,
+                    StrategyFundsCollector.PullFundsParams({
                         strategyId: _params.strategyId,
                         isHot: isHot(_params.strategyId),
                         inputToken: _params.inputToken,
@@ -254,7 +256,7 @@ contract StrategyManager is StrategyManagerStorage, HubOwnable, ICall {
                     })
                 )
             ),
-            (StrategyFunding.PullFundsResult)
+            (StrategyFundsCollector.PullFundsResult)
         );
 
         (
@@ -264,7 +266,7 @@ contract StrategyManager is StrategyManagerStorage, HubOwnable, ICall {
             InvestLib.BuyPosition[] memory buyPositions
         ) = abi.decode(
             _makeDelegateCall(
-                address(investLib),
+                investLib,
                 abi.encodeWithSelector(
                     InvestLib.invest.selector,
                     InvestLib.InvestParams({
@@ -342,7 +344,7 @@ contract StrategyManager is StrategyManagerStorage, HubOwnable, ICall {
             uint[] memory buyWithdrawnAmounts
         ) = abi.decode(
             _makeDelegateCall(
-                address(investLib),
+                investLib,
                 abi.encodeWithSelector(
                     InvestLib.closePosition.selector,
                     InvestLib.ClosePositionParams({
@@ -390,7 +392,7 @@ contract StrategyManager is StrategyManagerStorage, HubOwnable, ICall {
             uint[] memory buyWithdrawnAmounts
         ) = abi.decode(
             _makeDelegateCall(
-                address(investLib),
+                investLib,
                 abi.encodeWithSelector(
                     InvestLib.collectPosition.selector,
                     InvestLib.CollectPositionParams({
@@ -505,7 +507,7 @@ contract StrategyManager is StrategyManagerStorage, HubOwnable, ICall {
     ) internal returns (
         bytes memory
     ) {
-        (bool success, bytes memory resultData) = investLib.delegatecall(_callData);
+        (bool success, bytes memory resultData) = _target.delegatecall(_callData);
 
         if (!success)
             revert LowLevelCallFailed(_target, "", resultData);
