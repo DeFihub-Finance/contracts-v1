@@ -16,6 +16,7 @@ import {ZapManager} from '../zap/ZapManager.sol';
 contract ProjectDeployer is GenericDeployer {
     // Strategies
     address public investLib;
+    address public strategyFundsCollector;
     ProxyAddress public strategyManager;
 
     // Products
@@ -33,6 +34,13 @@ contract ProjectDeployer is GenericDeployer {
         bytes32 _salt
     ) external onlyOwner {
         investLib = deploy(_code, _salt);
+    }
+
+    function deployStrategyFundsCollector(
+        bytes memory _code,
+        bytes32 _salt
+    ) external onlyOwner {
+        strategyFundsCollector = deploy(_code, _salt);
     }
 
     function deployStrategyManager(

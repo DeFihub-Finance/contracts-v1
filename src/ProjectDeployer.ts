@@ -25,6 +25,7 @@ import {
     LiquidityManager__factory,
     BuyProduct,
     BuyProduct__factory,
+    StrategyFundsCollector__factory,
 } from '@src/typechain'
 import { ZeroHash, ZeroAddress, Signer } from 'ethers'
 import { NetworkService } from '@src/NetworkService'
@@ -72,6 +73,7 @@ export class ProjectDeployer {
         const buyProductDeployParams = this.getDeploymentInfo(BuyProduct__factory)
 
         await projectDeployer.deployInvestLib(InvestLib__factory.bytecode, ZeroHash)
+        await projectDeployer.deployStrategyFundsCollector(StrategyFundsCollector__factory.bytecode, ZeroHash)
         await projectDeployer.deploySubscriptionManager(subscriptionManagerDeployParams)
         await projectDeployer.deployStrategyManager(strategyManagerDeployParams)
         await projectDeployer.deployDca(dcaDeployParams)
@@ -80,7 +82,16 @@ export class ProjectDeployer {
         await projectDeployer.deployZapManager(zapManagerDeployParams)
         await projectDeployer.deployBuyProduct(buyProductDeployParams)
 
-        const investLib = await projectDeployer.investLib()
+        // non-proxy contracts
+        const [
+            investLib,
+            strategyFundsCollector,
+        ] = await Promise.all([
+            projectDeployer.investLib(),
+            projectDeployer.strategyFundsCollector(),
+        ])
+
+        // proxy contracts
         const [
             strategyManager,
             subscriptionManagerAddress,
@@ -116,6 +127,7 @@ export class ProjectDeployer {
             owner,
             treasury,
             investLib,
+            strategyFundsCollector,
             stable: stablecoin,
             subscriptionManager,
             dca,
