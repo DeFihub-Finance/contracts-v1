@@ -3,6 +3,7 @@ import { AbiCoder, ErrorDescription, parseEther, Signer } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import {
     DollarCostAverage,
+    StrategyFundsCollector,
     StrategyManager,
     SubscriptionManager,
     TestERC20,
@@ -12,8 +13,8 @@ import {
     UseFee,
 } from '@src/typechain'
 import { createStrategyFixture } from './fixtures/create-strategy.fixture'
-import { decodeLowLevelCallError, LiquidityHelpers, UniswapV3 as UniswapV3Helper } from '@src/helpers'
-import { ERC20Priced, UniswapV3 } from '@defihub/shared'
+import { decodeLowLevelCallError, getEventLog, LiquidityHelpers, UniswapV3 as UniswapV3Helper } from '@src/helpers'
+import { ERC20Priced, UniswapV3, unwrapAddressLike } from '@defihub/shared'
 import { BigNumber } from '@ryze-blockchain/ethereum'
 import { Fees } from '@src/helpers/Fees'
 import { SubscriptionSignature } from '@src/SubscriptionSignature'
@@ -60,9 +61,10 @@ describe('StrategyManager#invest', () => {
     let stablecoinPriced: ERC20Priced
 
     // hub contracts
+    let strategyFundsCollector: StrategyFundsCollector
+    let strategyManager: StrategyManager
     let vault: TestVault
     let dca: DollarCostAverage
-    let strategyManager: StrategyManager
     let liquidityManager: UseFee
     let vaultManager: UseFee
     let buyProduct: UseFee
@@ -205,9 +207,10 @@ describe('StrategyManager#invest', () => {
             stablecoinPriced,
 
             // hub contracts
+            strategyFundsCollector,
+            strategyManager,
             dca,
             vault,
-            strategyManager,
             liquidityManager,
             vaultManager,
             buyProduct,
@@ -467,10 +470,12 @@ describe('StrategyManager#invest', () => {
             })
 
             it('subscribed user sends strategist rewards to treasury', async () => {
-                const tx = await _invest(
-                    account1,
-                    await getInvestParams(account1, { _strategistSubscribed: false }),
-                )
+                const receipt = await (
+                    await _invest(
+                        account1,
+                        await getInvestParams(account1, { _strategistSubscribed: false }),
+                    )
+                ).wait()
 
                 const finalStrategistRewards = await strategyManager
                     .getStrategistRewards(strategist)
@@ -479,19 +484,23 @@ describe('StrategyManager#invest', () => {
 
                 const { protocolFee } = await getStrategyFeeAmount(amountToInvest, strategyId, true, false)
 
-                await expect(tx).to.emit(strategyManager, 'Fee').withArgs(
-                    account1,
-                    treasury,
+                const feeEvent = getEventLog(receipt, 'Fee', strategyFundsCollector.interface)
+
+                expect(feeEvent?.args).to.deep.equal([
+                    await unwrapAddressLike(account1),
+                    await unwrapAddressLike(treasury),
                     protocolFee,
                     AbiCoder.defaultAbiCoder().encode(['uint'], [strategyId]),
-                )
+                ])
             })
 
             it('unsubscribed user sends strategist rewards to treasury', async () => {
-                const tx = await _invest(
-                    account2,
-                    await getInvestParams(account2, { _investorSubscribed: false, _strategistSubscribed: false }),
-                )
+                const receipt = await (
+                    await _invest(
+                        account2,
+                        await getInvestParams(account2, { _investorSubscribed: false, _strategistSubscribed: false }),
+                    )
+                ).wait()
 
                 const finalStrategistRewards = await strategyManager
                     .getStrategistRewards(strategist)
@@ -500,12 +509,14 @@ describe('StrategyManager#invest', () => {
 
                 const { protocolFee } = await getStrategyFeeAmount(amountToInvest, strategyId, false, false)
 
-                await expect(tx).to.emit(strategyManager, 'Fee').withArgs(
-                    account2,
-                    treasury,
+                const feeEvent = getEventLog(receipt, 'Fee', strategyFundsCollector.interface)
+
+                expect(feeEvent?.args).to.deep.equal([
+                    await unwrapAddressLike(account2),
+                    await unwrapAddressLike(treasury),
                     protocolFee,
                     AbiCoder.defaultAbiCoder().encode(['uint'], [strategyId]),
-                )
+                ])
             })
         })
     })

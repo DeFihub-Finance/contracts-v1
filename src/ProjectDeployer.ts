@@ -207,6 +207,7 @@ export class ProjectDeployer {
 
         return {
             // Contracts
+            strategyFundsCollector: StrategyFundsCollector__factory.connect(strategyFundsCollector, owner),
             strategyManager: StrategyManager__factory.connect(strategyManager, owner),
             subscriptionManager,
             dca: DollarCostAverage__factory.connect(dca, owner),
