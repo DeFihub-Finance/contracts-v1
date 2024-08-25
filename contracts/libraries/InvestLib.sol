@@ -6,6 +6,7 @@ import {IERC20Upgradeable, SafeERC20Upgradeable} from "@openzeppelin/contracts-u
 import {ICall} from  "../interfaces/ICall.sol";
 import {IBeefyVaultV7} from '../interfaces/IBeefyVaultV7.sol';
 import {INonfungiblePositionManager} from '../interfaces/INonfungiblePositionManager.sol';
+import {StrategyStorage} from '../abstract/StrategyStorage.sol';
 import {DollarCostAverage} from '../DollarCostAverage.sol';
 import {VaultManager} from '../VaultManager.sol';
 import {LiquidityManager} from "../LiquidityManager.sol";
@@ -13,43 +14,26 @@ import {ZapManager} from "../zap/ZapManager.sol";
 import {IERC20Mintable} from "../test/TestRouter.sol";
 import {ZapLib} from "./ZapLib.sol";
 
-library InvestLib {
+contract InvestLib is StrategyStorage {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     error InvalidParamsLength();
     error InsufficientFunds();
 
-    /**
-     * Investment structs
-     *
-     * Interfaces of how investments are stored for each product in a strategy
-     */
+    event PositionCreated(
+        address user,
+        uint strategyId,
+        uint positionId,
+        address inputToken,
+//        uint inputTokenAmount, // TODO enable
+        uint stableAmountAfterFees,
+        uint[] dcaPositionIds,
+        VaultPosition[] vaultPositions,
+        LiquidityPosition[] liquidityPositions,
+        BuyPosition[] tokenPositions
+    );
 
-    struct DcaInvestment {
-        uint208 poolId;
-        uint16 swaps;
-        uint8 percentage;
-    }
 
-    struct VaultInvestment {
-        address vault;
-        uint8 percentage;
-    }
-
-    struct LiquidityInvestment {
-        INonfungiblePositionManager positionManager;
-        IERC20Upgradeable token0;
-        IERC20Upgradeable token1;
-        uint24 fee;
-        uint24 lowerPricePercentage;
-        uint24 upperPricePercentage;
-        uint8 percentage;
-    }
-
-    struct BuyInvestment {
-        IERC20Upgradeable token;
-        uint8 percentage;
-    }
 
     /**
      * Invest Params structs
@@ -106,6 +90,7 @@ library InvestLib {
     }
 
     struct InvestParams {
+        uint strategyId;
         address treasury;
         DollarCostAverage dca;
         VaultManager vaultManager;
@@ -114,41 +99,14 @@ library InvestLib {
         IERC20Upgradeable inputToken;
         uint amount;
         // dca
-        DcaInvestment[] dcaInvestments;
         bytes[] dcaSwaps;
         // vaults
-        VaultInvestment[] vaultInvestments;
         bytes[] vaultSwaps;
         // liquidity
-        LiquidityInvestment[] liquidityInvestments;
         LiquidityInvestZapParams[] liquidityZaps;
-        uint8 liquidityTotalPercentage;
+        uint8 liquidityTotalPercentage; // TODO can we remove this?
         // tokens
-        BuyInvestment[] buyInvestments;
         bytes[] buySwaps;
-    }
-
-    /**
-     * Position structs
-     *
-     * Interfaces for users' positions to be stored in the Strategy contract
-     */
-
-    struct VaultPosition {
-        address vault;
-        uint amount;
-    }
-
-    struct LiquidityPosition {
-        // TODO check if position manager is really necessary since it is already available in LiquidityInvestment struct
-        INonfungiblePositionManager positionManager;
-        uint tokenId;
-        uint128 liquidity;
-    }
-
-    struct BuyPosition {
-        IERC20Upgradeable token;
-        uint amount;
     }
 
     /**
@@ -203,7 +161,7 @@ library InvestLib {
         dcaPositionIds = _investInDca(
             DcaInvestmentParams({
                 dca: _params.dca,
-                dcaInvestments: _params.dcaInvestments,
+                dcaInvestments: _dcaInvestmentsPerStrategy[_params.strategyId],
                 inputToken: _params.inputToken,
                 amount: _params.amount,
                 zapManager: _params.zapManager,
@@ -214,7 +172,7 @@ library InvestLib {
         vaultPositions = _investInVaults(
             VaultInvestmentParams({
                 vaultManager: _params.vaultManager,
-                vaultInvestments: _params.vaultInvestments,
+                vaultInvestments: _vaultInvestmentsPerStrategy[_params.strategyId],
                 inputToken: _params.inputToken,
                 amount: _params.amount,
                 zapManager: _params.zapManager,
@@ -226,7 +184,7 @@ library InvestLib {
             LiquidityInvestParams({
                 treasury: _params.treasury,
                 liquidityManager: _params.liquidityManager,
-                investments: _params.liquidityInvestments,
+                investments: _liquidityInvestmentsPerStrategy[_params.strategyId],
                 inputToken: _params.inputToken,
                 amount: _params.amount,
                 liquidityTotalPercentage: _params.liquidityTotalPercentage,
@@ -236,12 +194,41 @@ library InvestLib {
 
         buyPositions = _investInToken(
             BuyInvestParams({
-                investments: _params.buyInvestments,
+                investments: _buyInvestmentsPerStrategy[_params.strategyId],
                 inputToken: _params.inputToken,
                 amount: _params.amount,
                 zapManager: _params.zapManager,
                 swaps: _params.buySwaps
             })
+        );
+
+        uint positionId = _positions[msg.sender].length;
+
+        Position storage position = _positions[msg.sender].push();
+
+        position.strategyId = _params.strategyId;
+        _dcaPositionsPerPosition[msg.sender][positionId] = dcaPositionIds;
+
+        for (uint i; i < vaultPositions.length; ++i)
+            _vaultPositionsPerPosition[msg.sender][positionId].push(vaultPositions[i]);
+
+        for (uint i; i < liquidityPositions.length; ++i)
+            _liquidityPositionsPerPosition[msg.sender][positionId].push(liquidityPositions[i]);
+
+        for (uint i; i < buyPositions.length; ++i)
+            _buyPositionsPerPosition[msg.sender][positionId].push(buyPositions[i]);
+
+        emit PositionCreated(
+            msg.sender,
+            _params.strategyId,
+            positionId,
+            address(_params.inputToken),
+//            _params.inputAmount,
+            _params.amount,
+            dcaPositionIds,
+            vaultPositions,
+            liquidityPositions,
+            buyPositions
         );
     }
 

@@ -21,11 +21,6 @@ import {StrategyFundsCollector} from "./abstract/StrategyFundsCollector.sol";
 contract StrategyManager is StrategyStorage, HubOwnable, ICall {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
-    struct Position {
-        uint strategyId;
-        bool closed;
-    }
-
     struct InitializeParams {
         address owner;
         address treasury;
@@ -74,21 +69,6 @@ contract StrategyManager is StrategyStorage, HubOwnable, ICall {
         bytes[] swaps;
     }
 
-    mapping(uint => InvestLib.DcaInvestment[]) internal _dcaInvestmentsPerStrategy;
-    mapping(uint => InvestLib.VaultInvestment[]) internal _vaultInvestmentsPerStrategy;
-    mapping(uint => InvestLib.LiquidityInvestment[]) internal _liquidityInvestmentsPerStrategy;
-    mapping(uint => InvestLib.BuyInvestment[]) internal _buyInvestmentsPerStrategy;
-
-    mapping(address => Position[]) internal _positions;
-    // @dev investor => strategy position id => dca position ids
-    mapping(address => mapping(uint => uint[])) internal _dcaPositionsPerPosition;
-    // @dev investor => strategy position id => vault positions
-    mapping(address => mapping(uint => InvestLib.VaultPosition[])) internal _vaultPositionsPerPosition;
-    // @dev investor => strategy position id => liquidity positions
-    mapping(address => mapping(uint => InvestLib.LiquidityPosition[])) internal _liquidityPositionsPerPosition;
-    // @dev investor => strategy position id => buy positions
-    mapping(address => mapping(uint => InvestLib.BuyPosition[])) internal _buyPositionsPerPosition;
-
     address public investLib;
     address public strategyFundsCollector;
 
@@ -97,18 +77,7 @@ contract StrategyManager is StrategyStorage, HubOwnable, ICall {
     uint8 public maxHottestStrategies;
 
     event StrategyCreated(address strategist, uint strategyId, bytes32 metadataHash);
-    event PositionCreated(
-        address user,
-        uint strategyId,
-        uint positionId,
-        address inputToken,
-        uint inputTokenAmount,
-        uint stableAmountAfterFees,
-        uint[] dcaPositionIds,
-        InvestLib.VaultPosition[] vaultPositions,
-        InvestLib.LiquidityPosition[] liquidityPositions,
-        InvestLib.BuyPosition[] tokenPositions
-    );
+
     event PositionClosed(
         address user,
         uint strategyId,
@@ -259,17 +228,13 @@ contract StrategyManager is StrategyStorage, HubOwnable, ICall {
             (StrategyFundsCollector.PullFundsResult)
         );
 
-        (
-            uint[] memory dcaPositionIds,
-            InvestLib.VaultPosition[] memory vaultPositions,
-            InvestLib.LiquidityPosition[] memory liquidityPositions,
-            InvestLib.BuyPosition[] memory buyPositions
-        ) = abi.decode(
+
             _makeDelegateCall(
                 investLib,
                 abi.encodeWithSelector(
                     InvestLib.invest.selector,
                     InvestLib.InvestParams({
+                        strategyId: _params.strategyId,
                         treasury: treasury,
                         dca: dca,
                         vaultManager: vaultManager,
@@ -278,52 +243,46 @@ contract StrategyManager is StrategyStorage, HubOwnable, ICall {
                         inputToken: stable,
                         amount: pullFundsResult.remainingAmount,
                     // dca
-                        dcaInvestments: _dcaInvestmentsPerStrategy[_params.strategyId],
                         dcaSwaps: _params.dcaSwaps,
                     // vaults
-                        vaultInvestments: _vaultInvestmentsPerStrategy[_params.strategyId],
                         vaultSwaps: _params.vaultSwaps,
                     // liquidity
-                        liquidityInvestments: _liquidityInvestmentsPerStrategy[_params.strategyId],
                         liquidityZaps: _params.liquidityZaps,
                         liquidityTotalPercentage: strategy.percentages[PRODUCT_LIQUIDITY],
                     // buy
-                        buyInvestments: _buyInvestmentsPerStrategy[_params.strategyId],
                         buySwaps: _params.buySwaps
                     })
                 )
-            ),
-            (uint[], InvestLib.VaultPosition[], InvestLib.LiquidityPosition[], InvestLib.BuyPosition[])
-        );
+            );
 
-        uint positionId = _positions[msg.sender].length;
-
-        Position storage position = _positions[msg.sender].push();
-
-        position.strategyId = _params.strategyId;
-        _dcaPositionsPerPosition[msg.sender][positionId] = dcaPositionIds;
-
-        for (uint i; i < vaultPositions.length; ++i)
-            _vaultPositionsPerPosition[msg.sender][positionId].push(vaultPositions[i]);
-
-        for (uint i; i < liquidityPositions.length; ++i)
-            _liquidityPositionsPerPosition[msg.sender][positionId].push(liquidityPositions[i]);
-
-        for (uint i; i < buyPositions.length; ++i)
-            _buyPositionsPerPosition[msg.sender][positionId].push(buyPositions[i]);
-
-        emit PositionCreated(
-            msg.sender,
-            _params.strategyId,
-            positionId,
-            address(_params.inputToken),
-            _params.inputAmount,
-            pullFundsResult.remainingAmount,
-            dcaPositionIds,
-            vaultPositions,
-            liquidityPositions,
-            buyPositions
-        );
+//        uint positionId = _positions[msg.sender].length;
+//
+//        Position storage position = _positions[msg.sender].push();
+//
+//        position.strategyId = _params.strategyId;
+//        _dcaPositionsPerPosition[msg.sender][positionId] = dcaPositionIds;
+//
+//        for (uint i; i < vaultPositions.length; ++i)
+//            _vaultPositionsPerPosition[msg.sender][positionId].push(vaultPositions[i]);
+//
+//        for (uint i; i < liquidityPositions.length; ++i)
+//            _liquidityPositionsPerPosition[msg.sender][positionId].push(liquidityPositions[i]);
+//
+//        for (uint i; i < buyPositions.length; ++i)
+//            _buyPositionsPerPosition[msg.sender][positionId].push(buyPositions[i]);
+//
+//        emit PositionCreated(
+//            msg.sender,
+//            _params.strategyId,
+//            positionId,
+//            address(_params.inputToken),
+//            _params.inputAmount,
+//            pullFundsResult.remainingAmount,
+//            dcaPositionIds,
+//            vaultPositions,
+//            liquidityPositions,
+//            buyPositions
+//        );
     }
 
     function closePosition(
