@@ -1,9 +1,17 @@
 import { expect } from 'chai'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
-import { DollarCostAverage, StrategyManager, TestERC20, TestERC20__factory, UniswapPositionManager, UniswapV3Factory } from '@src/typechain'
-import { AddressLike, Signer } from 'ethers'
+import {
+    DollarCostAverage,
+    StrategyManager,
+    StrategyPositionManager,
+    TestERC20,
+    TestERC20__factory,
+    UniswapPositionManager,
+    UniswapV3Factory,
+} from '@src/typechain'
+import { AddressLike, ErrorDescription, Signer } from 'ethers'
 import { runStrategy } from './fixtures/run-strategy.fixture'
-import { LiquidityHelpers } from '@src/helpers'
+import { decodeLowLevelCallError, getEventLog, LiquidityHelpers } from '@src/helpers'
 
 // => Given an investor with a position in a strategy which contains a DCA pool
 //      => When the investor collects the position
@@ -17,6 +25,7 @@ import { LiquidityHelpers } from '@src/helpers'
 //          => Then revert with InvalidPositionId
 describe('StrategyManager#collectPosition', () => {
     let strategyManager: StrategyManager
+    let strategyPositionManager: StrategyPositionManager
     let dca: DollarCostAverage
     let account1: Signer
     let account2: Signer
@@ -98,6 +107,7 @@ describe('StrategyManager#collectPosition', () => {
     beforeEach(async () => {
         ({
             strategyManager,
+            strategyPositionManager,
             account1,
             account2,
             dca,
@@ -136,16 +146,17 @@ describe('StrategyManager#collectPosition', () => {
                             .map(async (_, id) => (await dca.getPositionBalances(strategyManager, id)).outputTokenBalance),
                     )
 
-                    await expect(strategyManager.connect(account1).collectPosition(dcaPositionId))
-                        .to.emit(strategyManager, 'PositionCollected')
-                        .withArgs(
-                            await account1.getAddress(),
-                            dcaStrategyId,
-                            dcaPositionId,
-                            outputTokenBalances,
-                            [],
-                            [],
-                        )
+                    const receipt = await (await strategyManager.connect(account1).collectPosition(dcaPositionId)).wait()
+                    const feeEvent = getEventLog(receipt, 'PositionCollected', strategyPositionManager.interface)
+
+                    expect(feeEvent?.args).to.deep.equal([
+                        await account1.getAddress(),
+                        dcaStrategyId,
+                        dcaPositionId,
+                        outputTokenBalances,
+                        [],
+                        [],
+                    ])
                 })
             })
         })
@@ -179,16 +190,17 @@ describe('StrategyManager#collectPosition', () => {
                             )),
                     )).map(({ fees }) => ([fees.amount0, fees.amount1]))
 
-                    await expect(strategyManager.connect(account1).collectPosition(liquidityPositionId))
-                        .to.emit(strategyManager, 'PositionCollected')
-                        .withArgs(
-                            await account1.getAddress(),
-                            liquidityStrategyId,
-                            liquidityPositionId,
-                            [],
-                            liquidityWithdrawAmounts,
-                            [],
-                        )
+                    const receipt = await (await strategyManager.connect(account1).collectPosition(liquidityPositionId)).wait()
+                    const feeEvent = getEventLog(receipt, 'PositionCollected', strategyPositionManager.interface)
+
+                    expect(feeEvent?.args).to.deep.equal([
+                        await account1.getAddress(),
+                        liquidityStrategyId,
+                        liquidityPositionId,
+                        [],
+                        liquidityWithdrawAmounts,
+                        [],
+                    ])
                 })
             })
         })
@@ -213,12 +225,17 @@ describe('StrategyManager#collectPosition', () => {
     describe('Given an investor with no position', () => {
         describe('When the investor collects the position', () => {
             it('Then revert with InvalidPositionId', async () => {
-                await expect(strategyManager.connect(account2).collectPosition(dcaPositionId))
-                    .to.be.revertedWithCustomError(strategyManager, 'InvalidPositionId')
-                    .withArgs(
-                        await account2.getAddress(),
-                        dcaPositionId,
-                    )
+                try {
+                    await strategyManager.connect(account2).collectPosition(dcaPositionId)
+
+                    throw new Error('Expected to fail')
+                }
+                catch (e) {
+                    const error = decodeLowLevelCallError(e)
+
+                    expect(error).to.be.instanceof(ErrorDescription)
+                    expect((error as ErrorDescription).name).to.equal('InvalidPositionId')
+                }
             })
         })
     })

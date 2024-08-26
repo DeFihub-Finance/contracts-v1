@@ -11,45 +11,9 @@ import {INonfungiblePositionManager} from '../interfaces/INonfungiblePositionMan
 contract StrategyPositionManager is StrategyStorage {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
-    /**
-     * Close Position structs
-     *
-     * Interfaces for the functions that close users' positions in the Strategy contract
-     */
-
-    /// part of ClosePositionParams
     struct LiquidityMinOutputs {
         uint minOutputToken0;
         uint minOutputToken1;
-    }
-
-    struct ClosePositionParams {
-        // dca
-        DollarCostAverage dca;
-        uint[] dcaPositions;
-        // vaults
-        VaultPosition[] vaultPositions;
-        // liquidity
-        LiquidityPosition[] liquidityPositions;
-        LiquidityMinOutputs[] liquidityMinOutputs;
-        // tokens
-        BuyPosition[] buyPositions;
-    }
-
-    /**
-     * Collect Position structs
-     *
-     * Interfaces for functions that collect users' funds/rewards without withdrawing the deposited amount
-     */
-
-    struct CollectPositionParams {
-        // dca
-        DollarCostAverage dca;
-        uint[] dcaPositions;
-        // liquidity
-        LiquidityPosition[] liquidityPositions;
-        // tokens
-        BuyPosition[] buyPositions;
     }
 
     event PositionClosed(
@@ -62,7 +26,17 @@ contract StrategyPositionManager is StrategyStorage {
         uint[] buyWithdrawnAmounts
     );
 
+    event PositionCollected(
+        address user,
+        uint strategyId,
+        uint positionId,
+        uint[] dcaWithdrawnAmounts,
+        uint[][] liquidityWithdrawnAmounts,
+        uint[] buyWithdrawnAmounts
+    );
+
     error PositionAlreadyClosed();
+    error InvalidPositionId(address investor, uint positionId);
 
     function closePosition(
         uint _positionId,
@@ -202,24 +176,32 @@ contract StrategyPositionManager is StrategyStorage {
         return withdrawnAmounts;
     }
 
-    function collectPosition(
-        CollectPositionParams memory _params
-    ) external returns (
-        uint[] memory dcaWithdrawnAmounts,
-        uint[][] memory liquidityWithdrawnAmounts,
-        uint[] memory buyWithdrawnAmounts
-    ) {
-        return (
-            _collectPositionsDca(_params.dca, _params.dcaPositions),
-            _collectPositionsLiquidity(_params.liquidityPositions),
-            _collectPositionsToken(_params.buyPositions)
+    function collectPosition(uint _positionId) external  {
+        if (_positionId >= _positions[msg.sender].length)
+            revert InvalidPositionId(msg.sender, _positionId);
+
+        Position storage position = _positions[msg.sender][_positionId];
+
+        if (position.closed)
+            revert PositionAlreadyClosed();
+
+        StrategyStorage.BuyPosition[] memory buyPositions = _buyPositionsPerPosition[msg.sender][_positionId];
+
+        // TODO test delete functionality and also test if can use storage with delete to save gas
+        if (buyPositions.length > 0)
+            delete _buyPositionsPerPosition[msg.sender][_positionId];
+
+        emit PositionCollected(
+            msg.sender,
+            position.strategyId,
+            _positionId,
+            _collectPositionsDca(_dcaPositionsPerPosition[msg.sender][_positionId]),
+            _collectPositionsLiquidity(_liquidityPositionsPerPosition[msg.sender][_positionId]),
+            _collectPositionsToken(buyPositions)
         );
     }
 
-    function _collectPositionsDca(
-        DollarCostAverage _dca, // TODO remove unused arg
-        uint[] memory _positions
-    ) private returns (uint[] memory) {
+    function _collectPositionsDca(uint[] memory _positions) private returns (uint[] memory) {
         uint[] memory withdrawnAmounts = new uint[](_positions.length);
 
         for (uint i; i < _positions.length; ++i) {

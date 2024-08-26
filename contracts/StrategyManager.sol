@@ -103,14 +103,6 @@ contract StrategyManager is StrategyStorage, HubOwnable, ICall {
         StrategyStorage.LiquidityPosition[] liquidityPositions,
         StrategyStorage.BuyPosition[] tokenPositions
     );
-    event PositionCollected(
-        address user,
-        uint strategyId,
-        uint positionId,
-        uint[] dcaWithdrawnAmounts,
-        uint[][] liquidityWithdrawnAmounts,
-        uint[] buyWithdrawnAmounts
-    );
     event CollectedStrategistRewards(address strategist, uint amount);
     event StrategistPercentageUpdated(uint32 discountPercentage);
     event HotStrategistPercentageUpdated(uint32 discountPercentage);
@@ -123,7 +115,6 @@ contract StrategyManager is StrategyStorage, HubOwnable, ICall {
     error InvalidInvestment();
     error PercentageTooHigh();
     error StrategyUnavailable();
-    error InvalidPositionId(address investor, uint positionId);
 
     function initialize(InitializeParams calldata _initializeParams) external initializer {
         __Ownable_init();
@@ -313,47 +304,9 @@ contract StrategyManager is StrategyStorage, HubOwnable, ICall {
     }
 
     function collectPosition(uint _positionId) external virtual {
-        if (_positionId >= _positions[msg.sender].length)
-            revert InvalidPositionId(msg.sender, _positionId);
-
-        Position storage position = _positions[msg.sender][_positionId];
-
-        if (position.closed)
-            revert PositionAlreadyClosed();
-
-        StrategyStorage.BuyPosition[] memory buyPositions = _buyPositionsPerPosition[msg.sender][_positionId];
-
-        // TODO test delete functionality and also test if can use storage with delete to save gas
-        if (buyPositions.length > 0)
-            delete _buyPositionsPerPosition[msg.sender][_positionId];
-
-        (
-            uint[] memory dcaWithdrawnAmounts,
-            uint[][] memory liquidityWithdrawnAmounts,
-            uint[] memory buyWithdrawnAmounts
-        ) = abi.decode(
-            _makeDelegateCall(
-                strategyPositionManager,
-                abi.encodeWithSelector(
-                    StrategyPositionManager.collectPosition.selector,
-                    StrategyPositionManager.CollectPositionParams({
-                        dca: dca,
-                        dcaPositions: _dcaPositionsPerPosition[msg.sender][_positionId],
-                        liquidityPositions: _liquidityPositionsPerPosition[msg.sender][_positionId],
-                        buyPositions: buyPositions
-                    })
-                )
-            ),
-            (uint[], uint[][], uint[])
-        );
-
-        emit PositionCollected(
-            msg.sender,
-            position.strategyId,
-            _positionId,
-            dcaWithdrawnAmounts,
-            liquidityWithdrawnAmounts,
-            buyWithdrawnAmounts
+        _makeDelegateCall(
+            strategyPositionManager,
+            abi.encodeWithSelector(StrategyPositionManager.collectPosition.selector, _positionId)
         );
     }
 
