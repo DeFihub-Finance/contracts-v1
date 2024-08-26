@@ -185,7 +185,7 @@ contract StrategyPositionManager is StrategyStorage {
         if (position.closed)
             revert PositionAlreadyClosed();
 
-        StrategyStorage.BuyPosition[] memory buyPositions = _buyPositionsPerPosition[msg.sender][_positionId];
+        BuyPosition[] memory buyPositions = _buyPositionsPerPosition[msg.sender][_positionId];
 
         // TODO test delete functionality and also test if can use storage with delete to save gas
         if (buyPositions.length > 0)

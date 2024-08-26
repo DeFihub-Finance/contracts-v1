@@ -3,6 +3,8 @@ import { AbiCoder, ErrorDescription, parseEther, Signer } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import {
     DollarCostAverage,
+    InvestLib,
+    InvestLib__factory,
     StrategyManager,
     SubscriptionManager,
     TestERC20,
@@ -142,7 +144,7 @@ describe('StrategyManager#invest', () => {
         _strategyId: strategyId,
         _investorSubscribed: true,
         _strategistSubscribed: true,
-    }): Promise<StrategyManager.InvestParamsStruct> {
+    }): Promise<InvestLib.InvestParamsStruct> {
         const deadlineInvestor = _investorSubscribed ? deadline : 0
 
         const [
@@ -185,7 +187,7 @@ describe('StrategyManager#invest', () => {
 
     async function _invest(
         investor: Signer,
-        investParams?: StrategyManager.InvestParamsStruct,
+        investParams?: InvestLib.InvestParamsStruct,
     ) {
         return strategyManager
             .connect(investor)
@@ -481,7 +483,7 @@ describe('StrategyManager#invest', () => {
 
                 const { protocolFee } = await getStrategyFeeAmount(amountToInvest, strategyId, true, false)
 
-                const feeEvent = getEventLog(receipt, 'Fee', strategyManager.interface)
+                const feeEvent = getEventLog(receipt, 'Fee', InvestLib__factory.createInterface())
 
                 expect(feeEvent?.args).to.deep.equal([
                     await unwrapAddressLike(account1),
@@ -506,7 +508,7 @@ describe('StrategyManager#invest', () => {
 
                 const { protocolFee } = await getStrategyFeeAmount(amountToInvest, strategyId, false, false)
 
-                const feeEvent = getEventLog(receipt, 'Fee', strategyManager.interface)
+                const feeEvent = getEventLog(receipt, 'Fee', InvestLib__factory.createInterface())
 
                 expect(feeEvent?.args).to.deep.equal([
                     await unwrapAddressLike(account2),
@@ -637,15 +639,23 @@ describe('StrategyManager#invest', () => {
         })
 
         it('if strategyId do not exist', async () => {
-            const tx = _invest(
-                account2,
-                {
-                    ...await getInvestParams(account2, { _investorSubscribed: false }),
-                    strategyId: 99,
-                },
-            )
+            try {
+                await _invest(
+                    account2,
+                    {
+                        ...await getInvestParams(account2, { _investorSubscribed: false }),
+                        strategyId: 99,
+                    },
+                )
 
-            await expect(tx).to.revertedWithCustomError(strategyManager, 'StrategyUnavailable')
+                throw new Error('Expected to revert')
+            }
+            catch (e) {
+                const decodedError = decodeLowLevelCallError(e)
+
+                expect(decodedError).to.be.instanceof(ErrorDescription)
+                expect((decodedError as ErrorDescription).name).to.be.equal('StrategyUnavailable')
+            }
         })
     })
 })
