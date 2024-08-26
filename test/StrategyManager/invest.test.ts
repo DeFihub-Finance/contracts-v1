@@ -3,7 +3,7 @@ import { AbiCoder, ErrorDescription, parseEther, Signer } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import {
     DollarCostAverage,
-    StrategyFundsCollector,
+    StrategyPositionManager,
     StrategyManager,
     SubscriptionManager,
     TestERC20,
@@ -61,7 +61,7 @@ describe('StrategyManager#invest', () => {
     let stablecoinPriced: ERC20Priced
 
     // hub contracts
-    let strategyFundsCollector: StrategyFundsCollector
+    let strategyPositionManager: StrategyPositionManager
     let strategyManager: StrategyManager
     let vault: TestVault
     let dca: DollarCostAverage
@@ -207,7 +207,7 @@ describe('StrategyManager#invest', () => {
             stablecoinPriced,
 
             // hub contracts
-            strategyFundsCollector,
+            strategyPositionManager,
             strategyManager,
             dca,
             vault,
@@ -484,7 +484,7 @@ describe('StrategyManager#invest', () => {
 
                 const { protocolFee } = await getStrategyFeeAmount(amountToInvest, strategyId, true, false)
 
-                const feeEvent = getEventLog(receipt, 'Fee', strategyFundsCollector.interface)
+                const feeEvent = getEventLog(receipt, 'Fee', strategyPositionManager.interface)
 
                 expect(feeEvent?.args).to.deep.equal([
                     await unwrapAddressLike(account1),
@@ -509,7 +509,7 @@ describe('StrategyManager#invest', () => {
 
                 const { protocolFee } = await getStrategyFeeAmount(amountToInvest, strategyId, false, false)
 
-                const feeEvent = getEventLog(receipt, 'Fee', strategyFundsCollector.interface)
+                const feeEvent = getEventLog(receipt, 'Fee', strategyPositionManager.interface)
 
                 expect(feeEvent?.args).to.deep.equal([
                     await unwrapAddressLike(account2),

@@ -25,7 +25,7 @@ import {
     LiquidityManager__factory,
     BuyProduct,
     BuyProduct__factory,
-    StrategyFundsCollector__factory,
+    StrategyPositionManager__factory,
 } from '@src/typechain'
 import { ZeroHash, ZeroAddress, Signer } from 'ethers'
 import { NetworkService } from '@src/NetworkService'
@@ -73,7 +73,7 @@ export class ProjectDeployer {
         const buyProductDeployParams = this.getDeploymentInfo(BuyProduct__factory)
 
         await projectDeployer.deployInvestLib(InvestLib__factory.bytecode, ZeroHash)
-        await projectDeployer.deployStrategyFundsCollector(StrategyFundsCollector__factory.bytecode, ZeroHash)
+        await projectDeployer.deployStrategyPositionManager(StrategyPositionManager__factory.bytecode, ZeroHash)
         await projectDeployer.deploySubscriptionManager(subscriptionManagerDeployParams)
         await projectDeployer.deployStrategyManager(strategyManagerDeployParams)
         await projectDeployer.deployDca(dcaDeployParams)
@@ -85,10 +85,10 @@ export class ProjectDeployer {
         // non-proxy contracts
         const [
             investLib,
-            strategyFundsCollector,
+            strategyPositionManager,
         ] = await Promise.all([
             projectDeployer.investLib(),
-            projectDeployer.strategyFundsCollector(),
+            projectDeployer.strategyPositionManager(),
         ])
 
         // proxy contracts
@@ -127,7 +127,7 @@ export class ProjectDeployer {
             owner,
             treasury,
             investLib,
-            strategyFundsCollector,
+            strategyPositionManager,
             stable: stablecoin,
             subscriptionManager,
             dca,
@@ -207,7 +207,7 @@ export class ProjectDeployer {
 
         return {
             // Contracts
-            strategyFundsCollector: StrategyFundsCollector__factory.connect(strategyFundsCollector, owner),
+            strategyPositionManager: StrategyPositionManager__factory.connect(strategyPositionManager, owner),
             strategyManager: StrategyManager__factory.connect(strategyManager, owner),
             subscriptionManager,
             dca: DollarCostAverage__factory.connect(dca, owner),
