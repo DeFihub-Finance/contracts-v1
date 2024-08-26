@@ -37,10 +37,10 @@ contract StrategyManager is StrategyStorage, HubOwnable, ICall {
     }
 
     struct CreateStrategyParams {
-        StrategyStorage.DcaInvestment[] dcaInvestments;
-        StrategyStorage.VaultInvestment[] vaultInvestments;
-        StrategyStorage.LiquidityInvestment[] liquidityInvestments;
-        StrategyStorage.BuyInvestment[] buyInvestments;
+        DcaInvestment[] dcaInvestments;
+        VaultInvestment[] vaultInvestments;
+        LiquidityInvestment[] liquidityInvestments;
+        BuyInvestment[] buyInvestments;
         SubscriptionManager.Permit permit;
         bytes32 metadataHash;
     }
@@ -128,7 +128,7 @@ contract StrategyManager is StrategyStorage, HubOwnable, ICall {
 
         // Assigning isn't possible because you can't convert an array of structs from memory to storage
         for (uint i; i < _params.dcaInvestments.length; ++i) {
-            StrategyStorage.DcaInvestment memory dcaStrategy = _params.dcaInvestments[i];
+            DcaInvestment memory dcaStrategy = _params.dcaInvestments[i];
 
             if (dcaStrategy.poolId >= dca.getPoolsLength())
                 revert DollarCostAverage.InvalidPoolId();
@@ -140,13 +140,13 @@ contract StrategyManager is StrategyStorage, HubOwnable, ICall {
         }
 
         for (uint i; i < _params.vaultInvestments.length; ++i) {
-            StrategyStorage.VaultInvestment memory vaultStrategy = _params.vaultInvestments[i];
+            VaultInvestment memory vaultStrategy = _params.vaultInvestments[i];
 
             _vaultInvestmentsPerStrategy[strategyId].push(vaultStrategy);
         }
 
         for (uint i; i < _params.liquidityInvestments.length; ++i) {
-            StrategyStorage.LiquidityInvestment memory liquidityStrategy = _params.liquidityInvestments[i];
+            LiquidityInvestment memory liquidityStrategy = _params.liquidityInvestments[i];
 
             if (liquidityStrategy.token0 >= liquidityStrategy.token1)
                 revert InvalidInvestment();
@@ -217,9 +217,9 @@ contract StrategyManager is StrategyStorage, HubOwnable, ICall {
         uint _positionId
     ) external virtual view returns (
         uint[] memory dcaPositions,
-        StrategyStorage.VaultPosition[] memory vaultPositions,
-        StrategyStorage.LiquidityPosition[] memory liquidityPositions,
-        StrategyStorage.BuyPosition[] memory buyPositions
+        VaultPosition[] memory vaultPositions,
+        LiquidityPosition[] memory liquidityPositions,
+        BuyPosition[] memory buyPositions
     ) {
         return (
             _dcaPositionsPerPosition[_investor][_positionId],
@@ -240,10 +240,10 @@ contract StrategyManager is StrategyStorage, HubOwnable, ICall {
     function getStrategyInvestments(
         uint _strategyId
     ) external virtual view returns (
-        StrategyStorage.DcaInvestment[] memory dcaInvestments,
-        StrategyStorage.VaultInvestment[] memory vaultInvestments,
-        StrategyStorage.LiquidityInvestment[] memory liquidityInvestments,
-        StrategyStorage.BuyInvestment[] memory buyInvestments
+        DcaInvestment[] memory dcaInvestments,
+        VaultInvestment[] memory vaultInvestments,
+        LiquidityInvestment[] memory liquidityInvestments,
+        BuyInvestment[] memory buyInvestments
     ) {
         return (
             _dcaInvestmentsPerStrategy[_strategyId],
