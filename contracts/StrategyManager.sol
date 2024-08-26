@@ -103,15 +103,6 @@ contract StrategyManager is StrategyStorage, HubOwnable, ICall {
         StrategyStorage.LiquidityPosition[] liquidityPositions,
         StrategyStorage.BuyPosition[] tokenPositions
     );
-    event PositionClosed(
-        address user,
-        uint strategyId,
-        uint positionId,
-        uint[][] dcaWithdrawnAmounts,
-        uint[] vaultWithdrawnAmount,
-        uint[][] liquidityWithdrawnAmounts,
-        uint[] buyWithdrawnAmounts
-    );
     event PositionCollected(
         address user,
         uint strategyId,
@@ -132,7 +123,6 @@ contract StrategyManager is StrategyStorage, HubOwnable, ICall {
     error InvalidInvestment();
     error PercentageTooHigh();
     error StrategyUnavailable();
-    error PositionAlreadyClosed();
     error InvalidPositionId(address investor, uint positionId);
 
     function initialize(InitializeParams calldata _initializeParams) external initializer {
@@ -316,44 +306,9 @@ contract StrategyManager is StrategyStorage, HubOwnable, ICall {
         uint _positionId,
         StrategyPositionManager.LiquidityMinOutputs[] calldata _liquidityMinOutputs
     ) external virtual {
-        Position storage position = _positions[msg.sender][_positionId];
-
-        if (position.closed)
-            revert PositionAlreadyClosed();
-
-        position.closed = true;
-
-        (
-            uint[][] memory dcaWithdrawnAmounts,
-            uint[] memory vaultWithdrawnAmounts,
-            uint[][] memory liquidityWithdrawnAmounts,
-            uint[] memory buyWithdrawnAmounts
-        ) = abi.decode(
-            _makeDelegateCall(
-                strategyPositionManager,
-                abi.encodeWithSelector(
-                    StrategyPositionManager.closePosition.selector,
-                    StrategyPositionManager.ClosePositionParams({
-                        dca: dca,
-                        dcaPositions: _dcaPositionsPerPosition[msg.sender][_positionId],
-                        vaultPositions: _vaultPositionsPerPosition[msg.sender][_positionId],
-                        liquidityPositions: _liquidityPositionsPerPosition[msg.sender][_positionId],
-                        liquidityMinOutputs: _liquidityMinOutputs,
-                        buyPositions: _buyPositionsPerPosition[msg.sender][_positionId]
-                    })
-                )
-            ),
-            (uint[][], uint[], uint[][], uint[])
-        );
-
-        emit PositionClosed(
-            msg.sender,
-            position.strategyId,
-            _positionId,
-            dcaWithdrawnAmounts,
-            vaultWithdrawnAmounts,
-            liquidityWithdrawnAmounts,
-            buyWithdrawnAmounts
+        _makeDelegateCall(
+            strategyPositionManager,
+            abi.encodeWithSelector(StrategyPositionManager.closePosition.selector, _positionId, _liquidityMinOutputs)
         );
     }
 

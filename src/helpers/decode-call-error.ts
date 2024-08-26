@@ -5,6 +5,7 @@ import {
     InvestLib__factory,
     LiquidityManager__factory,
     StrategyManager__factory,
+    StrategyPositionManager__factory,
     SubscriptionManager__factory,
     VaultManager__factory,
     ZapManager__factory,
@@ -13,6 +14,7 @@ import {
 const contractInterfaces = [
     SubscriptionManager__factory.createInterface(),
     StrategyManager__factory.createInterface(),
+    StrategyPositionManager__factory.createInterface(),
     DollarCostAverage__factory.createInterface(),
     VaultManager__factory.createInterface(),
     ZapManager__factory.createInterface(),

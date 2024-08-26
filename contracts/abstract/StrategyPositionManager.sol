@@ -52,37 +52,56 @@ contract StrategyPositionManager is StrategyStorage {
         BuyPosition[] buyPositions;
     }
 
-    function closePosition(ClosePositionParams memory _params) external returns (
-        uint[][] memory dcaWithdrawnAmounts,
-        uint[] memory vaultWithdrawnAmounts,
-        uint[][] memory liquidityWithdrawnAmounts,
-        uint[] memory buyWithdrawnAmounts
-    ) {
-        return (
-            _closeDcaPositions(_params.dca, _params.dcaPositions),
-            _closeVaultPositions(_params.vaultPositions),
-            _closeLiquidityPositions(_params.liquidityPositions, _params.liquidityMinOutputs),
-            _closeBuyPositions(_params.buyPositions)
+    event PositionClosed(
+        address user,
+        uint strategyId,
+        uint positionId,
+        uint[][] dcaWithdrawnAmounts,
+        uint[] vaultWithdrawnAmount,
+        uint[][] liquidityWithdrawnAmounts,
+        uint[] buyWithdrawnAmounts
+    );
+
+    error PositionAlreadyClosed();
+
+    function closePosition(
+        uint _positionId,
+        LiquidityMinOutputs[] calldata _liquidityMinOutputs
+    ) external {
+        Position storage position = _positions[msg.sender][_positionId];
+
+        if (position.closed)
+            revert PositionAlreadyClosed();
+
+        position.closed = true;
+
+        emit PositionClosed(
+            msg.sender,
+            position.strategyId,
+            _positionId,
+            _closeDcaPositions(_dcaPositionsPerPosition[msg.sender][_positionId]),
+            _closeVaultPositions(_vaultPositionsPerPosition[msg.sender][_positionId]),
+            _closeLiquidityPositions(_liquidityPositionsPerPosition[msg.sender][_positionId], _liquidityMinOutputs),
+            _closeBuyPositions(_buyPositionsPerPosition[msg.sender][_positionId])
         );
     }
 
     function _closeDcaPositions(
-        DollarCostAverage _dca,
         uint[] memory _positions
     ) private returns (uint[][] memory) {
         uint[][] memory withdrawnAmounts = new uint[][](_positions.length);
 
         for (uint i; i < _positions.length; ++i) {
             uint positionId = _positions[i];
-            DollarCostAverage.PoolInfo memory poolInfo = _dca.getPool(
-                _dca.getPosition(address(this), positionId).poolId
+            DollarCostAverage.PoolInfo memory poolInfo = dca.getPool(
+                dca.getPosition(address(this), positionId).poolId
             );
             IERC20Upgradeable inputToken = IERC20Upgradeable(poolInfo.inputToken);
             IERC20Upgradeable outputToken = IERC20Upgradeable(poolInfo.outputToken);
             uint initialInputTokenBalance = inputToken.balanceOf(address(this));
             uint initialOutputTokenBalance = outputToken.balanceOf(address(this));
 
-            _dca.closePosition(positionId);
+            dca.closePosition(positionId);
 
             uint inputTokenAmount = inputToken.balanceOf(address(this)) - initialInputTokenBalance;
             uint outputTokenAmount = outputToken.balanceOf(address(this)) - initialOutputTokenBalance;
@@ -198,18 +217,18 @@ contract StrategyPositionManager is StrategyStorage {
     }
 
     function _collectPositionsDca(
-        DollarCostAverage _dca,
+        DollarCostAverage _dca, // TODO remove unused arg
         uint[] memory _positions
     ) private returns (uint[] memory) {
         uint[] memory withdrawnAmounts = new uint[](_positions.length);
 
         for (uint i; i < _positions.length; ++i) {
             uint positionId = _positions[i];
-            DollarCostAverage.PoolInfo memory poolInfo = _dca.getPool(_dca.getPosition(address(this), positionId).poolId);
+            DollarCostAverage.PoolInfo memory poolInfo = dca.getPool(dca.getPosition(address(this), positionId).poolId);
             IERC20Upgradeable outputToken = IERC20Upgradeable(poolInfo.outputToken);
             uint initialOutputTokenBalance = outputToken.balanceOf(address(this));
 
-            _dca.collectPosition(positionId);
+            dca.collectPosition(positionId);
 
             uint outputTokenAmount = outputToken.balanceOf(address(this)) - initialOutputTokenBalance;
 
