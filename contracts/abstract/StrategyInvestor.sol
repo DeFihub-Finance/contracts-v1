@@ -97,9 +97,9 @@ contract StrategyInvestor is StrategyStorage {
         uint inputTokenAmount,
         uint stableAmountAfterFees,
         uint[] dcaPositionIds,
-        StrategyStorage.VaultPosition[] vaultPositions,
-        StrategyStorage.LiquidityPosition[] liquidityPositions,
-        StrategyStorage.BuyPosition[] tokenPositions
+        VaultPosition[] vaultPositions,
+        LiquidityPosition[] liquidityPositions,
+        BuyPosition[] tokenPositions
     );
 
     error StrategyUnavailable();
