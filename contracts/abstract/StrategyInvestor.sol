@@ -144,7 +144,7 @@ contract StrategyInvestor is StrategyStorage {
                 investments: _liquidityInvestmentsPerStrategy[_params.strategyId],
                 inputToken: stable,
                 amount: pullFundsResult.remainingAmount,
-                liquidityTotalPercentage: strategy.percentages[PRODUCT_LIQUIDITY], // TODO can we remove this?
+                liquidityTotalPercentage: strategy.percentages[PRODUCT_LIQUIDITY],
                 zaps: _params.liquidityZaps
             })
         );
