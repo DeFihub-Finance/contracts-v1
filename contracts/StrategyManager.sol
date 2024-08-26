@@ -163,7 +163,6 @@ contract StrategyManager is StrategyStorage, HubOwnable, ICall {
         emit StrategyCreated(msg.sender, strategyId, _params.metadataHash);
     }
 
-    // TODO might be optimized by inputing bytes instead
     function invest(StrategyInvestor.InvestParams calldata _params) external virtual {
         _makeDelegateCall(
             strategyInvestor,
@@ -171,7 +170,6 @@ contract StrategyManager is StrategyStorage, HubOwnable, ICall {
         );
     }
 
-    // TODO might be optimized by inputing bytes instead
     function closePosition(
         uint _positionId,
         StrategyPositionManager.LiquidityMinOutputs[] calldata _liquidityMinOutputs
@@ -182,7 +180,6 @@ contract StrategyManager is StrategyStorage, HubOwnable, ICall {
         );
     }
 
-    // TODO might be optimized by inputing bytes instead
     function collectPosition(uint _positionId) external virtual {
         _makeDelegateCall(
             strategyPositionManager,
