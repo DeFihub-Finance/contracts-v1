@@ -3,8 +3,8 @@ import { AbiCoder, ErrorDescription, parseEther, Signer } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import {
     DollarCostAverage,
-    InvestLib,
-    InvestLib__factory,
+    StrategyInvestor,
+    StrategyInvestor__factory,
     StrategyManager,
     SubscriptionManager,
     TestERC20,
@@ -144,7 +144,7 @@ describe('StrategyManager#invest', () => {
         _strategyId: strategyId,
         _investorSubscribed: true,
         _strategistSubscribed: true,
-    }): Promise<InvestLib.InvestParamsStruct> {
+    }): Promise<StrategyInvestor.InvestParamsStruct> {
         const deadlineInvestor = _investorSubscribed ? deadline : 0
 
         const [
@@ -187,7 +187,7 @@ describe('StrategyManager#invest', () => {
 
     async function _invest(
         investor: Signer,
-        investParams?: InvestLib.InvestParamsStruct,
+        investParams?: StrategyInvestor.InvestParamsStruct,
     ) {
         return strategyManager
             .connect(investor)
@@ -483,7 +483,7 @@ describe('StrategyManager#invest', () => {
 
                 const { protocolFee } = await getStrategyFeeAmount(amountToInvest, strategyId, true, false)
 
-                const feeEvent = getEventLog(receipt, 'Fee', InvestLib__factory.createInterface())
+                const feeEvent = getEventLog(receipt, 'Fee', StrategyInvestor__factory.createInterface())
 
                 expect(feeEvent?.args).to.deep.equal([
                     await unwrapAddressLike(account1),
@@ -508,7 +508,7 @@ describe('StrategyManager#invest', () => {
 
                 const { protocolFee } = await getStrategyFeeAmount(amountToInvest, strategyId, false, false)
 
-                const feeEvent = getEventLog(receipt, 'Fee', InvestLib__factory.createInterface())
+                const feeEvent = getEventLog(receipt, 'Fee', StrategyInvestor__factory.createInterface())
 
                 expect(feeEvent?.args).to.deep.equal([
                     await unwrapAddressLike(account2),

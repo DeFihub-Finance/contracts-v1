@@ -16,18 +16,11 @@ import {StrategyStorage} from "./StrategyStorage.sol";
 import {SubscriptionManager} from "../SubscriptionManager.sol";
 import {UseFee} from "./UseFee.sol";
 
-// TODO change contract name
-contract InvestLib is StrategyStorage {
+contract StrategyInvestor is StrategyStorage {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     error InvalidParamsLength();
     error InsufficientFunds();
-
-    /**
-     * Invest Params structs
-     *
-     * Interfaces of the internal functions of the InvestLib library that are used to invest in each product
-     */
 
     struct DcaInvestmentParams {
         DcaInvestment[] dcaInvestments;
@@ -95,7 +88,7 @@ contract InvestLib is StrategyStorage {
         bytes[] dcaSwaps;
         bytes[] vaultSwaps;
         bytes[] buySwaps;
-        InvestLib.LiquidityInvestZapParams[] liquidityZaps;
+        LiquidityInvestZapParams[] liquidityZaps;
         SubscriptionManager.Permit investorPermit;
         SubscriptionManager.Permit strategistPermit;
     }

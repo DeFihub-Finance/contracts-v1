@@ -15,7 +15,7 @@ import {ZapManager} from './zap/ZapManager.sol';
 import {LiquidityManager} from './LiquidityManager.sol';
 import {VaultManager} from "./VaultManager.sol";
 import {DollarCostAverage} from './DollarCostAverage.sol';
-import {InvestLib} from "./abstract/InvestLib.sol";
+import {StrategyInvestor} from "./abstract/StrategyInvestor.sol";
 import {ZapLib} from "./libraries/ZapLib.sol";
 import {StrategyPositionManager} from "./abstract/StrategyPositionManager.sol";
 
@@ -25,7 +25,7 @@ contract StrategyManager is StrategyStorage, HubOwnable, ICall {
     struct InitializeParams {
         address owner;
         address treasury;
-        address investLib;
+        address strategyInvestor;
         address strategyPositionManager;
         IERC20Upgradeable stable;
         SubscriptionManager subscriptionManager;
@@ -54,7 +54,7 @@ contract StrategyManager is StrategyStorage, HubOwnable, ICall {
         bytes[] swaps;
     }
 
-    address public investLib;
+    address public strategyInvestor;
     address public strategyPositionManager;
 
     event StrategyCreated(address strategist, uint strategyId, bytes32 metadataHash);
@@ -81,7 +81,7 @@ contract StrategyManager is StrategyStorage, HubOwnable, ICall {
         transferOwnership(_initializeParams.owner);
 
         zapManager = _initializeParams.zapManager;
-        investLib = _initializeParams.investLib;
+        strategyInvestor = _initializeParams.strategyInvestor;
         strategyPositionManager = _initializeParams.strategyPositionManager;
         stable = _initializeParams.stable;
         subscriptionManager = _initializeParams.subscriptionManager;
@@ -164,10 +164,10 @@ contract StrategyManager is StrategyStorage, HubOwnable, ICall {
     }
 
     // TODO might be optimized by inputing bytes instead
-    function invest(InvestLib.InvestParams calldata _params) external virtual {
+    function invest(StrategyInvestor.InvestParams calldata _params) external virtual {
         _makeDelegateCall(
-            investLib,
-            abi.encodeWithSelector(InvestLib.invest.selector, _params)
+            strategyInvestor,
+            abi.encodeWithSelector(StrategyInvestor.invest.selector, _params)
         );
     }
 
