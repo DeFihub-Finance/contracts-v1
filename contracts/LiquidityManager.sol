@@ -7,11 +7,9 @@ import {INonfungiblePositionManager} from "./interfaces/INonfungiblePositionMana
 import {HubOwnable} from "./abstract/HubOwnable.sol";
 import {OnlyStrategyManager} from "./abstract/OnlyStrategyManager.sol";
 import {UseFee} from "./abstract/UseFee.sol";
-import {UseTreasury} from "./abstract/UseTreasury.sol";
 import {UseDust} from "./abstract/UseDust.sol";
 import {ZapLib} from "./libraries/ZapLib.sol";
 import {ZapManager} from "./zap/ZapManager.sol";
-import {StrategyManager} from "./StrategyManager.sol";
 import {SubscriptionManager} from "./SubscriptionManager.sol";
 
 contract LiquidityManager is HubOwnable, UseFee, UseDust, OnlyStrategyManager {

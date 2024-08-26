@@ -4,20 +4,17 @@ pragma solidity 0.8.26;
 
 import {IERC20Upgradeable, SafeERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 
-// TODO review for unnecessary imports
 import {HubOwnable} from "./abstract/HubOwnable.sol";
 import {UseFee} from "./abstract/UseFee.sol";
 import {StrategyStorage} from "./abstract/StrategyStorage.sol";
+import {StrategyInvestor} from "./abstract/StrategyInvestor.sol";
+import {StrategyPositionManager} from "./abstract/StrategyPositionManager.sol";
 import {ICall} from './interfaces/ICall.sol';
-import {IBeefyVaultV7} from './interfaces/IBeefyVaultV7.sol';
-import {SubscriptionManager} from "./SubscriptionManager.sol";
 import {ZapManager} from './zap/ZapManager.sol';
+import {SubscriptionManager} from "./SubscriptionManager.sol";
 import {LiquidityManager} from './LiquidityManager.sol';
 import {VaultManager} from "./VaultManager.sol";
 import {DollarCostAverage} from './DollarCostAverage.sol';
-import {StrategyInvestor} from "./abstract/StrategyInvestor.sol";
-import {ZapLib} from "./libraries/ZapLib.sol";
-import {StrategyPositionManager} from "./abstract/StrategyPositionManager.sol";
 
 contract StrategyManager is StrategyStorage, HubOwnable, ICall {
     using SafeERC20Upgradeable for IERC20Upgradeable;
