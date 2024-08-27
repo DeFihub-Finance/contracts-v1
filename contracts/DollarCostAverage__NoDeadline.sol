@@ -14,7 +14,7 @@ contract DollarCostAverage__NoDeadline is DollarCostAverage {
     * @dev The function is only callable by the swapper.
     * @param swapInfo Array of `SwapInfo` structs, each containing the pool ID and the minimum output amount.
     */
-    function swap(SwapInfo[] calldata swapInfo) external virtual override nonReentrant {
+    function swap(SwapInfo[] calldata swapInfo) external virtual override {
         if (msg.sender != swapper)
             revert CallerIsNotSwapper();
 
