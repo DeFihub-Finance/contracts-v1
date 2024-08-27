@@ -4,14 +4,15 @@ import {
     DollarCostAverage,
     IBeefyVaultV7__factory,
     StrategyManager,
+    StrategyPositionManager,
     TestERC20__factory,
     UniswapPositionManager,
     UniswapV3Factory,
 } from '@src/typechain'
-import { Signer } from 'ethers'
+import { ErrorDescription, Signer } from 'ethers'
 import { runStrategy } from './fixtures/run-strategy.fixture'
 import { ethers } from 'hardhat'
-import { LiquidityHelpers, UniswapV3 } from '@src/helpers'
+import { decodeLowLevelCallError, getEventLog, LiquidityHelpers, UniswapV3 } from '@src/helpers'
 
 // => Given an open position
 //      => When the owner of position calls closePosition
@@ -26,6 +27,7 @@ describe('StrategyManager#closePosition', () => {
     let account1: Signer
     let dca: DollarCostAverage
     let strategyManager: StrategyManager
+    let strategyPositionManager: StrategyPositionManager
 
     let dcaPositionId: bigint
 
@@ -159,6 +161,7 @@ describe('StrategyManager#closePosition', () => {
     beforeEach(async () => {
         ({
             strategyManager,
+            strategyPositionManager,
             account1,
             dca,
             dcaPositionId,
@@ -230,22 +233,22 @@ describe('StrategyManager#closePosition', () => {
             it('Then the contract emits a PositionClosed event', async () => {
                 const liquidityWithdrawnAmounts = await getLiquidityWithdrawnAmounts(liquidityPositionId)
 
-                const tx = strategyManager.connect(account1).closePosition(
+                const receipt = await (await strategyManager.connect(account1).closePosition(
                     liquidityPositionId,
                     await getLiquidityMinOutputs(liquidityPositionId),
-                )
+                )).wait()
 
-                await expect(tx)
-                    .to.emit(strategyManager, 'PositionClosed')
-                    .withArgs(
-                        await account1.getAddress(),
-                        liquidityStrategyId,
-                        liquidityPositionId,
-                        [],
-                        [],
-                        liquidityWithdrawnAmounts,
-                        [],
-                    )
+                const feeEvent = getEventLog(receipt, 'PositionClosed', strategyPositionManager.interface)
+
+                expect(feeEvent?.args).to.deep.equal([
+                    await account1.getAddress(),
+                    liquidityStrategyId,
+                    liquidityPositionId,
+                    [],
+                    [],
+                    liquidityWithdrawnAmounts,
+                    [],
+                ])
             })
 
             it('Then position should be marked as closed', async () => {
@@ -273,8 +276,17 @@ describe('StrategyManager#closePosition', () => {
 
         describe('When the owner of position calls closePosition', () => {
             it('Then the contract reverts with PositionAlreadyClosed', async () => {
-                await expect(strategyManager.connect(account1).closePosition(dcaPositionId, []))
-                    .to.be.revertedWithCustomError(strategyManager, 'PositionAlreadyClosed')
+                try {
+                    await strategyManager.connect(account1).closePosition(dcaPositionId, [])
+
+                    throw new Error('Expected to fail')
+                }
+                catch (e) {
+                    const error = decodeLowLevelCallError(e)
+
+                    expect(error).to.be.instanceof(ErrorDescription)
+                    expect((error as ErrorDescription).name).to.equal('PositionAlreadyClosed')
+                }
             })
         })
 

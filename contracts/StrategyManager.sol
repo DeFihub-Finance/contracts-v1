@@ -5,36 +5,27 @@ pragma solidity 0.8.26;
 import {IERC20Upgradeable, SafeERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 
 import {HubOwnable} from "./abstract/HubOwnable.sol";
-import {UseTreasury} from "./abstract/UseTreasury.sol";
 import {UseFee} from "./abstract/UseFee.sol";
+import {StrategyStorage} from "./abstract/StrategyStorage.sol";
 import {ICall} from './interfaces/ICall.sol';
 import {IBeefyVaultV7} from './interfaces/IBeefyVaultV7.sol';
-import {ZapManager} from './zap/ZapManager.sol';
 import {SubscriptionManager} from "./SubscriptionManager.sol";
+import {ZapManager} from './zap/ZapManager.sol';
+import {LiquidityManager} from './LiquidityManager.sol';
 import {VaultManager} from "./VaultManager.sol";
 import {DollarCostAverage} from './DollarCostAverage.sol';
 import {InvestLib} from "./libraries/InvestLib.sol";
 import {ZapLib} from "./libraries/ZapLib.sol";
-import {LiquidityManager} from './LiquidityManager.sol';
+import {StrategyPositionManager} from "./abstract/StrategyPositionManager.sol";
 
-contract StrategyManager is HubOwnable, UseTreasury, ICall {
+contract StrategyManager is StrategyStorage, HubOwnable, ICall {
     using SafeERC20Upgradeable for IERC20Upgradeable;
-
-    // @notice percentages is a mapping from product id to its percentage
-    struct Strategy {
-        address creator;
-        mapping(uint8 => uint8) percentages;
-    }
-
-    struct Position {
-        uint strategyId;
-        bool closed;
-    }
 
     struct InitializeParams {
         address owner;
         address treasury;
         address investLib;
+        address strategyPositionManager;
         IERC20Upgradeable stable;
         SubscriptionManager subscriptionManager;
         DollarCostAverage dca;
@@ -48,10 +39,10 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
     }
 
     struct CreateStrategyParams {
-        InvestLib.DcaInvestment[] dcaInvestments;
-        InvestLib.VaultInvestment[] vaultInvestments;
-        InvestLib.LiquidityInvestment[] liquidityInvestments;
-        InvestLib.BuyInvestment[] buyInvestments;
+        StrategyStorage.DcaInvestment[] dcaInvestments;
+        StrategyStorage.VaultInvestment[] vaultInvestments;
+        StrategyStorage.LiquidityInvestment[] liquidityInvestments;
+        StrategyStorage.BuyInvestment[] buyInvestments;
         SubscriptionManager.Permit permit;
         bytes32 metadataHash;
     }
@@ -92,44 +83,12 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         uint strategistFee;
     }
 
-    uint8 public constant PRODUCT_DCA = 0;
-    uint8 public constant PRODUCT_VAULTS = 1;
-    uint8 public constant PRODUCT_LIQUIDITY = 2;
-    uint8 public constant PRODUCT_BUY = 3;
-
-    mapping(address => uint) internal _strategistRewards;
-
-    Strategy[] internal _strategies;
-    mapping(uint => InvestLib.DcaInvestment[]) internal _dcaInvestmentsPerStrategy;
-    mapping(uint => InvestLib.VaultInvestment[]) internal _vaultInvestmentsPerStrategy;
-    mapping(uint => InvestLib.LiquidityInvestment[]) internal _liquidityInvestmentsPerStrategy;
-    mapping(uint => InvestLib.BuyInvestment[]) internal _buyInvestmentsPerStrategy;
-
-    mapping(address => Position[]) internal _positions;
-    // @dev investor => strategy position id => dca position ids
-    mapping(address => mapping(uint => uint[])) internal _dcaPositionsPerPosition;
-    // @dev investor => strategy position id => vault positions
-    mapping(address => mapping(uint => InvestLib.VaultPosition[])) internal _vaultPositionsPerPosition;
-    // @dev investor => strategy position id => liquidity positions
-    mapping(address => mapping(uint => InvestLib.LiquidityPosition[])) internal _liquidityPositionsPerPosition;
-    // @dev investor => strategy position id => buy positions
-    mapping(address => mapping(uint => InvestLib.BuyPosition[])) internal _buyPositionsPerPosition;
-
     address public investLib;
-    IERC20Upgradeable public stable;
-    ZapManager public zapManager;
-    SubscriptionManager public subscriptionManager;
-    DollarCostAverage public dca;
-    VaultManager public vaultManager;
-    LiquidityManager public liquidityManager;
-    UseFee public buyProduct;
+    address public strategyPositionManager;
 
     mapping(uint => bool) internal _hottestStrategiesMapping;
     uint[] internal _hottestStrategiesArray;
     uint8 public maxHottestStrategies;
-
-    uint32 public strategistPercentage;
-    uint32 public hotStrategistPercentage;
 
     event StrategyCreated(address strategist, uint strategyId, bytes32 metadataHash);
     event PositionCreated(
@@ -140,26 +99,9 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         uint inputTokenAmount,
         uint stableAmountAfterFees,
         uint[] dcaPositionIds,
-        InvestLib.VaultPosition[] vaultPositions,
-        InvestLib.LiquidityPosition[] liquidityPositions,
-        InvestLib.BuyPosition[] tokenPositions
-    );
-    event PositionClosed(
-        address user,
-        uint strategyId,
-        uint positionId,
-        uint[][] dcaWithdrawnAmounts,
-        uint[] vaultWithdrawnAmount,
-        uint[][] liquidityWithdrawnAmounts,
-        uint[] buyWithdrawnAmounts
-    );
-    event PositionCollected(
-        address user,
-        uint strategyId,
-        uint positionId,
-        uint[] dcaWithdrawnAmounts,
-        uint[][] liquidityWithdrawnAmounts,
-        uint[] buyWithdrawnAmounts
+        StrategyStorage.VaultPosition[] vaultPositions,
+        StrategyStorage.LiquidityPosition[] liquidityPositions,
+        StrategyStorage.BuyPosition[] tokenPositions
     );
     event CollectedStrategistRewards(address strategist, uint amount);
     event StrategistPercentageUpdated(uint32 discountPercentage);
@@ -173,8 +115,6 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
     error InvalidInvestment();
     error PercentageTooHigh();
     error StrategyUnavailable();
-    error PositionAlreadyClosed();
-    error InvalidPositionId(address investor, uint positionId);
 
     function initialize(InitializeParams calldata _initializeParams) external initializer {
         __Ownable_init();
@@ -188,6 +128,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
 
         zapManager = _initializeParams.zapManager;
         investLib = _initializeParams.investLib;
+        strategyPositionManager = _initializeParams.strategyPositionManager;
         stable = _initializeParams.stable;
         subscriptionManager = _initializeParams.subscriptionManager;
         dca = _initializeParams.dca;
@@ -236,7 +177,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
 
         // Assigning isn't possible because you can't convert an array of structs from memory to storage
         for (uint i; i < _params.dcaInvestments.length; ++i) {
-            InvestLib.DcaInvestment memory dcaStrategy = _params.dcaInvestments[i];
+            StrategyStorage.DcaInvestment memory dcaStrategy = _params.dcaInvestments[i];
 
             if (dcaStrategy.poolId >= dca.getPoolsLength())
                 revert DollarCostAverage.InvalidPoolId();
@@ -248,13 +189,13 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         }
 
         for (uint i; i < _params.vaultInvestments.length; ++i) {
-            InvestLib.VaultInvestment memory vaultStrategy = _params.vaultInvestments[i];
+            StrategyStorage.VaultInvestment memory vaultStrategy = _params.vaultInvestments[i];
 
             _vaultInvestmentsPerStrategy[strategyId].push(vaultStrategy);
         }
 
         for (uint i; i < _params.liquidityInvestments.length; ++i) {
-            InvestLib.LiquidityInvestment memory liquidityStrategy = _params.liquidityInvestments[i];
+            StrategyStorage.LiquidityInvestment memory liquidityStrategy = _params.liquidityInvestments[i];
 
             if (liquidityStrategy.token0 >= liquidityStrategy.token1)
                 revert InvalidInvestment();
@@ -287,11 +228,12 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
 
         (
             uint[] memory dcaPositionIds,
-            InvestLib.VaultPosition[] memory vaultPositions,
-            InvestLib.LiquidityPosition[] memory liquidityPositions,
-            InvestLib.BuyPosition[] memory buyPositions
+            StrategyStorage.VaultPosition[] memory vaultPositions,
+            StrategyStorage.LiquidityPosition[] memory liquidityPositions,
+            StrategyStorage.BuyPosition[] memory buyPositions
         ) = abi.decode(
-            _callInvestLib(
+            _makeDelegateCall(
+                investLib,
                 abi.encodeWithSelector(
                     InvestLib.invest.selector,
                     InvestLib.InvestParams({
@@ -318,7 +260,7 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
                     })
                 )
             ),
-            (uint[], InvestLib.VaultPosition[], InvestLib.LiquidityPosition[], InvestLib.BuyPosition[])
+            (uint[], StrategyStorage.VaultPosition[], StrategyStorage.LiquidityPosition[], StrategyStorage.BuyPosition[])
         );
 
         uint positionId = _positions[msg.sender].length;
@@ -353,89 +295,18 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
 
     function closePosition(
         uint _positionId,
-        InvestLib.LiquidityMinOutputs[] calldata _liquidityMinOutputs
+        StrategyPositionManager.LiquidityMinOutputs[] calldata _liquidityMinOutputs
     ) external virtual {
-        Position storage position = _positions[msg.sender][_positionId];
-
-        if (position.closed)
-            revert PositionAlreadyClosed();
-
-        position.closed = true;
-
-        (
-            uint[][] memory dcaWithdrawnAmounts,
-            uint[] memory vaultWithdrawnAmounts,
-            uint[][] memory liquidityWithdrawnAmounts,
-            uint[] memory buyWithdrawnAmounts
-        ) = abi.decode(
-            _callInvestLib(
-                abi.encodeWithSelector(
-                    InvestLib.closePosition.selector,
-                    InvestLib.ClosePositionParams({
-                        dca: dca,
-                        dcaPositions: _dcaPositionsPerPosition[msg.sender][_positionId],
-                        vaultPositions: _vaultPositionsPerPosition[msg.sender][_positionId],
-                        liquidityPositions: _liquidityPositionsPerPosition[msg.sender][_positionId],
-                        liquidityMinOutputs: _liquidityMinOutputs,
-                        buyPositions: _buyPositionsPerPosition[msg.sender][_positionId]
-                    })
-                )
-            ),
-            (uint[][], uint[], uint[][], uint[])
-        );
-
-        emit PositionClosed(
-            msg.sender,
-            position.strategyId,
-            _positionId,
-            dcaWithdrawnAmounts,
-            vaultWithdrawnAmounts,
-            liquidityWithdrawnAmounts,
-            buyWithdrawnAmounts
+        _makeDelegateCall(
+            strategyPositionManager,
+            abi.encodeWithSelector(StrategyPositionManager.closePosition.selector, _positionId, _liquidityMinOutputs)
         );
     }
 
     function collectPosition(uint _positionId) external virtual {
-        if (_positionId >= _positions[msg.sender].length)
-            revert InvalidPositionId(msg.sender, _positionId);
-
-        Position storage position = _positions[msg.sender][_positionId];
-
-        if (position.closed)
-            revert PositionAlreadyClosed();
-
-        InvestLib.BuyPosition[] memory buyPositions = _buyPositionsPerPosition[msg.sender][_positionId];
-
-        // TODO test delete functionality and also test if can use storage with delete to save gas
-        if (buyPositions.length > 0)
-            delete _buyPositionsPerPosition[msg.sender][_positionId];
-
-        (
-            uint[] memory dcaWithdrawnAmounts,
-            uint[][] memory liquidityWithdrawnAmounts,
-            uint[] memory buyWithdrawnAmounts
-        ) = abi.decode(
-            _callInvestLib(
-                abi.encodeWithSelector(
-                    InvestLib.collectPosition.selector,
-                    InvestLib.CollectPositionParams({
-                        dca: dca,
-                        dcaPositions: _dcaPositionsPerPosition[msg.sender][_positionId],
-                        liquidityPositions: _liquidityPositionsPerPosition[msg.sender][_positionId],
-                        buyPositions: buyPositions
-                    })
-                )
-            ),
-            (uint[], uint[][], uint[])
-        );
-
-        emit PositionCollected(
-            msg.sender,
-            position.strategyId,
-            _positionId,
-            dcaWithdrawnAmounts,
-            liquidityWithdrawnAmounts,
-            buyWithdrawnAmounts
+        _makeDelegateCall(
+            strategyPositionManager,
+            abi.encodeWithSelector(StrategyPositionManager.collectPosition.selector, _positionId)
         );
     }
 
@@ -472,9 +343,9 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
         uint _positionId
     ) external virtual view returns (
         uint[] memory dcaPositions,
-        InvestLib.VaultPosition[] memory vaultPositions,
-        InvestLib.LiquidityPosition[] memory liquidityPositions,
-        InvestLib.BuyPosition[] memory buyPositions
+        StrategyStorage.VaultPosition[] memory vaultPositions,
+        StrategyStorage.LiquidityPosition[] memory liquidityPositions,
+        StrategyStorage.BuyPosition[] memory buyPositions
     ) {
         return (
             _dcaPositionsPerPosition[_investor][_positionId],
@@ -495,10 +366,10 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
     function getStrategyInvestments(
         uint _strategyId
     ) external virtual view returns (
-        InvestLib.DcaInvestment[] memory dcaInvestments,
-        InvestLib.VaultInvestment[] memory vaultInvestments,
-        InvestLib.LiquidityInvestment[] memory liquidityInvestments,
-        InvestLib.BuyInvestment[] memory buyInvestments
+        StrategyStorage.DcaInvestment[] memory dcaInvestments,
+        StrategyStorage.VaultInvestment[] memory vaultInvestments,
+        StrategyStorage.LiquidityInvestment[] memory liquidityInvestments,
+        StrategyStorage.BuyInvestment[] memory buyInvestments
     ) {
         return (
             _dcaInvestmentsPerStrategy[_strategyId],
@@ -524,15 +395,16 @@ contract StrategyManager is HubOwnable, UseTreasury, ICall {
      * ----- Internal functions -----
      */
 
-    function _callInvestLib(
+    function _makeDelegateCall(
+        address _target,
         bytes memory _callData
     ) internal returns (
         bytes memory
     ) {
-        (bool success, bytes memory resultData) = investLib.delegatecall(_callData);
+        (bool success, bytes memory resultData) = _target.delegatecall(_callData);
 
         if (!success)
-            revert LowLevelCallFailed(address(investLib), "", resultData);
+            revert LowLevelCallFailed(_target, "", resultData);
 
         return resultData;
     }
