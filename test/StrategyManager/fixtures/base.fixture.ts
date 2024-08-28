@@ -13,6 +13,7 @@ export async function baseStrategyManagerFixture() {
     const [deployer] = await ethers.getSigners()
     const anotherToken = await new TestERC20__factory(deployer).deploy(18)
 
+    // TODO move prices from zap.fixture to here and update necessary tests to work with the new price
     const USD_PRICE_BN = new BigNumber(1)
     const ETH_PRICE = 3_000n
     const ETH_PRICE_BN = new BigNumber(ETH_PRICE.toString())
