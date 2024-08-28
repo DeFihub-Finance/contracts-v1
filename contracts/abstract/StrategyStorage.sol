@@ -68,7 +68,6 @@ contract StrategyStorage is UseTreasury {
     }
 
     struct LiquidityPosition {
-        // TODO check if position manager is really necessary since it is already available in LiquidityInvestment struct
         INonfungiblePositionManager positionManager;
         uint tokenId;
         uint128 liquidity;
