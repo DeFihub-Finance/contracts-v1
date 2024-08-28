@@ -28,6 +28,7 @@ export async function runStrategy() {
         ...rest,
         dca,
         swapper,
+        weth,
         dcaOutputToken: weth,
         account1,
         strategyManager,

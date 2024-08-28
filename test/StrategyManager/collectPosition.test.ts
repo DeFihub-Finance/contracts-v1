@@ -29,18 +29,18 @@ describe('StrategyManager#collectPosition', () => {
     let dca: DollarCostAverage
     let account1: Signer
     let account2: Signer
+    let weth: TestERC20
     let dcaOutputToken: TestERC20
-
-    let dcaPositionId: bigint
-    let liquidityPositionId: bigint
 
     let dcaStrategyId: bigint
     let liquidityStrategyId: bigint
 
+    let dcaPositionId: bigint
+    let liquidityPositionId: bigint
+    let buyOnlyStrategyPositionId: bigint
+
     let positionManagerUniV3: UniswapPositionManager
     let factoryUniV3: UniswapV3Factory
-
-    const getDcaOutputTokenBalance = async () => dcaOutputToken.balanceOf(account1)
 
     async function snapshotStrategyTokenCollectables(strategyPositionId: bigint) {
         const positionTokenCollectables: Record<string, bigint> = {}
@@ -110,18 +110,20 @@ describe('StrategyManager#collectPosition', () => {
             strategyPositionManager,
             account1,
             account2,
+            weth,
             dca,
             dcaOutputToken,
             dcaStrategyId,
             liquidityStrategyId,
             dcaPositionId,
             liquidityPositionId,
+            buyOnlyStrategyPositionId,
             positionManagerUniV3,
             factoryUniV3,
         } = await loadFixture(runStrategy))
     })
 
-    describe('Given an investor with a position in a strategy which contains a DCA pool', () => {
+    describe('Given an investor with a position in a strategy', () => {
         describe('Which contains a DCA pool', () => {
             describe('When the investor collects the position', () => {
                 it('then increase DCA pool output token balance of investor', async () => {
@@ -173,9 +175,8 @@ describe('StrategyManager#collectPosition', () => {
                     const userTokenBalancesAfter = await snapshotUserTokenBalances(tokens, account1)
 
                     for (const token of tokens) {
-                        expect(userTokenBalancesAfter[token] - userTokenBalancesBefore[token]).to.equal(
-                            positionTokenCollectables[token],
-                        )
+                        expect(userTokenBalancesAfter[token] - userTokenBalancesBefore[token])
+                            .to.equal(positionTokenCollectables[token])
                     }
                 })
 
@@ -206,18 +207,35 @@ describe('StrategyManager#collectPosition', () => {
         })
 
         describe('When the investor collects the position but there is nothing to collect', () => {
-            it('Then output token balance of investor should not change', async () => {
-                await strategyManager.connect(account1).collectPosition(dcaPositionId)
+            describe('Then output token balance of investor should not change', () => {
+                it('Works for DCA', async () => {
+                    await strategyManager.connect(account1).collectPosition(dcaPositionId)
 
-                // This first collect is called to collect all rewards
-                await strategyManager.connect(account1).collectPosition(dcaPositionId)
-                const outputTokenBalanceBefore = await getDcaOutputTokenBalance()
+                    // This first collect is called to collect all rewards
+                    await strategyManager.connect(account1).collectPosition(dcaPositionId)
+                    const initialOutputTokenBalance = await dcaOutputToken.balanceOf(account1)
 
-                await strategyManager.connect(account1).collectPosition(dcaPositionId)
+                    await strategyManager.connect(account1).collectPosition(dcaPositionId)
 
-                const outputTokenBalanceDelta = await getDcaOutputTokenBalance() - outputTokenBalanceBefore
+                    expect(initialOutputTokenBalance).to.be.equal(await dcaOutputToken.balanceOf(account1))
+                })
 
-                expect(outputTokenBalanceDelta).to.be.equals(0)
+                it.only('Works for Buy', async () => {
+                    expect((await strategyManager.getPositionInvestments(account1, buyOnlyStrategyPositionId)).buyPositions.length).to.equal(1)
+
+                    const initialEthBalance = await weth.balanceOf(account1)
+
+                    await strategyManager.connect(account1).collectPosition(buyOnlyStrategyPositionId)
+
+                    const ethBalanceAfterCollect = await weth.balanceOf(account1)
+
+                    expect(initialEthBalance).to.be.lessThan(ethBalanceAfterCollect)
+                    expect((await strategyManager.getPositionInvestments(account1, buyOnlyStrategyPositionId)).buyPositions.length).to.equal(0)
+
+                    await strategyManager.connect(account1).collectPosition(buyOnlyStrategyPositionId)
+
+                    expect(ethBalanceAfterCollect).to.be.equal(await weth.balanceOf(account1))
+                })
             })
         })
     })
