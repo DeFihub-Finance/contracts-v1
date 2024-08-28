@@ -18,14 +18,14 @@ contract StrategyInvestor is StrategyStorage {
     error InvalidParamsLength();
     error InsufficientFunds();
 
-    struct DcaInvestmentParams {
+    struct DcaInvestParams {
         DcaInvestment[] dcaInvestments;
         IERC20Upgradeable inputToken;
         uint amount;
         bytes[] swaps;
     }
 
-    struct VaultInvestmentParams {
+    struct VaultInvestParams {
         VaultInvestment[] vaultInvestments;
         IERC20Upgradeable inputToken;
         uint amount;
@@ -122,7 +122,7 @@ contract StrategyInvestor is StrategyStorage {
         );
 
         uint[] memory dcaPositionIds = _investInDca(
-            DcaInvestmentParams({
+            DcaInvestParams({
                 dcaInvestments: _dcaInvestmentsPerStrategy[_params.strategyId],
                 inputToken: stable,
                 amount: pullFundsResult.remainingAmount,
@@ -131,7 +131,7 @@ contract StrategyInvestor is StrategyStorage {
         );
 
         VaultPosition[] memory vaultPositions = _investInVaults(
-            VaultInvestmentParams({
+            VaultInvestParams({
                 vaultInvestments: _vaultInvestmentsPerStrategy[_params.strategyId],
                 inputToken: stable,
                 amount: pullFundsResult.remainingAmount,
@@ -189,7 +189,7 @@ contract StrategyInvestor is StrategyStorage {
     }
 
     function _investInDca(
-        DcaInvestmentParams memory _params
+        DcaInvestParams memory _params
     ) private returns (uint[] memory) {
         if (_params.dcaInvestments.length == 0)
             return new uint[](0);
@@ -224,7 +224,7 @@ contract StrategyInvestor is StrategyStorage {
     }
 
     function _investInVaults(
-        VaultInvestmentParams memory _params
+        VaultInvestParams memory _params
     ) private returns (VaultPosition[] memory) {
         if (_params.vaultInvestments.length == 0)
             return new VaultPosition[](0);
