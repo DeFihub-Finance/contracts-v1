@@ -197,7 +197,7 @@ contract StrategyPositionManager is StrategyStorage {
             _positionId,
             _collectPositionsDca(_dcaPositionsPerPosition[msg.sender][_positionId]),
             _collectPositionsLiquidity(_liquidityPositionsPerPosition[msg.sender][_positionId]),
-            _collectPositionsToken(buyPositions)
+            _collectPositionsBuy(buyPositions)
         );
     }
 
@@ -249,18 +249,15 @@ contract StrategyPositionManager is StrategyStorage {
         return withdrawnAmounts;
     }
 
-    function _collectPositionsToken(
+    function _collectPositionsBuy(
         BuyPosition[] memory _positions
     ) private returns (uint[] memory) {
         uint[] memory withdrawnAmounts = new uint[](_positions.length);
 
         for (uint i; i < _positions.length; ++i) {
             BuyPosition memory position = _positions[i];
-            uint initialBalance = position.token.balanceOf(address(this));
-
             position.token.safeTransfer(msg.sender, position.amount);
-
-            withdrawnAmounts[i] = position.token.balanceOf(address(this)) - initialBalance;
+            withdrawnAmounts[i] = position.amount;
         }
 
         return withdrawnAmounts;
