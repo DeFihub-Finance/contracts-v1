@@ -220,7 +220,7 @@ describe('StrategyManager#collectPosition', () => {
                     expect(initialOutputTokenBalance).to.be.equal(await dcaOutputToken.balanceOf(account1))
                 })
 
-                it.only('Works for Buy', async () => {
+                it('Works for Buy', async () => {
                     expect((await strategyManager.getPositionInvestments(account1, buyOnlyStrategyPositionId)).buyPositions.length).to.equal(1)
 
                     const initialEthBalance = await weth.balanceOf(account1)
