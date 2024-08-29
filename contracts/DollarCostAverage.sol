@@ -2,18 +2,16 @@
 
 pragma solidity 0.8.26;
 
-import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import {IERC20Upgradeable, SafeERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
+import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 
 import {MathHelpers} from "./helpers/MathHelpers.sol";
 import {HubOwnable} from "./abstract/HubOwnable.sol";
 import {OnlyStrategyManager} from "./abstract/OnlyStrategyManager.sol";
 import {UseFee} from "./abstract/UseFee.sol";
 import {SubscriptionManager} from "./SubscriptionManager.sol";
-import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 
-// TODO remove reentrancy guard as this contract doesn't transfer ether
-contract DollarCostAverage is HubOwnable, UseFee, OnlyStrategyManager, ReentrancyGuardUpgradeable {
+contract DollarCostAverage is HubOwnable, UseFee, OnlyStrategyManager {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     struct PositionInfo {
@@ -98,7 +96,6 @@ contract DollarCostAverage is HubOwnable, UseFee, OnlyStrategyManager, Reentranc
         if (_initializeParams.swapper == address(0))
             revert InvalidZeroAddress();
 
-        __ReentrancyGuard_init();
         __Ownable_init();
         __UseFee_init(
             _initializeParams.treasury,
@@ -212,7 +209,7 @@ contract DollarCostAverage is HubOwnable, UseFee, OnlyStrategyManager, Reentranc
         emit PositionCreated(msg.sender, _poolId, positionId, _swaps, amountPerSwap, finalSwap);
     }
 
-    function swap(SwapInfo[] calldata swapInfo) external virtual nonReentrant {
+    function swap(SwapInfo[] calldata swapInfo) external virtual {
         if (msg.sender != swapper)
             revert CallerIsNotSwapper();
 
@@ -259,7 +256,7 @@ contract DollarCostAverage is HubOwnable, UseFee, OnlyStrategyManager, Reentranc
         }
     }
 
-    function closePosition(uint _positionId) external virtual nonReentrant {
+    function closePosition(uint _positionId) external virtual {
         PositionInfo[] storage userPositions = positionInfo[msg.sender];
 
         if (_positionId >= userPositions.length)
@@ -288,7 +285,7 @@ contract DollarCostAverage is HubOwnable, UseFee, OnlyStrategyManager, Reentranc
         emit PositionClosed(msg.sender, _positionId, inputTokenAmount, outputTokenAmount);
     }
 
-    function collectPosition(uint _positionId) external virtual nonReentrant {
+    function collectPosition(uint _positionId) external virtual {
         PositionInfo[] storage userPositions = positionInfo[msg.sender];
 
         if (_positionId >= userPositions.length)
