@@ -20,7 +20,7 @@ import {
     UniswapV2Factory__factory,
     UniswapV2Router02__factory,
     Quoter__factory,
-    InvestLib__factory,
+    StrategyInvestor__factory,
     LiquidityManager,
     LiquidityManager__factory,
     BuyProduct,
@@ -72,7 +72,7 @@ export class ProjectDeployer {
         const zapManagerDeployParams = this.getDeploymentInfo(ZapManager__factory)
         const buyProductDeployParams = this.getDeploymentInfo(BuyProduct__factory)
 
-        await projectDeployer.deployInvestLib(InvestLib__factory.bytecode, ZeroHash)
+        await projectDeployer.deployStrategyInvestor(StrategyInvestor__factory.bytecode, ZeroHash)
         await projectDeployer.deployStrategyPositionManager(StrategyPositionManager__factory.bytecode, ZeroHash)
         await projectDeployer.deploySubscriptionManager(subscriptionManagerDeployParams)
         await projectDeployer.deployStrategyManager(strategyManagerDeployParams)
@@ -84,10 +84,10 @@ export class ProjectDeployer {
 
         // non-proxy contracts
         const [
-            investLib,
+            strategyInvestor,
             strategyPositionManager,
         ] = await Promise.all([
-            projectDeployer.investLib(),
+            projectDeployer.strategyInvestor(),
             projectDeployer.strategyPositionManager(),
         ])
 
@@ -126,7 +126,7 @@ export class ProjectDeployer {
         const strategyManagerInitParams: StrategyManager.InitializeParamsStruct = {
             owner,
             treasury,
-            investLib,
+            strategyInvestor,
             strategyPositionManager,
             stable: stablecoin,
             subscriptionManager,

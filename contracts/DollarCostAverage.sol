@@ -12,6 +12,7 @@ import {UseFee} from "./abstract/UseFee.sol";
 import {SubscriptionManager} from "./SubscriptionManager.sol";
 import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 
+// TODO remove reentrancy guard as this contract doesn't transfer ether
 contract DollarCostAverage is HubOwnable, UseFee, OnlyStrategyManager, ReentrancyGuardUpgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 

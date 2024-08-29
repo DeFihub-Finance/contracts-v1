@@ -7,16 +7,14 @@ import {IERC20Upgradeable, SafeERC20Upgradeable} from "@openzeppelin/contracts-u
 import {HubOwnable} from "./abstract/HubOwnable.sol";
 import {UseFee} from "./abstract/UseFee.sol";
 import {StrategyStorage} from "./abstract/StrategyStorage.sol";
+import {StrategyInvestor} from "./abstract/StrategyInvestor.sol";
+import {StrategyPositionManager} from "./abstract/StrategyPositionManager.sol";
 import {ICall} from './interfaces/ICall.sol';
-import {IBeefyVaultV7} from './interfaces/IBeefyVaultV7.sol';
-import {SubscriptionManager} from "./SubscriptionManager.sol";
 import {ZapManager} from './zap/ZapManager.sol';
+import {SubscriptionManager} from "./SubscriptionManager.sol";
 import {LiquidityManager} from './LiquidityManager.sol';
 import {VaultManager} from "./VaultManager.sol";
 import {DollarCostAverage} from './DollarCostAverage.sol';
-import {InvestLib} from "./libraries/InvestLib.sol";
-import {ZapLib} from "./libraries/ZapLib.sol";
-import {StrategyPositionManager} from "./abstract/StrategyPositionManager.sol";
 
 contract StrategyManager is StrategyStorage, HubOwnable, ICall {
     using SafeERC20Upgradeable for IERC20Upgradeable;
@@ -24,7 +22,7 @@ contract StrategyManager is StrategyStorage, HubOwnable, ICall {
     struct InitializeParams {
         address owner;
         address treasury;
-        address investLib;
+        address strategyInvestor;
         address strategyPositionManager;
         IERC20Upgradeable stable;
         SubscriptionManager subscriptionManager;
@@ -39,28 +37,12 @@ contract StrategyManager is StrategyStorage, HubOwnable, ICall {
     }
 
     struct CreateStrategyParams {
-        StrategyStorage.DcaInvestment[] dcaInvestments;
-        StrategyStorage.VaultInvestment[] vaultInvestments;
-        StrategyStorage.LiquidityInvestment[] liquidityInvestments;
-        StrategyStorage.BuyInvestment[] buyInvestments;
+        DcaInvestment[] dcaInvestments;
+        VaultInvestment[] vaultInvestments;
+        LiquidityInvestment[] liquidityInvestments;
+        BuyInvestment[] buyInvestments;
         SubscriptionManager.Permit permit;
         bytes32 metadataHash;
-    }
-
-    /**
-     * @dev swaps bytes are the encoded versions of ZapManager.ProtocolCall used in the callProtocol function
-     */
-    struct InvestParams {
-        uint strategyId;
-        IERC20Upgradeable inputToken;
-        uint inputAmount;
-        bytes inputTokenSwap;
-        bytes[] dcaSwaps;
-        bytes[] vaultSwaps;
-        bytes[] buySwaps;
-        InvestLib.LiquidityInvestZapParams[] liquidityZaps;
-        SubscriptionManager.Permit investorPermit;
-        SubscriptionManager.Permit strategistPermit;
     }
 
     struct InvestInProductParams {
@@ -69,40 +51,10 @@ contract StrategyManager is StrategyStorage, HubOwnable, ICall {
         bytes[] swaps;
     }
 
-    struct PullFundsParams {
-        uint strategyId;
-        IERC20Upgradeable inputToken;
-        uint inputAmount;
-        bytes inputTokenSwap;
-        SubscriptionManager.Permit investorPermit;
-        SubscriptionManager.Permit strategistPermit;
-    }
-
-    struct PullFundsResult {
-        uint remainingAmount;
-        uint strategistFee;
-    }
-
-    address public investLib;
+    address public strategyInvestor;
     address public strategyPositionManager;
 
-    mapping(uint => bool) internal _hottestStrategiesMapping;
-    uint[] internal _hottestStrategiesArray;
-    uint8 public maxHottestStrategies;
-
     event StrategyCreated(address strategist, uint strategyId, bytes32 metadataHash);
-    event PositionCreated(
-        address user,
-        uint strategyId,
-        uint positionId,
-        address inputToken,
-        uint inputTokenAmount,
-        uint stableAmountAfterFees,
-        uint[] dcaPositionIds,
-        StrategyStorage.VaultPosition[] vaultPositions,
-        StrategyStorage.LiquidityPosition[] liquidityPositions,
-        StrategyStorage.BuyPosition[] tokenPositions
-    );
     event CollectedStrategistRewards(address strategist, uint amount);
     event StrategistPercentageUpdated(uint32 discountPercentage);
     event HotStrategistPercentageUpdated(uint32 discountPercentage);
@@ -114,7 +66,6 @@ contract StrategyManager is StrategyStorage, HubOwnable, ICall {
     error InvalidTotalPercentage();
     error InvalidInvestment();
     error PercentageTooHigh();
-    error StrategyUnavailable();
 
     function initialize(InitializeParams calldata _initializeParams) external initializer {
         __Ownable_init();
@@ -127,7 +78,7 @@ contract StrategyManager is StrategyStorage, HubOwnable, ICall {
         transferOwnership(_initializeParams.owner);
 
         zapManager = _initializeParams.zapManager;
-        investLib = _initializeParams.investLib;
+        strategyInvestor = _initializeParams.strategyInvestor;
         strategyPositionManager = _initializeParams.strategyPositionManager;
         stable = _initializeParams.stable;
         subscriptionManager = _initializeParams.subscriptionManager;
@@ -177,7 +128,7 @@ contract StrategyManager is StrategyStorage, HubOwnable, ICall {
 
         // Assigning isn't possible because you can't convert an array of structs from memory to storage
         for (uint i; i < _params.dcaInvestments.length; ++i) {
-            StrategyStorage.DcaInvestment memory dcaStrategy = _params.dcaInvestments[i];
+            DcaInvestment memory dcaStrategy = _params.dcaInvestments[i];
 
             if (dcaStrategy.poolId >= dca.getPoolsLength())
                 revert DollarCostAverage.InvalidPoolId();
@@ -189,13 +140,13 @@ contract StrategyManager is StrategyStorage, HubOwnable, ICall {
         }
 
         for (uint i; i < _params.vaultInvestments.length; ++i) {
-            StrategyStorage.VaultInvestment memory vaultStrategy = _params.vaultInvestments[i];
+            VaultInvestment memory vaultStrategy = _params.vaultInvestments[i];
 
             _vaultInvestmentsPerStrategy[strategyId].push(vaultStrategy);
         }
 
         for (uint i; i < _params.liquidityInvestments.length; ++i) {
-            StrategyStorage.LiquidityInvestment memory liquidityStrategy = _params.liquidityInvestments[i];
+            LiquidityInvestment memory liquidityStrategy = _params.liquidityInvestments[i];
 
             if (liquidityStrategy.token0 >= liquidityStrategy.token1)
                 revert InvalidInvestment();
@@ -209,87 +160,10 @@ contract StrategyManager is StrategyStorage, HubOwnable, ICall {
         emit StrategyCreated(msg.sender, strategyId, _params.metadataHash);
     }
 
-    function invest(InvestParams calldata _params) external virtual {
-        if (_params.strategyId > _strategies.length)
-            revert StrategyUnavailable();
-
-        Strategy storage strategy = _strategies[_params.strategyId];
-
-        PullFundsResult memory pullFundsResult = _pullFunds(
-            PullFundsParams({
-                strategyId: _params.strategyId,
-                inputToken: _params.inputToken,
-                inputAmount: _params.inputAmount,
-                inputTokenSwap: _params.inputTokenSwap,
-                investorPermit: _params.investorPermit,
-                strategistPermit: _params.strategistPermit
-            })
-        );
-
-        (
-            uint[] memory dcaPositionIds,
-            StrategyStorage.VaultPosition[] memory vaultPositions,
-            StrategyStorage.LiquidityPosition[] memory liquidityPositions,
-            StrategyStorage.BuyPosition[] memory buyPositions
-        ) = abi.decode(
-            _makeDelegateCall(
-                investLib,
-                abi.encodeWithSelector(
-                    InvestLib.invest.selector,
-                    InvestLib.InvestParams({
-                        treasury: treasury,
-                        dca: dca,
-                        vaultManager: vaultManager,
-                        liquidityManager: liquidityManager,
-                        zapManager: zapManager,
-                        inputToken: stable,
-                        amount: pullFundsResult.remainingAmount,
-                    // dca
-                        dcaInvestments: _dcaInvestmentsPerStrategy[_params.strategyId],
-                        dcaSwaps: _params.dcaSwaps,
-                    // vaults
-                        vaultInvestments: _vaultInvestmentsPerStrategy[_params.strategyId],
-                        vaultSwaps: _params.vaultSwaps,
-                    // liquidity
-                        liquidityInvestments: _liquidityInvestmentsPerStrategy[_params.strategyId],
-                        liquidityZaps: _params.liquidityZaps,
-                        liquidityTotalPercentage: strategy.percentages[PRODUCT_LIQUIDITY],
-                    // buy
-                        buyInvestments: _buyInvestmentsPerStrategy[_params.strategyId],
-                        buySwaps: _params.buySwaps
-                    })
-                )
-            ),
-            (uint[], StrategyStorage.VaultPosition[], StrategyStorage.LiquidityPosition[], StrategyStorage.BuyPosition[])
-        );
-
-        uint positionId = _positions[msg.sender].length;
-
-        Position storage position = _positions[msg.sender].push();
-
-        position.strategyId = _params.strategyId;
-        _dcaPositionsPerPosition[msg.sender][positionId] = dcaPositionIds;
-
-        for (uint i; i < vaultPositions.length; ++i)
-            _vaultPositionsPerPosition[msg.sender][positionId].push(vaultPositions[i]);
-
-        for (uint i; i < liquidityPositions.length; ++i)
-            _liquidityPositionsPerPosition[msg.sender][positionId].push(liquidityPositions[i]);
-
-        for (uint i; i < buyPositions.length; ++i)
-            _buyPositionsPerPosition[msg.sender][positionId].push(buyPositions[i]);
-
-        emit PositionCreated(
-            msg.sender,
-            _params.strategyId,
-            positionId,
-            address(_params.inputToken),
-            _params.inputAmount,
-            pullFundsResult.remainingAmount,
-            dcaPositionIds,
-            vaultPositions,
-            liquidityPositions,
-            buyPositions
+    function invest(StrategyInvestor.InvestParams calldata _params) external virtual {
+        _makeDelegateCall(
+            strategyInvestor,
+            abi.encodeWithSelector(StrategyInvestor.invest.selector, _params)
         );
     }
 
@@ -343,9 +217,9 @@ contract StrategyManager is StrategyStorage, HubOwnable, ICall {
         uint _positionId
     ) external virtual view returns (
         uint[] memory dcaPositions,
-        StrategyStorage.VaultPosition[] memory vaultPositions,
-        StrategyStorage.LiquidityPosition[] memory liquidityPositions,
-        StrategyStorage.BuyPosition[] memory buyPositions
+        VaultPosition[] memory vaultPositions,
+        LiquidityPosition[] memory liquidityPositions,
+        BuyPosition[] memory buyPositions
     ) {
         return (
             _dcaPositionsPerPosition[_investor][_positionId],
@@ -366,10 +240,10 @@ contract StrategyManager is StrategyStorage, HubOwnable, ICall {
     function getStrategyInvestments(
         uint _strategyId
     ) external virtual view returns (
-        StrategyStorage.DcaInvestment[] memory dcaInvestments,
-        StrategyStorage.VaultInvestment[] memory vaultInvestments,
-        StrategyStorage.LiquidityInvestment[] memory liquidityInvestments,
-        StrategyStorage.BuyInvestment[] memory buyInvestments
+        DcaInvestment[] memory dcaInvestments,
+        VaultInvestment[] memory vaultInvestments,
+        LiquidityInvestment[] memory liquidityInvestments,
+        BuyInvestment[] memory buyInvestments
     ) {
         return (
             _dcaInvestmentsPerStrategy[_strategyId],
@@ -387,7 +261,7 @@ contract StrategyManager is StrategyStorage, HubOwnable, ICall {
         return _hottestStrategiesArray;
     }
 
-    function isHot(uint _strategyId) public virtual view returns (bool) {
+    function isHot(uint _strategyId) external virtual view returns (bool) {
         return _hottestStrategiesMapping[_strategyId];
     }
 
@@ -407,73 +281,6 @@ contract StrategyManager is StrategyStorage, HubOwnable, ICall {
             revert LowLevelCallFailed(_target, "", resultData);
 
         return resultData;
-    }
-
-    function _pullFunds(
-        PullFundsParams memory _params
-    ) internal virtual returns (
-        PullFundsResult memory
-    ) {
-        Strategy storage strategy = _strategies[_params.strategyId];
-
-        bool strategistSubscribed = subscriptionManager.isSubscribed(strategy.creator, _params.strategistPermit);
-        bool userSubscribed = subscriptionManager.isSubscribed(msg.sender, _params.investorPermit);
-        uint initialInputTokenBalance = _params.inputToken.balanceOf(address(this));
-
-        _params.inputToken.safeTransferFrom(msg.sender, address(this), _params.inputAmount);
-
-        uint stableAmount = ZapLib.zap(
-            zapManager,
-            _params.inputTokenSwap,
-            _params.inputToken,
-            stable,
-            _params.inputToken.balanceOf(address(this)) - initialInputTokenBalance
-        );
-
-        // Divided by multiplier 10_000 (fee percentage) * 100 (strategy percentage per investment) = 1M
-        uint totalFee = stableAmount * (
-            _getProductFee(strategy.percentages[PRODUCT_DCA], dca, userSubscribed)
-            + _getProductFee(strategy.percentages[PRODUCT_VAULTS], vaultManager, userSubscribed)
-            + _getProductFee(strategy.percentages[PRODUCT_LIQUIDITY], liquidityManager, userSubscribed)
-            + _getProductFee(strategy.percentages[PRODUCT_BUY], buyProduct, userSubscribed)
-        ) / 1_000_000;
-        uint strategistFee;
-
-        if (strategistSubscribed) {
-            uint currentStrategistPercentage = isHot(_params.strategyId)
-                ? hotStrategistPercentage
-                : strategistPercentage;
-
-            strategistFee = totalFee * currentStrategistPercentage / 100;
-        }
-
-        uint protocolFee = totalFee - strategistFee;
-
-        stable.safeTransfer(treasury, protocolFee);
-
-        if (strategistFee > 0) {
-            _strategistRewards[strategy.creator] += strategistFee;
-
-            emit UseFee.Fee(msg.sender, strategy.creator, strategistFee, abi.encode(_params.strategyId));
-        }
-
-        emit UseFee.Fee(msg.sender, treasury, protocolFee, abi.encode(_params.strategyId));
-
-        return PullFundsResult(
-            stableAmount - (protocolFee + strategistFee),
-            strategistFee
-        );
-    }
-
-    function _getProductFee(
-        uint8 _productPercentage,
-        UseFee _product,
-        bool _userSubscribed
-    ) internal view returns (uint32) {
-        if (_productPercentage == 0)
-            return 0;
-
-        return _product.getFeePercentage(_userSubscribed) * _productPercentage;
     }
 
     /**
