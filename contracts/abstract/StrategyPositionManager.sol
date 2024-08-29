@@ -53,14 +53,14 @@ contract StrategyPositionManager is StrategyStorage {
             msg.sender,
             position.strategyId,
             _positionId,
-            _closeDcaPositions(_dcaPositionsPerPosition[msg.sender][_positionId]),
-            _closeVaultPositions(_vaultPositionsPerPosition[msg.sender][_positionId]),
-            _closeLiquidityPositions(_liquidityPositionsPerPosition[msg.sender][_positionId], _liquidityMinOutputs),
-            _closeBuyPositions(_buyPositionsPerPosition[msg.sender][_positionId])
+            _closePositionsDca(_dcaPositionsPerPosition[msg.sender][_positionId]),
+            _closePositionsVault(_vaultPositionsPerPosition[msg.sender][_positionId]),
+            _closePositionsLiquidity(_liquidityPositionsPerPosition[msg.sender][_positionId], _liquidityMinOutputs),
+            _collectPositionsBuy(_buyPositionsPerPosition[msg.sender][_positionId])
         );
     }
 
-    function _closeDcaPositions(
+    function _closePositionsDca(
         uint[] memory _positions
     ) private returns (uint[][] memory) {
         uint[][] memory withdrawnAmounts = new uint[][](_positions.length);
@@ -98,7 +98,7 @@ contract StrategyPositionManager is StrategyStorage {
         return withdrawnAmounts;
     }
 
-    function _closeVaultPositions(
+    function _closePositionsVault(
         VaultPosition[] memory _positions
     ) private returns (uint[] memory) {
         uint[] memory withdrawnAmounts = new uint[](_positions.length);
@@ -122,7 +122,7 @@ contract StrategyPositionManager is StrategyStorage {
         return withdrawnAmounts;
     }
 
-    function _closeLiquidityPositions(
+    function _closePositionsLiquidity(
         LiquidityPosition[] memory _positions,
         LiquidityMinOutputs[] memory _minOutputs
     ) private returns (uint[][] memory) {
@@ -160,22 +160,6 @@ contract StrategyPositionManager is StrategyStorage {
         return withdrawnAmounts;
     }
 
-    function _closeBuyPositions(
-        BuyPosition[] memory _positions
-    ) private returns (uint[] memory) {
-        uint[] memory withdrawnAmounts = new uint[](_positions.length);
-
-        for (uint i; i < _positions.length; ++i) {
-            BuyPosition memory position = _positions[i];
-
-            position.token.safeTransfer(msg.sender, position.amount);
-
-            withdrawnAmounts[i] = position.amount;
-        }
-
-        return withdrawnAmounts;
-    }
-
     function collectPosition(uint _positionId) external {
         if (_positionId >= _positions[msg.sender].length)
             revert InvalidPositionId(msg.sender, _positionId);
@@ -197,7 +181,7 @@ contract StrategyPositionManager is StrategyStorage {
             _positionId,
             _collectPositionsDca(_dcaPositionsPerPosition[msg.sender][_positionId]),
             _collectPositionsLiquidity(_liquidityPositionsPerPosition[msg.sender][_positionId]),
-            _collectPositionsToken(buyPositions)
+            _collectPositionsBuy(buyPositions)
         );
     }
 
@@ -249,18 +233,15 @@ contract StrategyPositionManager is StrategyStorage {
         return withdrawnAmounts;
     }
 
-    function _collectPositionsToken(
+    function _collectPositionsBuy(
         BuyPosition[] memory _positions
     ) private returns (uint[] memory) {
         uint[] memory withdrawnAmounts = new uint[](_positions.length);
 
         for (uint i; i < _positions.length; ++i) {
             BuyPosition memory position = _positions[i];
-            uint initialBalance = position.token.balanceOf(address(this));
-
             position.token.safeTransfer(msg.sender, position.amount);
-
-            withdrawnAmounts[i] = position.token.balanceOf(address(this)) - initialBalance;
+            withdrawnAmounts[i] = position.amount;
         }
 
         return withdrawnAmounts;
