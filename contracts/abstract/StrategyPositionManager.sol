@@ -160,7 +160,7 @@ contract StrategyPositionManager is StrategyStorage {
         return withdrawnAmounts;
     }
 
-    function collectPosition(uint _positionId) external  {
+    function collectPosition(uint _positionId) external {
         if (_positionId >= _positions[msg.sender].length)
             revert InvalidPositionId(msg.sender, _positionId);
 
