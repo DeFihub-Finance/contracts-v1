@@ -57,6 +57,7 @@ contract StrategyPositionManager is StrategyStorage {
             _closeVaultPositions(_vaultPositionsPerPosition[msg.sender][_positionId]),
             _closeLiquidityPositions(_liquidityPositionsPerPosition[msg.sender][_positionId], _liquidityMinOutputs),
             _closeBuyPositions(_buyPositionsPerPosition[msg.sender][_positionId])
+            _collectPositionsBuy(_buyPositionsPerPosition[msg.sender][_positionId])
         );
     }
 
@@ -155,22 +156,6 @@ contract StrategyPositionManager is StrategyStorage {
 
             withdrawnAmounts[i][0] = amount0;
             withdrawnAmounts[i][1] = amount1;
-        }
-
-        return withdrawnAmounts;
-    }
-
-    function _closeBuyPositions(
-        BuyPosition[] memory _positions
-    ) private returns (uint[] memory) {
-        uint[] memory withdrawnAmounts = new uint[](_positions.length);
-
-        for (uint i; i < _positions.length; ++i) {
-            BuyPosition memory position = _positions[i];
-
-            position.token.safeTransfer(msg.sender, position.amount);
-
-            withdrawnAmounts[i] = position.amount;
         }
 
         return withdrawnAmounts;
