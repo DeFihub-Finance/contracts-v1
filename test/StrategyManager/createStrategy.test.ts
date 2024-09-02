@@ -1,7 +1,7 @@
 import { expect } from 'chai'
 import { Signer, keccak256, ContractTransactionResponse, ZeroAddress } from 'ethers'
 import { StrategyManager } from '@src/typechain'
-import { InvestLib } from '@src/typechain/artifacts/contracts/StrategyManager'
+import { StrategyStorage } from '@src/typechain/artifacts/contracts/StrategyManager'
 import { SubscriptionSignature } from '@src/SubscriptionSignature'
 import { NetworkService } from '@src/NetworkService'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
@@ -22,8 +22,8 @@ describe('StrategyManager#createStrategy', () => {
     let account0: Signer
     let account1: Signer
     let strategyManager: StrategyManager
-    let dcaStrategyPositions: InvestLib.DcaInvestmentStruct[]
-    let vaultStrategyPosition: InvestLib.VaultInvestmentStruct[]
+    let dcaStrategyPositions: StrategyStorage.DcaInvestmentStruct[]
+    let vaultStrategyPosition: StrategyStorage.VaultInvestmentStruct[]
     let subscriptionSignature: SubscriptionSignature
     let deadline: number
     const metadataHash = keccak256(new TextEncoder().encode('Name' + 'Bio'))
@@ -124,7 +124,7 @@ describe('StrategyManager#createStrategy', () => {
         })
 
         it('if strategy uses more than 20 dca investments', async () => {
-            const investments: InvestLib.DcaInvestmentStruct[] = Array.from(
+            const investments: StrategyStorage.DcaInvestmentStruct[] = Array.from(
                 { length: 21 },
                 () => ({
                     // @dev percentage doesn't matter here, the investmentCount check happens before
@@ -150,7 +150,7 @@ describe('StrategyManager#createStrategy', () => {
         })
 
         it('if strategy uses more than 20 vault investments', async () => {
-            const investments: InvestLib.VaultInvestmentStruct[] = Array.from(
+            const investments: StrategyStorage.VaultInvestmentStruct[] = Array.from(
                 { length: 21 },
                 () => ({
                     // @dev percentage doesn't matter here, the investmentCount check happens before
@@ -175,7 +175,7 @@ describe('StrategyManager#createStrategy', () => {
         })
 
         it('if strategy uses more than 20 investments total', async () => {
-            const vaultInvestments: InvestLib.VaultInvestmentStruct[] = Array.from(
+            const vaultInvestments: StrategyStorage.VaultInvestmentStruct[] = Array.from(
                 { length: 10 },
                 () => ({
                     // @dev percentage doesn't matter here, the investmentCount check happens before
@@ -183,7 +183,7 @@ describe('StrategyManager#createStrategy', () => {
                     vault: ZeroAddress,
                 }),
             )
-            const dcaInvestments: InvestLib.DcaInvestmentStruct[] = Array.from(
+            const dcaInvestments: StrategyStorage.DcaInvestmentStruct[] = Array.from(
                 { length: 11 },
                 () => ({
                     // @dev percentage doesn't matter here, the investmentCount check happens before

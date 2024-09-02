@@ -1,22 +1,24 @@
 import type { ErrorDescription } from 'ethers'
 import { decodeLowLevelCallError as _decodeLowLevelCallError } from '@defihub/shared'
 import {
-    DollarCostAverage__factory,
-    InvestLib__factory,
-    LiquidityManager__factory,
     StrategyManager__factory,
+    StrategyPositionManager__factory,
+    StrategyInvestor__factory,
     SubscriptionManager__factory,
+    DollarCostAverage__factory,
+    LiquidityManager__factory,
     VaultManager__factory,
     ZapManager__factory,
 } from '@src/typechain'
 
 const contractInterfaces = [
-    SubscriptionManager__factory.createInterface(),
     StrategyManager__factory.createInterface(),
+    StrategyPositionManager__factory.createInterface(),
+    StrategyInvestor__factory.createInterface(),
+    SubscriptionManager__factory.createInterface(),
     DollarCostAverage__factory.createInterface(),
     VaultManager__factory.createInterface(),
     ZapManager__factory.createInterface(),
-    InvestLib__factory.createInterface(),
     LiquidityManager__factory.createInterface(),
 ]
 

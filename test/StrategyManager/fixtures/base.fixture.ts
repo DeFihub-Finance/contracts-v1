@@ -2,17 +2,18 @@ import { ERC20Priced, PathUniswapV3 } from '@defihub/shared'
 import { ethers } from 'hardhat'
 import { ProjectDeployer } from '@src/ProjectDeployer'
 import { TestERC20__factory, UniswapV3Pool__factory } from '@src/typechain'
-import { InvestLib } from '@src/typechain/artifacts/contracts/StrategyManager' // typechain doesn't generate lib properly so we must import it this way
 import { deployVaultFixture } from '../../VaultManager/fixtures/deploy-vault.fixture'
 import { parseEther } from 'ethers'
 import { UniswapV3 } from '@src/helpers'
 import { BigNumber } from '@ryze-blockchain/ethereum'
 import { mockTokenWithAddress } from '@src/helpers/mock-token'
+import { StrategyStorage } from '@src/typechain/artifacts/contracts/StrategyManager'
 
 export async function baseStrategyManagerFixture() {
     const [deployer] = await ethers.getSigners()
     const anotherToken = await new TestERC20__factory(deployer).deploy(18)
 
+    // TODO move prices from zap.fixture to here and update necessary tests to work with the new price
     const USD_PRICE_BN = new BigNumber(1)
     const ETH_PRICE = 3_000n
     const ETH_PRICE_BN = new BigNumber(ETH_PRICE.toString())
@@ -111,11 +112,11 @@ export async function baseStrategyManagerFixture() {
     ////////////////////////////////////////////////////////
     // Creating strategies to be used to create strategy //
     ///////////////////////////////////////////////////////
-    const dcaStrategyPositions: InvestLib.DcaInvestmentStruct[] = [
+    const dcaStrategyPositions: StrategyStorage.DcaInvestmentStruct[] = [
         { poolId: 0, swaps: 10, percentage: 33 },
         { poolId: 1, swaps: 10, percentage: 33 },
     ]
-    const vaultStrategyPosition: InvestLib.VaultInvestmentStruct[] = [
+    const vaultStrategyPosition: StrategyStorage.VaultInvestmentStruct[] = [
         {
             vault,
             percentage: 34,

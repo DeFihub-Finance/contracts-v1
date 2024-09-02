@@ -3,6 +3,8 @@ import { AbiCoder, ErrorDescription, parseEther, Signer } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import {
     DollarCostAverage,
+    StrategyInvestor,
+    StrategyInvestor__factory,
     StrategyManager,
     SubscriptionManager,
     TestERC20,
@@ -12,8 +14,8 @@ import {
     UseFee,
 } from '@src/typechain'
 import { createStrategyFixture } from './fixtures/create-strategy.fixture'
-import { decodeLowLevelCallError, LiquidityHelpers, UniswapV3 as UniswapV3Helper } from '@src/helpers'
-import { ERC20Priced, UniswapV3 } from '@defihub/shared'
+import { decodeLowLevelCallError, getEventLog, LiquidityHelpers, UniswapV3 as UniswapV3Helper } from '@src/helpers'
+import { ERC20Priced, UniswapV3, unwrapAddressLike } from '@defihub/shared'
 import { BigNumber } from '@ryze-blockchain/ethereum'
 import { Fees } from '@src/helpers/Fees'
 import { SubscriptionSignature } from '@src/SubscriptionSignature'
@@ -60,9 +62,9 @@ describe('StrategyManager#invest', () => {
     let stablecoinPriced: ERC20Priced
 
     // hub contracts
+    let strategyManager: StrategyManager
     let vault: TestVault
     let dca: DollarCostAverage
-    let strategyManager: StrategyManager
     let liquidityManager: UseFee
     let vaultManager: UseFee
     let buyProduct: UseFee
@@ -142,7 +144,7 @@ describe('StrategyManager#invest', () => {
         _strategyId: strategyId,
         _investorSubscribed: true,
         _strategistSubscribed: true,
-    }): Promise<StrategyManager.InvestParamsStruct> {
+    }): Promise<StrategyInvestor.InvestParamsStruct> {
         const deadlineInvestor = _investorSubscribed ? deadline : 0
 
         const [
@@ -185,7 +187,7 @@ describe('StrategyManager#invest', () => {
 
     async function _invest(
         investor: Signer,
-        investParams?: StrategyManager.InvestParamsStruct,
+        investParams?: StrategyInvestor.InvestParamsStruct,
     ) {
         return strategyManager
             .connect(investor)
@@ -205,9 +207,9 @@ describe('StrategyManager#invest', () => {
             stablecoinPriced,
 
             // hub contracts
+            strategyManager,
             dca,
             vault,
-            strategyManager,
             liquidityManager,
             vaultManager,
             buyProduct,
@@ -467,10 +469,12 @@ describe('StrategyManager#invest', () => {
             })
 
             it('subscribed user sends strategist rewards to treasury', async () => {
-                const tx = await _invest(
-                    account1,
-                    await getInvestParams(account1, { _strategistSubscribed: false }),
-                )
+                const receipt = await (
+                    await _invest(
+                        account1,
+                        await getInvestParams(account1, { _strategistSubscribed: false }),
+                    )
+                ).wait()
 
                 const finalStrategistRewards = await strategyManager
                     .getStrategistRewards(strategist)
@@ -479,19 +483,23 @@ describe('StrategyManager#invest', () => {
 
                 const { protocolFee } = await getStrategyFeeAmount(amountToInvest, strategyId, true, false)
 
-                await expect(tx).to.emit(strategyManager, 'Fee').withArgs(
-                    account1,
-                    treasury,
+                const feeEvent = getEventLog(receipt, 'Fee', StrategyInvestor__factory.createInterface())
+
+                expect(feeEvent?.args).to.deep.equal([
+                    await unwrapAddressLike(account1),
+                    await unwrapAddressLike(treasury),
                     protocolFee,
                     AbiCoder.defaultAbiCoder().encode(['uint'], [strategyId]),
-                )
+                ])
             })
 
             it('unsubscribed user sends strategist rewards to treasury', async () => {
-                const tx = await _invest(
-                    account2,
-                    await getInvestParams(account2, { _investorSubscribed: false, _strategistSubscribed: false }),
-                )
+                const receipt = await (
+                    await _invest(
+                        account2,
+                        await getInvestParams(account2, { _investorSubscribed: false, _strategistSubscribed: false }),
+                    )
+                ).wait()
 
                 const finalStrategistRewards = await strategyManager
                     .getStrategistRewards(strategist)
@@ -500,12 +508,14 @@ describe('StrategyManager#invest', () => {
 
                 const { protocolFee } = await getStrategyFeeAmount(amountToInvest, strategyId, false, false)
 
-                await expect(tx).to.emit(strategyManager, 'Fee').withArgs(
-                    account2,
-                    treasury,
+                const feeEvent = getEventLog(receipt, 'Fee', StrategyInvestor__factory.createInterface())
+
+                expect(feeEvent?.args).to.deep.equal([
+                    await unwrapAddressLike(account2),
+                    await unwrapAddressLike(treasury),
                     protocolFee,
                     AbiCoder.defaultAbiCoder().encode(['uint'], [strategyId]),
-                )
+                ])
             })
         })
     })
@@ -629,15 +639,23 @@ describe('StrategyManager#invest', () => {
         })
 
         it('if strategyId do not exist', async () => {
-            const tx = _invest(
-                account2,
-                {
-                    ...await getInvestParams(account2, { _investorSubscribed: false }),
-                    strategyId: 99,
-                },
-            )
+            try {
+                await _invest(
+                    account2,
+                    {
+                        ...await getInvestParams(account2, { _investorSubscribed: false }),
+                        strategyId: 99,
+                    },
+                )
 
-            await expect(tx).to.revertedWithCustomError(strategyManager, 'StrategyUnavailable')
+                throw new Error('Expected to revert')
+            }
+            catch (e) {
+                const decodedError = decodeLowLevelCallError(e)
+
+                expect(decodedError).to.be.instanceof(ErrorDescription)
+                expect((decodedError as ErrorDescription).name).to.be.equal('StrategyUnavailable')
+            }
         })
     })
 })

@@ -20,11 +20,12 @@ import {
     UniswapV2Factory__factory,
     UniswapV2Router02__factory,
     Quoter__factory,
-    InvestLib__factory,
+    StrategyInvestor__factory,
     LiquidityManager,
     LiquidityManager__factory,
     BuyProduct,
     BuyProduct__factory,
+    StrategyPositionManager__factory,
 } from '@src/typechain'
 import { ZeroHash, ZeroAddress, Signer } from 'ethers'
 import { NetworkService } from '@src/NetworkService'
@@ -71,7 +72,8 @@ export class ProjectDeployer {
         const zapManagerDeployParams = this.getDeploymentInfo(ZapManager__factory)
         const buyProductDeployParams = this.getDeploymentInfo(BuyProduct__factory)
 
-        await projectDeployer.deployInvestLib(InvestLib__factory.bytecode, ZeroHash)
+        await projectDeployer.deployStrategyInvestor(StrategyInvestor__factory.bytecode, ZeroHash)
+        await projectDeployer.deployStrategyPositionManager(StrategyPositionManager__factory.bytecode, ZeroHash)
         await projectDeployer.deploySubscriptionManager(subscriptionManagerDeployParams)
         await projectDeployer.deployStrategyManager(strategyManagerDeployParams)
         await projectDeployer.deployDca(dcaDeployParams)
@@ -80,7 +82,16 @@ export class ProjectDeployer {
         await projectDeployer.deployZapManager(zapManagerDeployParams)
         await projectDeployer.deployBuyProduct(buyProductDeployParams)
 
-        const investLib = await projectDeployer.investLib()
+        // non-proxy contracts
+        const [
+            strategyInvestor,
+            strategyPositionManager,
+        ] = await Promise.all([
+            projectDeployer.strategyInvestor(),
+            projectDeployer.strategyPositionManager(),
+        ])
+
+        // proxy contracts
         const [
             strategyManager,
             subscriptionManagerAddress,
@@ -115,7 +126,8 @@ export class ProjectDeployer {
         const strategyManagerInitParams: StrategyManager.InitializeParamsStruct = {
             owner,
             treasury,
-            investLib,
+            strategyInvestor,
+            strategyPositionManager,
             stable: stablecoin,
             subscriptionManager,
             dca,
@@ -195,6 +207,7 @@ export class ProjectDeployer {
 
         return {
             // Contracts
+            strategyPositionManager: StrategyPositionManager__factory.connect(strategyPositionManager, owner),
             strategyManager: StrategyManager__factory.connect(strategyManager, owner),
             subscriptionManager,
             dca: DollarCostAverage__factory.connect(dca, owner),

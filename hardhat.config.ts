@@ -30,7 +30,7 @@ const config: HardhatUserConfig = {
                 settings: {
                     optimizer: {
                         enabled: true,
-                        runs: 200,
+                        runs: 800,
                     },
                 },
             },
@@ -63,6 +63,7 @@ const config: HardhatUserConfig = {
         runOnCompile: true,
         clear: true,
         flat: true,
+        spacing: 4,
     },
     gasReporter: {
         enabled: true,

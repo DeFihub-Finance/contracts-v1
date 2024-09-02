@@ -1,14 +1,15 @@
 import { createStrategyFixture } from './create-strategy.fixture'
 import { parseEther } from 'ethers'
 import { NetworkService } from '@src/NetworkService'
-import { createStrategy } from '@src/helpers'
+import { createStrategy, UniswapV3ZapHelper } from '@src/helpers'
 import { UniswapV3 } from '@defihub/shared'
 import { LiquidityHelpers } from '@src/helpers'
 import { Fees } from '@src/helpers/Fees'
+import { BigNumber } from '@ryze-blockchain/ethereum'
 
 export async function investFixture() {
-    const amountToInvest = parseEther('20')
-    const halfAmount = amountToInvest / 2n
+    const amountToInvest = parseEther('30')
+    const amountPerInvestmentStrategy = amountToInvest / 3n
 
     const {
         account0,
@@ -36,6 +37,9 @@ export async function investFixture() {
         stablecoin.connect(account1).approve(strategyManager, amountToInvest),
     ])
 
+    const { token0, token1 } = UniswapV3.sortTokens(stablecoinPriced, wethPriced)
+
+    // Create strategies
     const dcaStrategyId = await createStrategy(
         account0,
         permitAccount0,
@@ -50,8 +54,6 @@ export async function investFixture() {
             buyInvestments: [],
         },
     )
-
-    const { token0, token1 } = UniswapV3.sortTokens(stablecoinPriced, wethPriced)
     const liquidityStrategyId = await createStrategy(
         account0,
         permitAccount0,
@@ -73,13 +75,29 @@ export async function investFixture() {
             buyInvestments: [],
         },
     )
+    const buyOnlyStrategyId = await createStrategy(
+        account0,
+        permitAccount0,
+        strategyManager,
+        {
+            dcaInvestments: [],
+            vaultInvestments: [],
+            liquidityInvestments: [],
+            buyInvestments: [
+                {
+                    token: wethPriced.address,
+                    percentage: 100,
+                },
+            ],
+        },
+    )
 
     const dcaPositionId = await strategyManager.getPositionsLength(account1)
 
     await strategyManager.connect(account1).invest({
         strategyId: dcaStrategyId,
         inputToken: stablecoin,
-        inputAmount: halfAmount,
+        inputAmount: amountPerInvestmentStrategy,
         inputTokenSwap: '0x',
         dcaSwaps: ['0x', '0x'],
         vaultSwaps: [],
@@ -91,7 +109,7 @@ export async function investFixture() {
 
     const { liquidityInvestments } = await strategyManager.getStrategyInvestments(liquidityStrategyId)
     const amountWithDeductedFees = await Fees.deductStrategyFee(
-        halfAmount,
+        amountPerInvestmentStrategy,
         strategyManager,
         liquidityStrategyId,
         true,
@@ -118,12 +136,46 @@ export async function investFixture() {
     await strategyManager.connect(account1).invest({
         strategyId: liquidityStrategyId,
         inputToken: stablecoin,
-        inputAmount: halfAmount,
+        inputAmount: amountPerInvestmentStrategy,
         inputTokenSwap: '0x',
         dcaSwaps: [],
         vaultSwaps: [],
         buySwaps: [],
         liquidityZaps,
+        investorPermit: permitAccount1,
+        strategistPermit: permitAccount0,
+    })
+
+    const buyOnlyStrategyPositionId = await strategyManager.getPositionsLength(account1)
+
+    await strategyManager.connect(account1).invest({
+        strategyId: buyOnlyStrategyId,
+        inputToken: stablecoin,
+        inputAmount: amountPerInvestmentStrategy,
+        inputTokenSwap: '0x',
+        dcaSwaps: [],
+        vaultSwaps: [],
+        liquidityZaps: [],
+        buySwaps: [
+            await UniswapV3ZapHelper.encodeExactInputSingle(
+                await Fees.deductStrategyFee(
+                    amountPerInvestmentStrategy,
+                    strategyManager,
+                    buyOnlyStrategyId,
+                    true,
+                    true,
+                    dca,
+                    vaultManager,
+                    liquidityManager,
+                    buyProduct,
+                ),
+                stablecoinPriced,
+                wethPriced,
+                3000,
+                new BigNumber(0.01),
+                strategyManager,
+            ),
+        ],
         investorPermit: permitAccount1,
         strategistPermit: permitAccount0,
     })
@@ -137,9 +189,11 @@ export async function investFixture() {
         liquidityManager,
         buyProduct,
         dcaStrategyId,
-        liquidityStrategyId,
         dcaPositionId,
+        liquidityStrategyId,
         liquidityPositionId,
+        buyOnlyStrategyId,
+        buyOnlyStrategyPositionId,
         amountToInvest,
         stablecoin,
         stablecoinPriced,
