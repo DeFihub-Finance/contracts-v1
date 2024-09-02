@@ -63,6 +63,7 @@ const config: HardhatUserConfig = {
         runOnCompile: true,
         clear: true,
         flat: true,
+        spacing: 4,
     },
     gasReporter: {
         enabled: true,
