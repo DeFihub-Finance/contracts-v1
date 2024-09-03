@@ -10,9 +10,10 @@ import {
     ZapManager__factory,
     UniswapV2Zapper__factory,
     UniswapV3Zapper__factory,
-    InvestLib__factory,
     LiquidityManager,
     BuyProduct,
+    StrategyPositionManager__factory,
+    StrategyInvestor__factory,
 } from '@src/typechain'
 import {
     vanityDeployer,
@@ -43,30 +44,45 @@ async function deployProject() {
         await projectDeployer.getAddress(),
     )
 
-    const investLibDeploymentInfo = await getImplementationSalt(saltBuilder, 'InvestLib')
-    const subscriptionDeploymentInfo = await getDeploymentInfo(saltBuilder, 'SubscriptionManager')
+    // Strategy
     const strategyDeploymentInfo = await getDeploymentInfo(saltBuilder, 'StrategyManager')
+    const strategyInvestorSalt = await getImplementationSalt(saltBuilder, 'StrategyInvestor')
+    const strategyPositionManagerSalt = await getImplementationSalt(saltBuilder, 'StrategyPositionManager')
+
+    await sendTransaction(
+        await projectDeployer.deployStrategyManager.populateTransaction(strategyDeploymentInfo),
+        deployer,
+    )
+    await sendTransaction(
+        await projectDeployer.deployStrategyInvestor
+            .populateTransaction(StrategyInvestor__factory.bytecode, strategyInvestorSalt),
+        deployer,
+    )
+    await sendTransaction(
+        await projectDeployer.deployStrategyPositionManager
+            .populateTransaction(StrategyPositionManager__factory.bytecode, strategyPositionManagerSalt),
+        deployer,
+    )
+
+    // Helpers
+    const subscriptionDeploymentInfo = await getDeploymentInfo(saltBuilder, 'SubscriptionManager')
+    const zapManagerInfo = await getDeploymentInfo(saltBuilder, 'ZapManager')
+
+    await sendTransaction(
+        await projectDeployer.deploySubscriptionManager.populateTransaction(subscriptionDeploymentInfo),
+        deployer,
+    )
+    await sendTransaction(
+        await projectDeployer.deployZapManager.populateTransaction(zapManagerInfo),
+        deployer,
+    )
+
+    // Products
     const dcaDeploymentInfo = await getDeploymentInfo(saltBuilder, 'DollarCostAverage')
     const vaultDeploymentInfo = await getDeploymentInfo(saltBuilder, 'VaultManager')
     const liquidityDeploymentInfo = await getDeploymentInfo(saltBuilder, 'LiquidityManager')
     const buyProductDeploymentInfo = await getDeploymentInfo(saltBuilder, 'BuyProduct')
-    const zapManagerInfo = await getDeploymentInfo(saltBuilder, 'ZapManager')
 
-    await sendTransaction(
-        await projectDeployer.deployInvestLib
-            .populateTransaction(InvestLib__factory.bytecode, investLibDeploymentInfo),
-        deployer,
-    )
-    await sendTransaction(
-        await projectDeployer.deploySubscriptionManager
-            .populateTransaction(subscriptionDeploymentInfo),
-        deployer,
-    )
-    await sendTransaction(
-        await projectDeployer.deployStrategyManager
-            .populateTransaction(strategyDeploymentInfo),
-        deployer,
-    )
     await sendTransaction(
         await projectDeployer.deployDca
             .populateTransaction(dcaDeploymentInfo),
@@ -87,15 +103,11 @@ async function deployProject() {
             .populateTransaction(buyProductDeploymentInfo),
         deployer,
     )
-    await sendTransaction(
-        await projectDeployer.deployZapManager
-            .populateTransaction(zapManagerInfo),
-        deployer,
-    )
 
-    const investLib = await projectDeployer.investLib()
     const [
         strategyManager,
+        strategyInvestor,
+        strategyPositionManager,
         dca,
         vaultManager,
         liquidityManager,
@@ -104,6 +116,8 @@ async function deployProject() {
         zapManager,
     ] = (await Promise.all([
         projectDeployer.strategyManager(),
+        projectDeployer.strategyInvestor(),
+        projectDeployer.strategyPositionManager(),
         projectDeployer.dca(),
         projectDeployer.vaultManager(),
         projectDeployer.liquidityManager(),
@@ -124,7 +138,8 @@ async function deployProject() {
         owner: safe,
         treasury,
         stable,
-        investLib,
+        strategyInvestor,
+        strategyPositionManager,
         subscriptionManager: subscriptionManager.proxy,
         dca: dca.proxy,
         vaultManager: vaultManager.proxy,
@@ -207,16 +222,17 @@ async function deployProject() {
         zapManagerContract.protocolImplementations('UniswapV3'),
     ])
 
-    await saveAddress('SubscriptionManager', subscriptionManager.proxy)
-    await saveAddress('InvestLib', investLib)
+    await saveAddress('StrategyInvestor', strategyInvestor)
+    await saveAddress('StrategyPositionManager', strategyPositionManager)
     await saveAddress('StrategyManager', strategyManager.proxy)
+    await saveAddress('SubscriptionManager', subscriptionManager.proxy)
+    await saveAddress('ZapManager', zapManager.proxy)
+    await saveAddress('ZapperUniswapV2', zapperUniV2)
+    await saveAddress('ZapperUniswapV3', zapperUniV3)
     await saveAddress('DollarCostAverage', dca.proxy)
     await saveAddress('VaultManager', vaultManager.proxy)
     await saveAddress('LiquidityManager',liquidityManager.proxy)
     await saveAddress('BuyProduct', buyProduct.proxy)
-    await saveAddress('ZapManager', zapManager.proxy)
-    await saveAddress('ZapperUniswapV2', zapperUniV2)
-    await saveAddress('ZapperUniswapV3', zapperUniV3)
 
     const contractAddresses = [
         subscriptionManager,
@@ -230,7 +246,8 @@ async function deployProject() {
 
     const implementations = [
         ...contractAddresses.map(({ implementation }) => implementation),
-        investLib,
+        strategyInvestor,
+        strategyPositionManager,
     ]
 
     await verify(
