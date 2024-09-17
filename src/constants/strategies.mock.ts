@@ -112,7 +112,7 @@ export const mockStrategies = [
     },
     {
         name: 'Crypto Liquidity',
-        bio: 'This strategy is designed to provide liquidity to the crypto market. It is a simple strategy that is easy to understand and execute. It is suitable for beginners who want to invest in crypto but do not have the time or expertise to actively manage investments.',
+        bio: 'This strategy is designed to provide liquidity to the crypto market. It is a simple strategy to understand and execute. It is suitable for beginners who want to invest in crypto but do not have the time or expertise to actively manage investments.',
         liquidityInvestments: [
             {
                 tokenA: tokens[ChainIds.BNB_TESTNET].wbnb,
