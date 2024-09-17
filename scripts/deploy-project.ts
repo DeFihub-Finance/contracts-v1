@@ -26,15 +26,14 @@ import {
     getImplementationSalt,
 } from '@src/helpers'
 
-const TREASURY_ADDR: string | undefined = '0xb7f74ba999134fbb75285173856a808732d8c888' // wallet 61
-const SUBSCRIPTION_SIGNER_ADDR: string | undefined = '0x78dbb65d53566d27b5117532bd9aec6ae95e8db9' // mm signer
-const DCA_SWAPPER_ADDR = '0xa9ce4e7429931418d15cb2d8561372e62247b4cb' // TODO update with backend addr defender relay
+const TREASURY_ADDR = '0xb7f74ba999134fbb75285173856a808732d8c888' // only use ledger or multisig
+const SUBSCRIPTION_SIGNER_ADDR = '0x78dbb65d53566d27b5117532bd9aec6ae95e8db9'
+const DCA_SWAPPER_ADDR = '0xa9ce4e7429931418d15cb2d8561372e62247b4cb'
 const COMMAND_BUILDER_OPTIONS = { skip: '1' }
 
 async function deployProject() {
     const [deployer] = await hre.ethers.getSigners()
     const safe = await findAddressOrFail('GnosisSafe')
-    const treasury = TREASURY_ADDR || safe
     const stable = TestERC20__factory.connect(await findAddressOrFail('Stablecoin'), deployer)
     const projectDeployer = await getProjectDeployer(deployer)
 
@@ -128,15 +127,15 @@ async function deployProject() {
 
     const subscriptionManagerInitParams: SubscriptionManager.InitializeParamsStruct = {
         owner: safe,
-        treasury,
-        subscriptionSigner: SUBSCRIPTION_SIGNER_ADDR || safe,
+        treasury: TREASURY_ADDR,
+        subscriptionSigner: SUBSCRIPTION_SIGNER_ADDR,
         token: stable,
         pricePerMonth: ethers.parseUnits('4.69', await stable.decimals()),
     }
 
     const strategyManagerInitParams: StrategyManager.InitializeParamsStruct = {
         owner: safe,
-        treasury,
+        treasury: TREASURY_ADDR,
         stable,
         strategyInvestor,
         strategyPositionManager,
@@ -153,7 +152,7 @@ async function deployProject() {
 
     const dcaInitParams: DollarCostAverage.InitializeParamsStruct = {
         owner: safe,
-        treasury,
+        treasury: TREASURY_ADDR,
         swapper: DCA_SWAPPER_ADDR,
         strategyManager: strategyManager.proxy,
         subscriptionManager: subscriptionManager.proxy,
@@ -163,7 +162,7 @@ async function deployProject() {
 
     const vaultManagerInitParams: VaultManager.InitializeParamsStruct = {
         owner: safe,
-        treasury,
+        treasury: TREASURY_ADDR,
         strategyManager: strategyManager.proxy,
         subscriptionManager: subscriptionManager.proxy,
         baseFeeBP: 20n,
@@ -172,7 +171,7 @@ async function deployProject() {
 
     const liquidityManagerInitParams: LiquidityManager.InitializeParamsStruct = {
         owner: safe,
-        treasury,
+        treasury: TREASURY_ADDR,
         subscriptionManager: subscriptionManager.proxy,
         strategyManager: strategyManager.proxy,
         zapManager: zapManager.proxy,
@@ -182,7 +181,7 @@ async function deployProject() {
 
     const buyProductInitParams: BuyProduct.InitializeParamsStruct = {
         owner: safe,
-        treasury,
+        treasury: TREASURY_ADDR,
         subscriptionManager: subscriptionManager.proxy,
         baseFeeBP: 30n,
         nonSubscriberFeeBP: 30n,
@@ -191,7 +190,7 @@ async function deployProject() {
     const zapManagerInitParams: ZapManager.InitializeParamsStruct = {
         owner: safe,
         uniswapV2ZapperConstructor: {
-            treasury,
+            treasury: TREASURY_ADDR,
             swapRouter: await findAddressOrFail('UniswapRouterV2'),
         },
         uniswapV3ZapperConstructor: {
@@ -254,7 +253,7 @@ async function deployProject() {
         zapperUniV2,
         [
             {
-                treasury,
+                treasury: TREASURY_ADDR,
                 swapRouter: await UniswapV2Zapper__factory.connect(zapperUniV2, deployer).swapRouter(),
             },
         ],
