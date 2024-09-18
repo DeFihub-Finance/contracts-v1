@@ -115,4 +115,38 @@ contract StrategyStorage is UseTreasury {
     mapping(address => mapping(uint => LiquidityPosition[])) internal _liquidityPositionsPerPosition;
     // @dev investor => strategy position id => buy positions
     mapping(address => mapping(uint => BuyPosition[])) internal _buyPositionsPerPosition;
+
+    event Fee(address from, address to, uint amount, bytes data);
+
+    event PositionCreated(
+        address user,
+        uint strategyId,
+        uint positionId,
+        address inputToken,
+        uint inputTokenAmount,
+        uint stableAmountAfterFees,
+        uint[] dcaPositionIds,
+        VaultPosition[] vaultPositions,
+        LiquidityPosition[] liquidityPositions,
+        BuyPosition[] tokenPositions
+    );
+
+    event PositionClosed(
+        address user,
+        uint strategyId,
+        uint positionId,
+        uint[][] dcaWithdrawnAmounts,
+        uint[] vaultWithdrawnAmount,
+        uint[][] liquidityWithdrawnAmounts,
+        uint[] buyWithdrawnAmounts
+    );
+
+    event PositionCollected(
+        address user,
+        uint strategyId,
+        uint positionId,
+        uint[] dcaWithdrawnAmounts,
+        uint[][] liquidityWithdrawnAmounts,
+        uint[] buyWithdrawnAmounts
+    );
 }
