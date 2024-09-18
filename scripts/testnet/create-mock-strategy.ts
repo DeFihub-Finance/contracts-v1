@@ -70,10 +70,12 @@ async function createMockStrategy() {
             )
         }
         catch (e) {
-            console.log(
-                'error sending transaction:',
-                strategyManager.interface.parseError((e as { data: string }).data),
-            )
+            const parsedError = strategyManager.interface.parseError((e as { data: string }).data)
+
+            if (parsedError)
+                console.log('error sending transaction:', parsedError)
+
+            throw e
         }
     }
 }
