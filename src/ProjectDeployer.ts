@@ -30,6 +30,7 @@ import {
 import { ZeroHash, ZeroAddress, Signer } from 'ethers'
 import { NetworkService } from '@src/NetworkService'
 import { SubscriptionSignature } from '@src/SubscriptionSignature'
+import { ZapProtocols } from '@defihub/shared'
 
 export class ProjectDeployer {
     private hashCount = 0
@@ -179,14 +180,24 @@ export class ProjectDeployer {
 
         const zapManagerInit: ZapManager.InitializeParamsStruct = {
             owner: owner.address,
-            uniswapV2ZapperConstructor: {
-                treasury: treasury,
-                swapRouter: routerUniV2,
-            },
-            uniswapV3ZapperConstructor: {
-                positionManager: positionManagerUniV3,
-                swapRouter: routerUniV3,
-            },
+            zappersUniswapV2: [
+                {
+                    name: ZapProtocols.UniswapV2,
+                    constructorParams: {
+                        treasury: treasury,
+                        swapRouter: routerUniV2,
+                    },
+                },
+            ],
+            swappersUniswapV3: [
+                {
+                    name: ZapProtocols.UniswapV3,
+                    constructorParams: {
+                        positionManager: positionManagerUniV3,
+                        swapRouter: routerUniV3,
+                    },
+                },
+            ],
         }
 
         await projectDeployer.initializeProject(

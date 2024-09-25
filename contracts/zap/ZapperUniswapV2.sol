@@ -8,7 +8,7 @@ import {IZapper} from "./IZapper.sol";
 import {Swapper} from "./Swapper.sol";
 import {UseDust} from "../abstract/UseDust.sol";
 
-contract UniswapV2Zapper is IZapper, Swapper, UseDust {
+contract ZapperUniswapV2 is IZapper, Swapper, UseDust {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     address public immutable treasury;
