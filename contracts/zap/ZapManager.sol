@@ -4,18 +4,28 @@ pragma solidity 0.8.26;
 
 import {IERC20Upgradeable, SafeERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import {IZapper} from "./IZapper.sol";
-import {UniswapV2Zapper} from "./UniswapV2Zapper.sol";
-import {UniswapV3Zapper} from "./UniswapV3Zapper.sol";
+import {ZapperUniswapV2} from "./ZapperUniswapV2.sol";
+import {SwapperUniswapV3} from "./SwapperUniswapV3.sol";
 import {HubOwnable} from "../abstract/HubOwnable.sol";
 import {ICall} from "../interfaces/ICall.sol";
 
 contract ZapManager is HubOwnable, ICall {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
+    struct InitializerZapperUniswapV2 {
+        string name;
+        ZapperUniswapV2.ConstructorParams constructorParams;
+    }
+
+    struct InitializerSwapperUniswapV3 {
+        string name;
+        SwapperUniswapV3.ConstructorParams constructorParams;
+    }
+
     struct InitializeParams {
         address owner;
-        UniswapV2Zapper.ConstructorParams uniswapV2ZapperConstructor;
-        UniswapV3Zapper.ConstructorParams uniswapV3ZapperConstructor;
+        InitializerZapperUniswapV2[] zappersUniswapV2;
+        InitializerSwapperUniswapV3[] swappersUniswapV3;
     }
 
     /**
@@ -49,8 +59,17 @@ contract ZapManager is HubOwnable, ICall {
     function initialize(InitializeParams memory _params) public initializer {
         __Ownable_init();
 
-        addProtocol("UniswapV2", address(new UniswapV2Zapper(_params.uniswapV2ZapperConstructor)));
-        addProtocol("UniswapV3", address(new UniswapV3Zapper(_params.uniswapV3ZapperConstructor)));
+        for (uint i; i < _params.zappersUniswapV2.length; ++i)
+            addProtocol(
+                _params.zappersUniswapV2[i].name,
+                address(new ZapperUniswapV2(_params.zappersUniswapV2[i].constructorParams))
+            );
+
+        for (uint i; i < _params.swappersUniswapV3.length; ++i)
+            addProtocol(
+                _params.swappersUniswapV3[i].name,
+                address(new SwapperUniswapV3(_params.swappersUniswapV3[i].constructorParams))
+            );
 
         transferOwnership(_params.owner);
     }
