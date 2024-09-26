@@ -2,13 +2,10 @@
 
 pragma solidity 0.8.26;
 
-import {IERC20Upgradeable, SafeERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
-import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import {INonfungiblePositionManager} from "../interfaces/INonfungiblePositionManager.sol";
-import {IZapper} from "./IZapper.sol";
 import {Swapper} from "./Swapper.sol";
 
-contract UniswapV3Zapper is IZapper, Swapper {
+contract SwapperUniswapV3 is Swapper {
     INonfungiblePositionManager public immutable positionManager;
 
     struct ConstructorParams {
@@ -19,9 +16,5 @@ contract UniswapV3Zapper is IZapper, Swapper {
     constructor(ConstructorParams memory _constructorParams) {
         positionManager = INonfungiblePositionManager(_constructorParams.positionManager);
         swapRouter = _constructorParams.swapRouter;
-    }
-
-    function zap(bytes memory) external pure {
-        revert("NOT_IMPLEMENTED");
     }
 }

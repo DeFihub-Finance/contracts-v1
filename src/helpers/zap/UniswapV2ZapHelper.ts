@@ -97,7 +97,7 @@ export class UniswapV2ZapHelper {
             zapManager,
         )
         const zapperCall = new AbiCoder().encode(
-            // UniswapV2Zapper.ZapData
+            // ZapperUniswapV2.ZapData
             ['tuple(uint,address,address,bytes,bytes,uint,uint)'],
             [
                 [
