@@ -193,7 +193,6 @@ export class ProjectDeployer {
                 {
                     name: ZapProtocols.UniswapV3,
                     constructorParams: {
-                        positionManager: positionManagerUniV3,
                         swapRouter: routerUniV3,
                     },
                 },
