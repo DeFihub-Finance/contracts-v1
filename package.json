@@ -30,7 +30,7 @@
         "typescript": "^5.2.2"
     },
     "dependencies": {
-        "@defihub/shared": "^3.0.49",
+        "@defihub/shared": "^3.0.51",
         "@nomicfoundation/hardhat-toolbox": "^5.0.0",
         "@openzeppelin/contracts": "4.9.6",
         "@openzeppelin/contracts-upgradeable": "4.9.6",
