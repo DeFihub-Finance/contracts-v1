@@ -42,8 +42,8 @@ contract StrategyStorage is UseTreasury {
         IERC20Upgradeable token0;
         IERC20Upgradeable token1;
         uint24 fee;
-        uint24 lowerPricePercentage;
-        uint24 upperPricePercentage;
+        int24 lowerPricePercentage;
+        int24 upperPricePercentage;
         uint8 percentage;
     }
 
