@@ -239,7 +239,7 @@ describe('LiquidityManager#invest', () => {
             pool,
             token0.price,
             token1.price,
-            TEN_PERCENT, // 10% lower
+            TEN_PERCENT.negated(), // 10% lower
             TEN_PERCENT, // 10% upper
         )
 
@@ -283,7 +283,7 @@ describe('LiquidityManager#invest', () => {
             pool,
             token0.price,
             token1.price,
-            TEN_PERCENT, // 10% lower
+            TEN_PERCENT.negated(), // 10% lower
             TEN_PERCENT, // 10% upper
         )
 
@@ -327,7 +327,7 @@ describe('LiquidityManager#invest', () => {
             pool,
             token0.price,
             token1.price,
-            TEN_PERCENT, // 10% lower
+            TEN_PERCENT.negated(), // 10% lower
             new BigNumber(-0.05), // -5% upper
         )
 
@@ -375,7 +375,7 @@ describe('LiquidityManager#invest', () => {
             pool,
             token0.price,
             token1.price,
-            TEN_PERCENT,
+            TEN_PERCENT.negated(),
             TEN_PERCENT,
         )
 
@@ -429,7 +429,7 @@ describe('LiquidityManager#invest', () => {
             pool,
             token0.price,
             token1.price,
-            TEN_PERCENT,
+            TEN_PERCENT.negated(),
             TEN_PERCENT,
         )
 
