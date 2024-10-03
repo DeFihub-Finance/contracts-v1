@@ -89,19 +89,6 @@ contract StrategyInvestor is StrategyStorage {
         SubscriptionManager.Permit strategistPermit;
     }
 
-    event PositionCreated(
-        address user,
-        uint strategyId,
-        uint positionId,
-        address inputToken,
-        uint inputTokenAmount,
-        uint stableAmountAfterFees,
-        uint[] dcaPositionIds,
-        VaultPosition[] vaultPositions,
-        LiquidityPosition[] liquidityPositions,
-        BuyPosition[] tokenPositions
-    );
-
     error StrategyUnavailable();
 
     function invest(InvestParams memory _params) external {
@@ -383,10 +370,10 @@ contract StrategyInvestor is StrategyStorage {
         if (strategistFee > 0) {
             _strategistRewards[strategy.creator] += strategistFee;
 
-            emit UseFee.Fee(msg.sender, strategy.creator, strategistFee, abi.encode(_params.strategyId));
+            emit Fee(msg.sender, strategy.creator, strategistFee, abi.encode(_params.strategyId));
         }
 
-        emit UseFee.Fee(msg.sender, treasury, protocolFee, abi.encode(_params.strategyId));
+        emit Fee(msg.sender, treasury, protocolFee, abi.encode(_params.strategyId));
 
         return PullFundsResult(
             stableAmount - (protocolFee + strategistFee),
