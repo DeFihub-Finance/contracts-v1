@@ -62,7 +62,7 @@ export async function createStrategyFixture() {
                 token0: token0.address,
                 token1: token1.address,
                 fee: 3000,
-                lowerPricePercentage: 100_000, // 10%
+                lowerPricePercentage: -100_000, // 10%
                 upperPricePercentage: 100_000, // 10%
                 percentage: 25,
             },

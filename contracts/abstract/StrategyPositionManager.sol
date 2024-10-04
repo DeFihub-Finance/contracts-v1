@@ -16,25 +16,6 @@ contract StrategyPositionManager is StrategyStorage {
         uint minOutputToken1;
     }
 
-    event PositionClosed(
-        address user,
-        uint strategyId,
-        uint positionId,
-        uint[][] dcaWithdrawnAmounts,
-        uint[] vaultWithdrawnAmount,
-        uint[][] liquidityWithdrawnAmounts,
-        uint[] buyWithdrawnAmounts
-    );
-
-    event PositionCollected(
-        address user,
-        uint strategyId,
-        uint positionId,
-        uint[] dcaWithdrawnAmounts,
-        uint[][] liquidityWithdrawnAmounts,
-        uint[] buyWithdrawnAmounts
-    );
-
     error PositionAlreadyClosed();
     error InvalidPositionId(address investor, uint positionId);
 
