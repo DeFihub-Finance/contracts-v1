@@ -2,11 +2,11 @@ import { findAddressOrFail, sendTransaction, UniswapV3 } from '@src/helpers'
 import { TestERC20__factory, UniswapPositionManager__factory } from '@src/typechain'
 import { AddressLike, BigNumberish, MaxUint256, parseUnits } from 'ethers'
 import hre from 'hardhat'
-import { tokens } from '@src/constants'
-import { ChainIds } from '@ryze-blockchain/ethereum'
+import { tokenAddresses } from '@defihub/shared'
+import { BigNumber, ChainIds } from '@ryze-blockchain/ethereum'
 
-const tokenA = tokens[ChainIds.BNB_TESTNET].usdt
-const tokenB = tokens[ChainIds.BNB_TESTNET].wbtc
+const tokenA = tokenAddresses[ChainIds.BNB_TESTNET].usdt
+const tokenB = tokenAddresses[ChainIds.BNB_TESTNET].btcb
 const ratioFromTokenAToTokenB = 70_000
 
 async function mintAndApprove(
@@ -64,8 +64,8 @@ async function addLiquidity() {
             tokenAIsToken0 ? tokenB : tokenA,
             3000,
             UniswapV3.calculateSqrtPriceX96(
-                tokenAIsToken0 ? 1 : ratioFromTokenAToTokenB,
-                tokenAIsToken0 ? ratioFromTokenAToTokenB : 1,
+                new BigNumber(tokenAIsToken0 ? 1 : ratioFromTokenAToTokenB),
+                new BigNumber(tokenAIsToken0 ? ratioFromTokenAToTokenB : 1),
             ),
         ),
         deployer,

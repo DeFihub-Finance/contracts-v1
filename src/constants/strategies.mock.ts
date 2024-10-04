@@ -1,4 +1,4 @@
-import { tokens } from '@src/constants/tokens'
+import { tokenAddresses } from '@defihub/shared'
 import { ChainIds } from '@ryze-blockchain/ethereum'
 
 export const mockStrategies = [
@@ -78,22 +78,22 @@ export const mockStrategies = [
         ],
         liquidityInvestments: [
             {
-                tokenA: tokens[ChainIds.BNB_TESTNET].usdt,
-                tokenB: tokens[ChainIds.BNB_TESTNET].wbtc,
+                tokenA: tokenAddresses[ChainIds.BNB_TESTNET].usdt,
+                tokenB: tokenAddresses[ChainIds.BNB_TESTNET].btcb,
                 lowerPricePercentage: 100_000,
                 upperPricePercentage: 300_000,
                 percentage: 10,
             },
             {
-                tokenA: tokens[ChainIds.BNB_TESTNET].usdt,
-                tokenB: tokens[ChainIds.BNB_TESTNET].weth,
+                tokenA: tokenAddresses[ChainIds.BNB_TESTNET].usdt,
+                tokenB: tokenAddresses[ChainIds.BNB_TESTNET].weth,
                 lowerPricePercentage: 100_000,
                 upperPricePercentage: 300_000,
                 percentage: 10,
             },
             {
-                tokenA: tokens[ChainIds.BNB_TESTNET].wbtc,
-                tokenB: tokens[ChainIds.BNB_TESTNET].weth,
+                tokenA: tokenAddresses[ChainIds.BNB_TESTNET].btcb,
+                tokenB: tokenAddresses[ChainIds.BNB_TESTNET].weth,
                 lowerPricePercentage: 200_000,
                 upperPricePercentage: 100_000,
                 percentage: 10,
@@ -101,11 +101,11 @@ export const mockStrategies = [
         ],
         buyInvestments: [
             {
-                token: tokens[ChainIds.BNB_TESTNET].wbtc,
+                token: tokenAddresses[ChainIds.BNB_TESTNET].btcb,
                 percentage: 10,
             },
             {
-                token: tokens[ChainIds.BNB_TESTNET].weth,
+                token: tokenAddresses[ChainIds.BNB_TESTNET].weth,
                 percentage: 10,
             },
         ],
@@ -115,22 +115,22 @@ export const mockStrategies = [
         bio: 'This strategy is designed to provide liquidity to the crypto market. It is a simple strategy to understand and execute. It is suitable for beginners who want to invest in crypto but do not have the time or expertise to actively manage investments.',
         liquidityInvestments: [
             {
-                tokenA: tokens[ChainIds.BNB_TESTNET].wbnb,
-                tokenB: tokens[ChainIds.BNB_TESTNET].wbtc,
+                tokenA: tokenAddresses[ChainIds.BNB_TESTNET].wbnb,
+                tokenB: tokenAddresses[ChainIds.BNB_TESTNET].btcb,
                 lowerPricePercentage: 100_000,
                 upperPricePercentage: 300_000,
                 percentage: 20,
             },
             {
-                tokenA: tokens[ChainIds.BNB_TESTNET].wbnb,
-                tokenB: tokens[ChainIds.BNB_TESTNET].weth,
+                tokenA: tokenAddresses[ChainIds.BNB_TESTNET].wbnb,
+                tokenB: tokenAddresses[ChainIds.BNB_TESTNET].weth,
                 lowerPricePercentage: 100_000,
                 upperPricePercentage: 300_000,
                 percentage: 20,
             },
             {
-                tokenA: tokens[ChainIds.BNB_TESTNET].wbtc,
-                tokenB: tokens[ChainIds.BNB_TESTNET].weth,
+                tokenA: tokenAddresses[ChainIds.BNB_TESTNET].btcb,
+                tokenB: tokenAddresses[ChainIds.BNB_TESTNET].weth,
                 lowerPricePercentage: 200_000,
                 upperPricePercentage: 100_000,
                 percentage: 60,
@@ -142,11 +142,11 @@ export const mockStrategies = [
         bio: 'This strategy is designed to buy crypto and hold it for a long time. It is a simple strategy that is easy to understand and execute.',
         buyInvestments: [
             {
-                token: tokens[ChainIds.BNB_TESTNET].wbtc,
+                token: tokenAddresses[ChainIds.BNB_TESTNET].btcb,
                 percentage: 50,
             },
             {
-                token: tokens[ChainIds.BNB_TESTNET].weth,
+                token: tokenAddresses[ChainIds.BNB_TESTNET].weth,
                 percentage: 50,
             },
         ],

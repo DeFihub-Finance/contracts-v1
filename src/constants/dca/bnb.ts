@@ -1,8 +1,7 @@
 import { ChainIds } from '@ryze-blockchain/ethereum'
-import { PathUniswapV3 } from '@defihub/shared'
-import { tokens } from '../tokens'
+import { PathUniswapV3, tokenAddresses } from '@defihub/shared'
 
-const bnbTokens = tokens[ChainIds.BNB]
+const bnbTokens = tokenAddresses[ChainIds.BNB]
 
 export const bnbDcaPools = [
     new PathUniswapV3(
@@ -18,7 +17,7 @@ export const bnbDcaPools = [
         bnbTokens.usdt,
         [
             {
-                token: bnbTokens.eth,
+                token: bnbTokens.weth,
                 fee: 500,
             },
         ],
@@ -141,16 +140,6 @@ export const bnbDcaPools = [
             },
         ],
     ),
-    // disabled since alpaca token looks dead
-    // new PathUniswapV3(
-    //     bnbTokens.usdt,
-    //     [
-    //         {
-    //             token: bnbTokens.alpaca,
-    //             fee: 10_000,
-    //         },
-    //     ],
-    // ),
     new PathUniswapV3(
         bnbTokens.usdt,
         [
