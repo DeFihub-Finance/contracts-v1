@@ -1,41 +1,46 @@
 import { PathUniswapV3, unwrapAddressLike } from '@defihub/shared'
-import { Chain } from '@ryze-blockchain/ethereum'
-import { bnbDcaPools } from '@src/constants/dca'
+import { Chain, BigNumber, chainRegistry } from '@ryze-blockchain/ethereum'
 import { proposeTransactions } from '@src/helpers/safe'
 import { PreparedTransactionRequest } from 'ethers'
 import hre from 'hardhat'
 import { DollarCostAverage__factory } from '@src/typechain'
-import {
-    findAddressOrFail,
-    invertPathUniswapV3,
-    sendTransaction,
-} from '@src/helpers'
-import { validateDcaPools } from '@src/helpers/validate-dca-pools'
+import { API, findAddressOrFail, invertPathUniswapV3, sendTransaction } from '@src/helpers'
+import { PoolBuilder } from '@src/helpers/PoolBuilder'
+import { bnbTestnetDcaPools } from '@src/constants'
+import { getChainId } from '@src/helpers/chain-id'
 
 const interval = (24 * 60 * 60).toString() // 24 hours
-const useMultisig = true
-const pools = [
-    ...bnbDcaPools,
-    ...bnbDcaPools.map(invertPathUniswapV3),
-]
-const minLiquidity = 25_000
 
-async function createProposal(dcaAddress: string, routerAddress: string) {
+async function getDcaContract() {
+    return DollarCostAverage__factory.connect(
+        await findAddressOrFail('DollarCostAverage'),
+        (await hre.ethers.getSigners())[0],
+    )
+}
+
+async function createProposal() {
     const chainId = Chain.parseChainIdOrFail((await hre.ethers.provider.getNetwork()).chainId)
-    const [deployer] = await hre.ethers.getSigners()
-
-    await validateDcaPools(pools, minLiquidity)
-
+    const swaps = await PoolBuilder.buildPools(new BigNumber(3_000), new BigNumber(0.015))
     const transactions: PreparedTransactionRequest[] = []
-    const dcaContract = DollarCostAverage__factory.connect(dcaAddress, deployer)
+    const dcaContract = await getDcaContract()
+    const exchanges = await API.getExchanges()
 
-    for (const pool of pools) {
+    for (const pool of swaps) {
+        // TODO router must be added to response
+        const routerAddress = exchanges.find(exchange => exchange.chainId === chainId)?.router
+
+        if (!routerAddress) {
+            console.error(`No router found for chain ${ chainId }`)
+
+            continue
+        }
+
         transactions.push(
             await dcaContract.createPool.populateTransaction(
-                await unwrapAddressLike(pool.inputToken),
-                await unwrapAddressLike(pool.outputToken),
+                await unwrapAddressLike(pool.path.inputToken),
+                await unwrapAddressLike(pool.path.outputToken),
                 routerAddress,
-                await pool.encodedPath(),
+                await pool.path.encodedPath(),
                 interval,
             ),
         )
@@ -44,9 +49,14 @@ async function createProposal(dcaAddress: string, routerAddress: string) {
     await proposeTransactions(chainId, transactions)
 }
 
-async function sendTestnetTransaction(dcaAddress: string, routerAddress: string) {
+async function sendTestnetTransaction() {
     const [deployer] = await hre.ethers.getSigners()
-    const contract = DollarCostAverage__factory.connect(dcaAddress, deployer)
+    const contract = await getDcaContract()
+    const routerAddress = await findAddressOrFail('UniswapRouterV3')
+    const pools = [
+        ...bnbTestnetDcaPools,
+        ...bnbTestnetDcaPools.map(invertPathUniswapV3),
+    ]
 
     for (const pool of pools) {
         const path = new PathUniswapV3(
@@ -76,12 +86,9 @@ async function sendTestnetTransaction(dcaAddress: string, routerAddress: string)
 }
 
 async function createPools() {
-    const dcaAddress = await findAddressOrFail('DollarCostAverage')
-    const routerAddress = await findAddressOrFail('UniswapRouterV3')
-
-    useMultisig
-        ? await createProposal(dcaAddress, routerAddress)
-        : await sendTestnetTransaction(dcaAddress, routerAddress)
+    chainRegistry[await getChainId()].testnet
+        ? await sendTestnetTransaction()
+        : await createProposal()
 }
 
 createPools()
