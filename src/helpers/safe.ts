@@ -29,7 +29,7 @@ async function convertTransactions(transactions: PreparedTransactionRequest[]) {
                 throw new Error('Invalid transaction')
 
             return {
-                to: await unwrapAddressLike(transaction.to),
+                to: getAddress(await unwrapAddressLike(transaction.to)),
                 value: transaction.value?.toString() || '0',
                 data: transaction.data,
             }

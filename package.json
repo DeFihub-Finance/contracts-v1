@@ -30,13 +30,13 @@
         "typescript": "^5.2.2"
     },
     "dependencies": {
-        "@defihub/shared": "^3.0.53",
+        "@defihub/shared": "^3.0.58",
         "@nomicfoundation/hardhat-toolbox": "^5.0.0",
         "@openzeppelin/contracts": "4.9.6",
         "@openzeppelin/contracts-upgradeable": "4.9.6",
         "@ryze-blockchain/ethereum": "2.0.0",
         "@safe-global/api-kit": "^2.3.1",
-        "@safe-global/protocol-kit": "^4.0.2",
+        "@safe-global/protocol-kit": "^3.1.1",
         "@safe-global/safe-core-sdk-types": "^4.1.0",
         "@uniswap/v2-periphery": "^1.1.0-beta.0",
         "dotenv": "^16.4.1",
