@@ -1,5 +1,5 @@
-import { Pool, Position } from '@uniswap/v3-sdk'
-import { Percent, Token } from '@uniswap/sdk-core'
+import { Pool } from '@uniswap/v3-sdk'
+import { Token } from '@uniswap/sdk-core'
 import { BigNumber, ChainIds } from '@ryze-blockchain/ethereum'
 import {
     Signer,
@@ -181,27 +181,5 @@ export class UniswapV3 {
             liquidity.toString(),
             Number(tick),
         )
-    }
-
-    // TODO move to shared
-    public static getBurnAmounts(
-        pool: Pool,
-        liquidity: bigint,
-        tickLower: bigint,
-        tickUpper: bigint,
-        slippage: BigNumber = new BigNumber(0.01), // 1%
-    ) {
-        const { amount0, amount1 } = new Position({
-            pool,
-            liquidity: liquidity.toString(),
-            tickLower: Number(tickLower),
-            tickUpper: Number(tickUpper),
-        })
-            .burnAmountsWithSlippage(new Percent(slippage.times(100).toString(), 100))
-
-        return {
-            minOutputToken0: BigInt(amount0.toString()),
-            minOutputToken1: BigInt(amount1.toString()),
-        }
     }
 }

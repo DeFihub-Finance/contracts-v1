@@ -1,4 +1,7 @@
 import { expect } from 'chai'
+import { ethers } from 'hardhat'
+import { UniswapV3 } from '@defihub/shared'
+import { ErrorDescription, Signer } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import {
     DollarCostAverage,
@@ -9,10 +12,8 @@ import {
     UniswapPositionManager,
     UniswapV3Factory,
 } from '@src/typechain'
-import { ErrorDescription, Signer } from 'ethers'
 import { runStrategy } from './fixtures/run-strategy.fixture'
-import { ethers } from 'hardhat'
-import { decodeLowLevelCallError, getEventLog, LiquidityHelpers, UniswapV3 } from '@src/helpers'
+import { decodeLowLevelCallError, getEventLog, LiquidityHelpers, UniswapV3 as UniswapV3Helpers } from '@src/helpers'
 
 // => Given an open position
 //      => When the owner of position calls closePosition
@@ -126,7 +127,7 @@ describe('StrategyManager#closePosition', () => {
             const position = await positionManagerUniV3.positions(tokenId)
 
             return UniswapV3.getBurnAmounts(
-                await UniswapV3.getPoolByFactoryContract(
+                await UniswapV3Helpers.getPoolByFactoryContract(
                     factoryUniV3,
                     position.token0,
                     position.token1,
