@@ -24,11 +24,12 @@ import {
     verify,
     findAddressOrFail,
     getImplementationSalt,
+    getChainId,
 } from '@src/helpers'
-import { ZapProtocols } from '@defihub/shared'
+import { exchangesMeta } from '@defihub/shared'
 
 interface ExchangeInitializer {
-    name: string
+    protocol: string
     swapRouter: string
 }
 
@@ -42,29 +43,17 @@ const SUBSCRIPTION_SIGNER_ADDR = '0x78dbb65d53566d27b5117532bd9aec6ae95e8db9'
 const DCA_SWAPPER_ADDR = '0xa9ce4e7429931418d15cb2d8561372e62247b4cb'
 const COMMAND_BUILDER_OPTIONS = { skip: '1' }
 
-const exchangesUniswapV2: ExchangeInitializer[] = [
-    {
-        name: ZapProtocols.UniswapV2,
-        swapRouter: '', // TODO add address
-    },
-]
-
-const exchangesUniswapV3: ExchangeInitializer[] = [
-    {
-        name: ZapProtocols.UniswapV3,
-        swapRouter: '', // TODO add address
-    },
-    {
-        name: ZapProtocols.PancakeV3,
-        swapRouter: '', // TODO add address
-    },
-]
+const exchangesUniswapV2: ExchangeInitializer[] = []
 
 async function deployProject() {
     const [deployer] = await hre.ethers.getSigners()
     const safe = await findAddressOrFail('GnosisSafe')
     const stable = TestERC20__factory.connect(await findAddressOrFail('Stablecoin'), deployer)
     const projectDeployer = await getProjectDeployer(deployer)
+    const exchangesUniswapV3 = exchangesMeta[await getChainId()]
+
+    if (!exchangesUniswapV3)
+        throw new Error('Exchanges not found')
 
     const saltBuilder = new Salt(
         vanityDeployer.matcher,
@@ -219,16 +208,16 @@ async function deployProject() {
     const zapManagerInitParams: ZapManager.InitializeParamsStruct = {
         owner: safe,
         zappersUniswapV2: exchangesUniswapV2.map(exchange => ({
-            name: exchange.name,
+            name: exchange.protocol,
             constructorParams: {
                 treasury: TREASURY_ADDR,
                 swapRouter: exchange.swapRouter,
             },
         })),
         swappersUniswapV3: exchangesUniswapV3.map(exchange => ({
-            name: exchange.name,
+            name: exchange.protocol,
             constructorParams: {
-                swapRouter: exchange.swapRouter,
+                swapRouter: exchange.router,
             },
         })),
     }
@@ -249,12 +238,12 @@ async function deployProject() {
     const zapManagerContract = ZapManager__factory.connect(zapManager.proxy, deployer)
     const zapProtocolImplementations = await Promise.all(
         [
-            ...exchangesUniswapV2.map(({ name }) => ({ name, type: ExchangeTypes.UniswapV2 })),
-            ...exchangesUniswapV3.map(({ name }) => ({ name, type: ExchangeTypes.UniswapV3 })),
+            ...exchangesUniswapV2.map(({ protocol }) => ({ protocol, type: ExchangeTypes.UniswapV2 })),
+            ...exchangesUniswapV3.map(({ protocol }) => ({ protocol, type: ExchangeTypes.UniswapV3 })),
         ].map(async exchange => ({
-            name: exchange.name,
+            protocol: exchange.protocol,
             type: exchange.type,
-            address: await zapManagerContract.protocolImplementations(exchange.name),
+            address: await zapManagerContract.protocolImplementations(exchange.protocol),
         })),
     )
 
@@ -285,7 +274,7 @@ async function deployProject() {
     ]
 
     for (const zapProtocolImplementation of zapProtocolImplementations) {
-        await saveAddress(`ZapProtocol:${ zapProtocolImplementation.name }`, zapProtocolImplementation.address)
+        await saveAddress(`ZapProtocol:${ zapProtocolImplementation.protocol }`, zapProtocolImplementation.address)
 
         await verify(
             zapProtocolImplementation.address,
