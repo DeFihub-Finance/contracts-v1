@@ -3,7 +3,7 @@ import { SubscriptionSignature } from '@src/SubscriptionSignature'
 import { StrategyManager__factory, SubscriptionManager__factory } from '@src/typechain'
 import hre from 'hardhat'
 import { ofetch } from 'ofetch'
-import { findAddressOrFail, sendTransaction } from '@src/helpers'
+import { decodeLowLevelCallError, findAddressOrFail, sendTransaction } from '@src/helpers'
 import { toKeccak256, UniswapV3 } from '@defihub/shared'
 import { mockStrategies } from '@src/constants'
 import { mockTokenWithAddress } from '@src/helpers/mock-token'
@@ -70,10 +70,10 @@ async function createMockStrategy() {
             )
         }
         catch (e) {
-            const parsedError = strategyManager.interface.parseError((e as { data: string }).data)
+            const parsedError = decodeLowLevelCallError(e)
 
             if (parsedError)
-                console.log('error sending transaction:', parsedError)
+                throw parsedError
 
             throw e
         }
