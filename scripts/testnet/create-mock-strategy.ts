@@ -53,11 +53,13 @@ async function createMockStrategy() {
                                 )
 
                                 return {
-                                    ...investment,
                                     positionManager: await findAddressOrFail('UniswapPositionManagerV3'),
                                     token0: token0.address,
                                     token1: token1.address,
                                     fee: 3000,
+                                    lowerPricePercentage: investment.lowerPricePercentage,
+                                    upperPricePercentage: investment.upperPricePercentage,
+                                    percentage: investment.percentage,
                                 }
                             }),
                         )
