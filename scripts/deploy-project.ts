@@ -162,7 +162,7 @@ async function deployProject() {
         vaultManager: vaultManager.proxy,
         liquidityManager: liquidityManager.proxy,
         buyProduct: buyProduct.proxy,
-        zapManager: vaultManager.proxy,
+        zapManager: zapManager.proxy,
         strategistPercentage: 30n,
         hotStrategistPercentage: 50n,
         maxHottestStrategies: 10n,
