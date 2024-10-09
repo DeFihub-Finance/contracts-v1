@@ -1,4 +1,3 @@
-import {  ZeroAddress } from 'ethers'
 import hre, { ethers } from 'hardhat'
 import { CommandBuilder, Salt } from 'hardhat-vanity'
 import {
@@ -9,32 +8,52 @@ import {
     VaultManager,
     ZapManager,
     ZapManager__factory,
-    UniswapV2Zapper__factory,
-    UniswapV3Zapper__factory,
+    LiquidityManager,
+    BuyProduct,
+    StrategyPositionManager__factory,
+    StrategyInvestor__factory,
+    ZapperUniswapV2__factory,
+    SwapperUniswapV3__factory,
 } from '@src/typechain'
 import {
+    vanityDeployer,
     getDeploymentInfo,
     getProjectDeployer,
     saveAddress,
-    vanityDeployer,
     sendTransaction,
     verify,
     findAddressOrFail,
+    getImplementationSalt,
+    getChainId,
 } from '@src/helpers'
+import { exchangesMeta } from '@defihub/shared'
 
-const TREASURY_ADDR: string | undefined = '0xb7f74ba999134fbb75285173856a808732d8c888' // wallet 61
-const DCA_SWAPPER_ADDR: string | undefined = '0xa9ce4e7429931418d15cb2d8561372e62247b4cb' // TODO update with backend addr defender relay
-const SUBSCRIPTION_SIGNER_ADDR: string | undefined = '0x78dbb65d53566d27b5117532bd9aec6ae95e8db9' // mm signer
+interface ExchangeInitializer {
+    protocol: string
+    swapRouter: string
+}
+
+const ExchangeTypes = {
+    UniswapV2: 'UniswapV2',
+    UniswapV3: 'UniswapV3',
+} as const
+
+const TREASURY_ADDR = '0xb7f74ba999134fbb75285173856a808732d8c888' // only use ledger or multisig
+const SUBSCRIPTION_SIGNER_ADDR = '0x78dbb65d53566d27b5117532bd9aec6ae95e8db9'
+const DCA_SWAPPER_ADDR = '0xa9ce4e7429931418d15cb2d8561372e62247b4cb'
 const COMMAND_BUILDER_OPTIONS = { skip: '1' }
+
+const exchangesUniswapV2: ExchangeInitializer[] = []
 
 async function deployProject() {
     const [deployer] = await hre.ethers.getSigners()
     const safe = await findAddressOrFail('GnosisSafe')
-    const stable = TestERC20__factory.connect(
-        await findAddressOrFail('Stablecoin'),
-        deployer,
-    )
+    const stable = TestERC20__factory.connect(await findAddressOrFail('Stablecoin'), deployer)
     const projectDeployer = await getProjectDeployer(deployer)
+    const exchangesUniswapV3 = exchangesMeta[await getChainId()]
+
+    if (!exchangesUniswapV3)
+        throw new Error('Exchanges not found')
 
     const saltBuilder = new Salt(
         vanityDeployer.matcher,
@@ -42,22 +61,45 @@ async function deployProject() {
         await projectDeployer.getAddress(),
     )
 
-    const subscriptionDeploymentInfo = await getDeploymentInfo(saltBuilder, 'SubscriptionManager')
+    // Strategy
     const strategyDeploymentInfo = await getDeploymentInfo(saltBuilder, 'StrategyManager')
-    const dcaDeploymentInfo = await getDeploymentInfo(saltBuilder, 'DollarCostAverage')
-    const vaultDeploymentInfo = await getDeploymentInfo(saltBuilder, 'VaultManager')
+    const strategyInvestorSalt = await getImplementationSalt(saltBuilder, 'StrategyInvestor')
+    const strategyPositionManagerSalt = await getImplementationSalt(saltBuilder, 'StrategyPositionManager')
+
+    await sendTransaction(
+        await projectDeployer.deployStrategyManager.populateTransaction(strategyDeploymentInfo),
+        deployer,
+    )
+    await sendTransaction(
+        await projectDeployer.deployStrategyInvestor
+            .populateTransaction(StrategyInvestor__factory.bytecode, strategyInvestorSalt),
+        deployer,
+    )
+    await sendTransaction(
+        await projectDeployer.deployStrategyPositionManager
+            .populateTransaction(StrategyPositionManager__factory.bytecode, strategyPositionManagerSalt),
+        deployer,
+    )
+
+    // Helpers
+    const subscriptionDeploymentInfo = await getDeploymentInfo(saltBuilder, 'SubscriptionManager')
     const zapManagerInfo = await getDeploymentInfo(saltBuilder, 'ZapManager')
 
     await sendTransaction(
-        await projectDeployer.deploySubscriptionManager
-            .populateTransaction(subscriptionDeploymentInfo),
+        await projectDeployer.deploySubscriptionManager.populateTransaction(subscriptionDeploymentInfo),
         deployer,
     )
     await sendTransaction(
-        await projectDeployer.deployStrategyManager
-            .populateTransaction(strategyDeploymentInfo),
+        await projectDeployer.deployZapManager.populateTransaction(zapManagerInfo),
         deployer,
     )
+
+    // Products
+    const dcaDeploymentInfo = await getDeploymentInfo(saltBuilder, 'DollarCostAverage')
+    const vaultDeploymentInfo = await getDeploymentInfo(saltBuilder, 'VaultManager')
+    const liquidityDeploymentInfo = await getDeploymentInfo(saltBuilder, 'LiquidityManager')
+    const buyProductDeploymentInfo = await getDeploymentInfo(saltBuilder, 'BuyProduct')
+
     await sendTransaction(
         await projectDeployer.deployDca
             .populateTransaction(dcaDeploymentInfo),
@@ -69,27 +111,58 @@ async function deployProject() {
         deployer,
     )
     await sendTransaction(
-        await projectDeployer.deployZapManager
-            .populateTransaction(zapManagerInfo),
+        await projectDeployer.deployLiquidityManager
+            .populateTransaction(liquidityDeploymentInfo),
+        deployer,
+    )
+    await sendTransaction(
+        await projectDeployer.deployBuyProduct
+            .populateTransaction(buyProductDeploymentInfo),
         deployer,
     )
 
+    const [
+        strategyManager,
+        strategyInvestor,
+        strategyPositionManager,
+        dca,
+        vaultManager,
+        liquidityManager,
+        buyProduct,
+        subscriptionManager,
+        zapManager,
+    ] = (await Promise.all([
+        projectDeployer.strategyManager(),
+        projectDeployer.strategyInvestor(),
+        projectDeployer.strategyPositionManager(),
+        projectDeployer.dca(),
+        projectDeployer.vaultManager(),
+        projectDeployer.liquidityManager(),
+        projectDeployer.buyProduct(),
+        projectDeployer.subscriptionManager(),
+        projectDeployer.zapManager(),
+    ]))
+
     const subscriptionManagerInitParams: SubscriptionManager.InitializeParamsStruct = {
         owner: safe,
-        treasury: TREASURY_ADDR || safe,
-        subscriptionSigner: SUBSCRIPTION_SIGNER_ADDR || safe,
-        token: await stable.getAddress(),
+        treasury: TREASURY_ADDR,
+        subscriptionSigner: SUBSCRIPTION_SIGNER_ADDR,
+        token: stable,
         pricePerMonth: ethers.parseUnits('4.69', await stable.decimals()),
     }
 
     const strategyManagerInitParams: StrategyManager.InitializeParamsStruct = {
         owner: safe,
-        treasury: TREASURY_ADDR || safe,
-        stable: await stable.getAddress(),
-        subscriptionManager: ZeroAddress,
-        dca: ZeroAddress,
-        vaultManager: ZeroAddress,
-        zapManager: ZeroAddress,
+        treasury: TREASURY_ADDR,
+        stable,
+        strategyInvestor,
+        strategyPositionManager,
+        subscriptionManager: subscriptionManager.proxy,
+        dca: dca.proxy,
+        vaultManager: vaultManager.proxy,
+        liquidityManager: liquidityManager.proxy,
+        buyProduct: buyProduct.proxy,
+        zapManager: zapManager.proxy,
         strategistPercentage: 30n,
         hotStrategistPercentage: 50n,
         maxHottestStrategies: 10n,
@@ -97,33 +170,56 @@ async function deployProject() {
 
     const dcaInitParams: DollarCostAverage.InitializeParamsStruct = {
         owner: safe,
-        treasury: TREASURY_ADDR || safe,
-        swapper: DCA_SWAPPER_ADDR || safe,
-        strategyManager: ZeroAddress,
-        subscriptionManager: ZeroAddress,
-        baseFeeBP: 70n,
+        treasury: TREASURY_ADDR,
+        swapper: DCA_SWAPPER_ADDR,
+        strategyManager: strategyManager.proxy,
+        subscriptionManager: subscriptionManager.proxy,
+        baseFeeBP: 60n,
         nonSubscriberFeeBP: 30n,
     }
 
-    const vaultManagerInit: VaultManager.InitializeParamsStruct = {
+    const vaultManagerInitParams: VaultManager.InitializeParamsStruct = {
         owner: safe,
-        treasury: TREASURY_ADDR || safe,
-        strategyManager: ZeroAddress,
-        subscriptionManager: ZeroAddress,
-        baseFeeBP: 70n,
+        treasury: TREASURY_ADDR,
+        strategyManager: strategyManager.proxy,
+        subscriptionManager: subscriptionManager.proxy,
+        baseFeeBP: 20n,
         nonSubscriberFeeBP: 30n,
     }
 
-    const zapManagerInit: ZapManager.InitializeParamsStruct = {
+    const liquidityManagerInitParams: LiquidityManager.InitializeParamsStruct = {
         owner: safe,
-        uniswapV2ZapperConstructor: {
-            treasury: TREASURY_ADDR || safe,
-            swapRouter: await findAddressOrFail('UniswapRouterV2'),
-        },
-        uniswapV3ZapperConstructor: {
-            positionManager: safe,
-            swapRouter: await findAddressOrFail('UniswapRouterV3'),
-        },
+        treasury: TREASURY_ADDR,
+        subscriptionManager: subscriptionManager.proxy,
+        strategyManager: strategyManager.proxy,
+        zapManager: zapManager.proxy,
+        baseFeeBP: 30n,
+        nonSubscriberFeeBP: 30n,
+    }
+
+    const buyProductInitParams: BuyProduct.InitializeParamsStruct = {
+        owner: safe,
+        treasury: TREASURY_ADDR,
+        subscriptionManager: subscriptionManager.proxy,
+        baseFeeBP: 30n,
+        nonSubscriberFeeBP: 30n,
+    }
+
+    const zapManagerInitParams: ZapManager.InitializeParamsStruct = {
+        owner: safe,
+        zappersUniswapV2: exchangesUniswapV2.map(exchange => ({
+            name: exchange.protocol,
+            constructorParams: {
+                treasury: TREASURY_ADDR,
+                swapRouter: exchange.swapRouter,
+            },
+        })),
+        swappersUniswapV3: exchangesUniswapV3.map(exchange => ({
+            name: exchange.protocol,
+            constructorParams: {
+                swapRouter: exchange.router,
+            },
+        })),
     }
 
     await sendTransaction(
@@ -131,61 +227,73 @@ async function deployProject() {
             subscriptionManagerInitParams,
             strategyManagerInitParams,
             dcaInitParams,
-            vaultManagerInit,
-            zapManagerInit,
+            vaultManagerInitParams,
+            liquidityManagerInitParams,
+            buyProductInitParams,
+            zapManagerInitParams,
         ),
         deployer,
     )
 
-    const subscriptionManager = await projectDeployer.subscriptionManager()
-    const strategyManager = await projectDeployer.strategyManager()
-    const dca = await projectDeployer.dca()
-    const vaultManager = await projectDeployer.vaultManager()
-    const zapManager = await projectDeployer.zapManager()
-
     const zapManagerContract = ZapManager__factory.connect(zapManager.proxy, deployer)
-    const [zapperUniV2, zapperUniV3] = await Promise.all([
-        zapManagerContract.protocolImplementations('UniswapV2'),
-        zapManagerContract.protocolImplementations('UniswapV3'),
-    ])
+    const zapProtocolImplementations = await Promise.all(
+        [
+            ...exchangesUniswapV2.map(({ protocol }) => ({ protocol, type: ExchangeTypes.UniswapV2 })),
+            ...exchangesUniswapV3.map(({ protocol }) => ({ protocol, type: ExchangeTypes.UniswapV3 })),
+        ].map(async exchange => ({
+            protocol: exchange.protocol,
+            type: exchange.type,
+            address: await zapManagerContract.protocolImplementations(exchange.protocol),
+        })),
+    )
 
-    await saveAddress('SubscriptionManager', subscriptionManager.proxy)
+    await saveAddress('StrategyInvestor', strategyInvestor)
+    await saveAddress('StrategyPositionManager', strategyPositionManager)
     await saveAddress('StrategyManager', strategyManager.proxy)
+    await saveAddress('SubscriptionManager', subscriptionManager.proxy)
+    await saveAddress('ZapManager', zapManager.proxy)
     await saveAddress('DollarCostAverage', dca.proxy)
     await saveAddress('VaultManager', vaultManager.proxy)
-    await saveAddress('ZapManager', zapManager.proxy)
-    await saveAddress('ZapperUniswapV2', zapperUniV2)
-    await saveAddress('ZapperUniswapV3', zapperUniV3)
+    await saveAddress('LiquidityManager', liquidityManager.proxy)
+    await saveAddress('BuyProduct', buyProduct.proxy)
 
     const contractAddresses = [
         subscriptionManager,
         strategyManager,
         dca,
         vaultManager,
+        liquidityManager,
+        buyProduct,
         zapManager,
     ]
 
-    const implementations = contractAddresses.map(({ implementation }) => implementation)
+    const implementations = [
+        ...contractAddresses.map(({ implementation }) => implementation),
+        strategyInvestor,
+        strategyPositionManager,
+    ]
 
-    await verify(
-        zapperUniV2,
-        [
-            {
-                treasury: TREASURY_ADDR || safe,
-                swapRouter: await UniswapV2Zapper__factory.connect(zapperUniV2, deployer).swapRouter(),
-            },
-        ],
-    )
+    for (const zapProtocolImplementation of zapProtocolImplementations) {
+        await saveAddress(`ZapProtocol:${ zapProtocolImplementation.protocol }`, zapProtocolImplementation.address)
 
-    await verify(
-        zapperUniV3,
-        [
-            {
-                positionManager: await UniswapV3Zapper__factory.connect(zapperUniV3, deployer).positionManager(),
-                swapRouter: await UniswapV3Zapper__factory.connect(zapperUniV3, deployer).swapRouter(),
-            },
-        ],
-    )
+        await verify(
+            zapProtocolImplementation.address,
+            [
+                zapProtocolImplementation.type === ExchangeTypes.UniswapV2
+                    ? {
+                        treasury: TREASURY_ADDR,
+                        swapRouter: await ZapperUniswapV2__factory
+                            .connect(zapProtocolImplementation.address, deployer)
+                            .swapRouter(),
+                    }
+                    : {
+                        swapRouter: await SwapperUniswapV3__factory
+                            .connect(zapProtocolImplementation.address, deployer)
+                            .swapRouter(),
+                    },
+            ],
+        )
+    }
 
     for (const address of implementations)
         await verify(address)

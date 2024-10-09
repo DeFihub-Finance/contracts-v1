@@ -26,7 +26,6 @@ async function createProposal() {
     const exchanges = await API.getExchanges()
 
     for (const pool of swaps) {
-        // TODO router must be added to response
         const routerAddress = exchanges.find(exchange => exchange.chainId === chainId)?.router
 
         if (!routerAddress) {
