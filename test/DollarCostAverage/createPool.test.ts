@@ -96,7 +96,7 @@ describe('DCA#createPool', () => {
         it('if poolPath[0] is different than tokenIn', async () => {
             const tx = dca.createPool(
                 stablecoin,
-                weth,
+                wbtc,
                 routerUniV3,
                 await new PathUniswapV3(
                     wbtc,
@@ -111,11 +111,11 @@ describe('DCA#createPool', () => {
         it('if poolPath[length - 1] is different than tokenOut', async () => {
             const tx = dca.createPool(
                 stablecoin,
-                weth,
+                wbtc,
                 routerUniV3,
                 await new PathUniswapV3(
                     stablecoin,
-                    [{ token: wbtc, fee: 3000 }],
+                    [{ token: weth, fee: 3000 }],
                 ).encodedPath(),
                 TWENTY_FOUR_HOURS_IN_SECONDS,
             )
@@ -126,7 +126,7 @@ describe('DCA#createPool', () => {
         it('if EOA is not owner', async () => {
             const tx = dca.connect(account0).createPool(
                 stablecoin,
-                weth,
+                wbtc,
                 routerUniV3,
                 await path.encodedPath(),
                 TWENTY_FOUR_HOURS_IN_SECONDS,

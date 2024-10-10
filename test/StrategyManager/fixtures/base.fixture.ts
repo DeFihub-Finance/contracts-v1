@@ -80,7 +80,7 @@ export async function baseStrategyManagerFixture() {
             TOKEN_OUT,
             routerUniV3,
             await path.encodedPath(),
-            60 * 60 * 24, // 24 hours in seconds
+            60 * 60 * 24 - 1, // 24 hours in seconds minus one second, we have to remove one second because it would break too many tests if the tokens were updated
         ),
 
         dca.createPool(
