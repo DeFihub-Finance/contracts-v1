@@ -69,18 +69,21 @@ contract DollarCostAverage is HubOwnable, UseFee, OnlyStrategyManager {
     mapping(uint208 => mapping(uint16 => uint)) internal endingPositionDeduction;
     // @dev poolId => swap number => accumulated ratio
     mapping(uint208 => mapping(uint16 => uint)) internal accruedSwapQuoteByPool;
+    // @dev inputToken => outputToken => interval => boolean
+    mapping(address => mapping(address => mapping(uint32 => bool))) internal existingPools;
 
     PoolInfo[] internal poolInfo;
     address public swapper;
 
-    error InvalidPoolId();
     error InvalidAmount();
     error InvalidNumberOfSwaps();
-    error TooEarlyToSwap(uint timeRemaining);
-    error NoTokensToSwap();
+    error InvalidPoolId();
     error InvalidPositionId();
     error InvalidPoolPath();
     error InvalidPoolInterval();
+    error DuplicatePool();
+    error TooEarlyToSwap(uint timeRemaining);
+    error NoTokensToSwap();
     error CallerIsNotSwapper();
 
     event PoolCreated(uint208 poolId, address inputToken, address outputToken, address router, bytes path, uint interval);
@@ -119,6 +122,11 @@ contract DollarCostAverage is HubOwnable, UseFee, OnlyStrategyManager {
     ) external virtual onlyOwner {
         if (_interval < MIN_INTERVAL)
             revert InvalidPoolInterval();
+
+        if (existingPools[_inputToken][_outputToken][_interval])
+            revert DuplicatePool();
+
+        existingPools[_inputToken][_outputToken][_interval] = true;
 
         (address firstToken, address lastToken) = extractAddresses(_path);
 
