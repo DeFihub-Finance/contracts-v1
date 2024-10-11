@@ -1,4 +1,4 @@
-import { connectors, tokenAddresses } from '@defihub/shared'
+import { connectors, stablecoins as stablecoinsByChainId, tokenAddresses } from '@defihub/shared'
 import { BigNumber, EthErrors, notEmpty } from '@ryze-blockchain/ethereum'
 import { getChainId } from '@src/helpers/chain-id'
 import { API } from '@src/helpers/API'
@@ -80,10 +80,15 @@ export class PoolBuilder {
         const pairs: PoolTokens[] = []
         const seenPairs = new Set<string>()
         const allTokens = Object.values(tokenAddresses[chainId as keyof typeof tokenAddresses])
+        const stablecoins: readonly string[] = stablecoinsByChainId[chainId as keyof typeof stablecoinsByChainId]
 
         for (const connectorToken of connectors[chainId as keyof typeof connectors]) {
             for (const genericToken of allTokens) {
                 if (connectorToken === genericToken)
+                    continue
+
+                // no need for stable => stable pools
+                if (stablecoins.includes(genericToken) && stablecoins.includes(connectorToken))
                     continue
 
                 const keyConnectorAsInput = `${ connectorToken }:${ genericToken }`
