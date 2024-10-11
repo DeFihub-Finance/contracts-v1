@@ -1,4 +1,12 @@
-import { unwrapAddressLike, PathUniswapV3, Slippage, Zapper, ZapProtocols, ERC20Priced } from '@defihub/shared'
+import {
+    unwrapAddressLike,
+    PathUniswapV3,
+    Slippage,
+    Zapper,
+    ZapProtocols,
+    ERC20Priced,
+    ZapperFunctionSignatures,
+} from '@defihub/shared'
 import { NetworkService } from '@src/NetworkService'
 import { AddressLike, BigNumberish } from 'ethers'
 import { BigNumber } from '@ryze-blockchain/ethereum'
@@ -39,7 +47,7 @@ export class UniswapV3ZapHelper {
             ZapProtocols.UniswapV3,
             inputToken.address,
             outputToken.address,
-            'swap(bytes)',
+            ZapperFunctionSignatures.SWAP,
             await Zapper.encodeSwap(inputToken.address, amount, swapBytes),
         )
     }
@@ -75,7 +83,7 @@ export class UniswapV3ZapHelper {
             ZapProtocols.UniswapV3,
             path.inputToken,
             path.outputToken,
-            'swap(bytes)',
+            ZapperFunctionSignatures.SWAP,
             await Zapper.encodeSwap(path.inputToken, amount, swapBytes),
         )
     }

@@ -7,7 +7,7 @@ import {
 } from '@src/typechain'
 import {
     getGenericDeployer,
-    getImplementationHash,
+    getImplementationSalt,
     sendTransaction,
     verify,
     findAddressOrFail,
@@ -28,7 +28,7 @@ async function deployImplementation() {
         new CommandBuilder(),
         await genericDeployer.getAddress(),
     )
-    const salt = await getImplementationHash(saltBuilder, NEW_IMPLEMENTATION_NAME)
+    const salt = await getImplementationSalt(saltBuilder, NEW_IMPLEMENTATION_NAME)
     const expectedImplementationAddress = await genericDeployer.getDeployAddress(BYTECODE, salt)
 
     await sendTransaction(await genericDeployer.deploy.populateTransaction(BYTECODE, salt), deployer)

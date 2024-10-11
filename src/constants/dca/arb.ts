@@ -1,8 +1,7 @@
 import { ChainIds } from '@ryze-blockchain/ethereum'
-import { PathUniswapV3 } from '@defihub/shared'
-import { tokens } from '../tokens'
+import { PathUniswapV3, tokenAddresses } from '@defihub/shared'
 
-const arbTokens = tokens[ChainIds.ARBITRUM]
+const arbTokens = tokenAddresses[ChainIds.ARBITRUM]
 
 export const arbitrumDcaPools = [
     new PathUniswapV3(
@@ -145,20 +144,6 @@ export const arbitrumDcaPools = [
             },
             {
                 token: arbTokens.lido,
-                fee: 3_000,
-            },
-        ],
-    ),
-    new PathUniswapV3(
-        arbTokens.usdc,
-        [
-            {
-                token: arbTokens.weth,
-                fee: 500,
-            },
-            // TODO doge not yet deployed
-            {
-                token: arbTokens.doge,
                 fee: 3_000,
             },
         ],
