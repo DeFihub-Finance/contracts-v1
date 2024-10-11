@@ -50,7 +50,11 @@ export class PoolBuilder {
                     .times(outputToken.price)
 
                 if (expectedOutputValue.lt(swapAmountMinusPriceImpact)) {
-                    console.error(`failed creating pool for: ${ inputToken.symbol } => ${ outputToken.symbol }`)
+                    const tokens = `${ inputToken.symbol } => ${ outputToken.symbol }`
+                    const amountIn = swapAmountUSD.toFixed(2)
+                    const amountOut = expectedOutputValue.toFixed(2)
+
+                    console.error(`failed creating pool for: ${ tokens } | in: ${ amountIn } | out: ${ amountOut }`)
 
                     return
                 }
