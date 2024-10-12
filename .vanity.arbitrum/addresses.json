@@ -1,0 +1,17 @@
+{
+    "GnosisSafe": "0xcd6e9cba3851f2859304ae85b2b62fa344758c1d",
+    "Stablecoin": "0xaf88d065e77c8cc2239327c5edb3a432268e5831",
+    "WrappedEthereum": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
+    "ProjectDeployer": "0x2d02c5295ccef27255c66dbd427642ca2e7ae2ae",
+    "StrategyInvestor": "0xb00b5ffdf40725c3b85bd11cb77ac79f15833226",
+    "StrategyPositionManager": "0xb00b5ffc1e8af7f8d96dab629ec3a7158e2965d7",
+    "StrategyManager": "0xb00b5ffc8c5a7c66f4376003d89ee42cc8ad58b8",
+    "SubscriptionManager": "0xb00b5ff1285482437e8ce641abee356ec5bb01d0",
+    "ZapManager": "0xb00b5ff0ab9b6fec9343ace3e625ba37e74dfe31",
+    "DollarCostAverage": "0xb00b5ff701e412253a926e764120466699151fce",
+    "VaultManager": "0xb00b5ffbfda76aca021418df5b56f3cbd506cbd6",
+    "LiquidityManager": "0xb00b5ff4d818d654712eb576328f0f5a28cf1a41",
+    "BuyProduct": "0xb00b5ff5d656a89235a2a8528948cd6690dfc639",
+    "ZapProtocol:UniswapV3": "0x46604fd0791eb8a11831001aefb1f2f249fd99b5",
+    "ZapProtocol:PancakeV3": "0x7c0631179cddf7bd8f16972f8fd54793f77fcf9f"
+}
