@@ -1,10 +1,10 @@
-import { PathUniswapV3, unwrapAddressLike } from '@defihub/shared'
+import { exchangesMeta, PathUniswapV3, unwrapAddressLike } from '@defihub/shared'
 import { Chain, BigNumber, chainRegistry } from '@ryze-blockchain/ethereum'
 import { proposeTransactions } from '@src/helpers/safe'
 import { PreparedTransactionRequest } from 'ethers'
 import hre from 'hardhat'
 import { DollarCostAverage__factory } from '@src/typechain'
-import { API, findAddressOrFail, invertPathUniswapV3, sendTransaction } from '@src/helpers'
+import { findAddressOrFail, invertPathUniswapV3, sendTransaction } from '@src/helpers'
 import { PoolBuilder } from '@src/helpers/PoolBuilder'
 import { bnbTestnetDcaPools } from '@src/constants'
 import { getChainId } from '@src/helpers/chain-id'
@@ -20,13 +20,14 @@ async function getDcaContract() {
 
 async function createProposal() {
     const chainId = Chain.parseChainIdOrFail((await hre.ethers.provider.getNetwork()).chainId)
-    const swaps = await PoolBuilder.buildPools(new BigNumber(3_000), new BigNumber(0.015))
+    const swaps = await PoolBuilder.buildPools(new BigNumber(100), new BigNumber(0.02))
     const transactions: PreparedTransactionRequest[] = []
     const dcaContract = await getDcaContract()
-    const exchanges = await API.getExchanges()
 
     for (const pool of swaps) {
-        const routerAddress = exchanges.find(exchange => exchange.chainId === chainId)?.router
+        const routerAddress = exchangesMeta[chainId]
+            ?.find(exchange => exchange.protocol === pool.protocol)
+            ?.router
 
         if (!routerAddress) {
             console.error(`No router found for chain ${ chainId }`)

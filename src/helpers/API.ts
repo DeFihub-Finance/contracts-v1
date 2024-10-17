@@ -3,7 +3,7 @@ import {
     BlockchainAccountJson,
     ERC20PricedJson,
     SwapUniswapV3,
-    SwapUniswapV3JSON, HubExchange,
+    SwapUniswapV3JSON,
 } from '@defihub/shared'
 import { ChainId } from '@ryze-blockchain/ethereum'
 import { ofetch } from 'ofetch'
@@ -39,10 +39,6 @@ export class API {
         }))
 
         return reduceTokensByAddress(tokens)
-    }
-
-    public static async getExchanges() {
-        return (await ofetch<HubExchange[]>(`${ API.defiHubApi }/exchanges`))
     }
 }
 
