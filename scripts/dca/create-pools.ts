@@ -19,10 +19,10 @@ async function getDcaContract() {
 }
 
 async function createProposal() {
-    const chainId = Chain.parseChainIdOrFail((await hre.ethers.provider.getNetwork()).chainId)
+    const chainId = await getChainId()
     const swaps = await PoolBuilder.buildPools(new BigNumber(100), new BigNumber(0.02))
-    const transactions: PreparedTransactionRequest[] = []
     const dcaContract = await getDcaContract()
+    const transactions: PreparedTransactionRequest[] = []
 
     for (const pool of swaps) {
         const routerAddress = exchangesMeta[chainId]
