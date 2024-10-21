@@ -37,14 +37,17 @@ contract StrategyStorage is UseTreasury {
         uint8 percentage;
     }
 
+    /// @notice Represents a liquidity investment in Uniswap V3, allowing bounds to be set as percentage offsets or specific ticks.
+    /// @dev When `usePercentageBounds` is true, `lowerBound` and `upperBound` are percentage offsets from the current price at the time of investment. When false, they represent actual tick values.
     struct LiquidityInvestment {
         INonfungiblePositionManager positionManager;
+        uint8 percentage;
         IERC20Upgradeable token0;
         IERC20Upgradeable token1;
-        uint24 fee;
-        int24 lowerPricePercentage;
-        int24 upperPricePercentage;
-        uint8 percentage;
+        uint24 fee; // The Uniswap V3 pool fee tier (e.g., 500, 3000, 10000)
+        bool usePercentageBounds; // Determines if bounds are percentage offsets (true) or tick values (false)
+        int24 lowerBound; // Lower bound as a percentage offset or tick value
+        int24 upperBound; // Upper bound as a percentage offset or tick value
     }
 
     struct BuyInvestment {

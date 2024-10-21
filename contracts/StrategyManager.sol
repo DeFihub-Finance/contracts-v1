@@ -148,7 +148,10 @@ contract StrategyManager is StrategyStorage, HubOwnable, ICall {
         for (uint i; i < _params.liquidityInvestments.length; ++i) {
             LiquidityInvestment memory liquidityStrategy = _params.liquidityInvestments[i];
 
-            if (liquidityStrategy.token0 >= liquidityStrategy.token1)
+            if (
+                liquidityStrategy.token0 >= liquidityStrategy.token1 ||
+                liquidityStrategy.lowerBound >= liquidityStrategy.upperBound
+            )
                 revert InvalidInvestment();
 
             _liquidityInvestmentsPerStrategy[strategyId].push(liquidityStrategy);
