@@ -53,8 +53,8 @@ export class LiquidityHelpers {
             pool,
             token0.price,
             token1.price,
-            LiquidityHelpers.parsePricePercentage(investment.lowerPricePercentage),
-            LiquidityHelpers.parsePricePercentage(investment.upperPricePercentage),
+            LiquidityHelpers.parsePricePercentage(investment.lowerBound),
+            LiquidityHelpers.parsePricePercentage(investment.upperBound),
         )
 
         const [
