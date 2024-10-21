@@ -7,7 +7,7 @@
         "test": "hardhat test",
         "compile": "hardhat compile",
         "deploy": "npx hardhat run scripts/deploy-project.ts",
-        "testnet:postdeploy": "npx hardhat run scripts/dca/create-pool.ts && npx hardhat run scripts/testnet/create-mock-strategy.ts",
+        "testnet:postdeploy": "npx hardhat run scripts/dca/create-pools.ts && npx hardhat run scripts/testnet/create-mock-strategy.ts",
         "sizes": "npx hardhat size-contracts"
     },
     "author": "",
