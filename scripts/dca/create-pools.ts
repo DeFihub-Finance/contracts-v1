@@ -1,5 +1,5 @@
 import { exchangesMeta, PathUniswapV3, unwrapAddressLike } from '@defihub/shared'
-import { Chain, BigNumber, chainRegistry } from '@ryze-blockchain/ethereum'
+import { BigNumber, chainRegistry } from '@ryze-blockchain/ethereum'
 import { proposeTransactions } from '@src/helpers/safe'
 import { PreparedTransactionRequest } from 'ethers'
 import hre from 'hardhat'
@@ -20,13 +20,13 @@ async function getDcaContract() {
 
 async function createProposal() {
     const chainId = await getChainId()
-    const swaps = await PoolBuilder.buildPools(new BigNumber(100), new BigNumber(0.02))
+    const swaps = await PoolBuilder.buildPools(new BigNumber(250), new BigNumber(0.02))
     const dcaContract = await getDcaContract()
     const transactions: PreparedTransactionRequest[] = []
 
-    for (const pool of swaps) {
+    for (const swap of swaps) {
         const routerAddress = exchangesMeta[chainId]
-            ?.find(exchange => exchange.protocol === pool.protocol)
+            ?.find(exchange => exchange.protocol === swap.protocol)
             ?.router
 
         if (!routerAddress) {
@@ -37,10 +37,10 @@ async function createProposal() {
 
         transactions.push(
             await dcaContract.createPool.populateTransaction(
-                await unwrapAddressLike(pool.path.inputToken),
-                await unwrapAddressLike(pool.path.outputToken),
+                await unwrapAddressLike(swap.path.inputToken),
+                await unwrapAddressLike(swap.path.outputToken),
                 routerAddress,
-                await pool.path.encodedPath(),
+                await swap.path.encodedPath(),
                 interval,
             ),
         )
