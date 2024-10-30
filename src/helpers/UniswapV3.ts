@@ -1,6 +1,4 @@
-import { Pool } from '@uniswap/v3-sdk'
-import { Token } from '@uniswap/sdk-core'
-import { BigNumber, ChainIds } from '@ryze-blockchain/ethereum'
+import { BigNumber } from '@ryze-blockchain/ethereum'
 import {
     Signer,
     MaxUint256,
@@ -17,8 +15,9 @@ import {
     type UniswapV3Pool,
 } from '@src/typechain'
 import { NetworkService } from '@src/NetworkService'
-import { PathUniswapV3 } from '@defihub/shared'
+import { PathUniswapV3, Pool } from '@defihub/shared'
 import { ethers } from 'hardhat'
+import { mockToken } from './mock-token'
 
 export class UniswapV3 {
     public static async getOutputTokenAmount(
@@ -141,12 +140,12 @@ export class UniswapV3 {
         ]).then(values => values.map(Number))
 
         return new Pool(
-            new Token(ChainIds.ETH, token0, token0Decimals),
-            new Token(ChainIds.ETH, token1, token1Decimals),
-            3000,
-            sqrtPriceX96.toString(),
-            liquidity.toString(),
-            Number(tick),
+            mockToken(new BigNumber(1), token0Decimals, token0), // Price dont matter
+            mockToken(new BigNumber(1), token1Decimals, token1),
+            new BigNumber(0.003), // 0.3% fee
+            sqrtPriceX96,
+            liquidity,
+            tick,
         )
     }
 
@@ -174,12 +173,12 @@ export class UniswapV3 {
         ])
 
         return new Pool(
-            new Token(ChainIds.ETH, tokenA, Number(decimalsTokenA)),
-            new Token(ChainIds.ETH, tokenB, Number(decimalsTokenB)),
-            Number(fee),
-            sqrtPriceX96.toString(),
-            liquidity.toString(),
-            Number(tick),
+            mockToken(new BigNumber(1), Number(decimalsTokenA), tokenA), // Price dont matter
+            mockToken(new BigNumber(1), Number(decimalsTokenB), tokenB),
+            new BigNumber(fee.toString()).shiftedBy(-6),
+            sqrtPriceX96,
+            liquidity,
+            tick,
         )
     }
 }
