@@ -34,7 +34,7 @@
         "@nomicfoundation/hardhat-toolbox": "^5.0.0",
         "@openzeppelin/contracts": "4.9.6",
         "@openzeppelin/contracts-upgradeable": "4.9.6",
-        "@ryze-blockchain/ethereum": "2.0.0",
+        "@ryze-blockchain/ethereum": "^2.0.12",
         "@safe-global/api-kit": "^2.3.1",
         "@safe-global/protocol-kit": "^3.1.1",
         "@safe-global/safe-core-sdk-types": "^4.1.0",
