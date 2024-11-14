@@ -6,7 +6,7 @@ import {
     DollarCostAverage__NoDeadline__factory,
 } from '@src/typechain'
 import {
-    getGenericDeployer,
+    getProjectDeployer,
     getImplementationSalt,
     sendTransaction,
     verify,
@@ -22,16 +22,16 @@ const NEW_IMPLEMENTATION_NAME = 'DollarCostAverage__NoDeadline'
 
 async function deployImplementation() {
     const [deployer] = await hre.ethers.getSigners()
-    const genericDeployer = await getGenericDeployer(deployer)
+    const projectDeployer = await getProjectDeployer(deployer)
     const saltBuilder = new Salt(
         vanityDeployer.matcher,
         new CommandBuilder(),
-        await genericDeployer.getAddress(),
+        await projectDeployer.getAddress(),
     )
     const salt = await getImplementationSalt(saltBuilder, NEW_IMPLEMENTATION_NAME)
-    const expectedImplementationAddress = await genericDeployer.getDeployAddress(BYTECODE, salt)
+    const expectedImplementationAddress = await projectDeployer.getDeployAddress(BYTECODE, salt)
 
-    await sendTransaction(await genericDeployer.deploy.populateTransaction(BYTECODE, salt), deployer)
+    await sendTransaction(await projectDeployer.deploy.populateTransaction(BYTECODE, salt), deployer)
     await verify(expectedImplementationAddress, [])
 
     return expectedImplementationAddress
