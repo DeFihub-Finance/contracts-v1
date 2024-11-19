@@ -1,4 +1,11 @@
-import { exchangesMeta, PathUniswapV3, SwapUniswapV3, TokenKeys, unwrapAddressLike } from '@defihub/shared'
+import {
+    exchangesMeta,
+    getAddressOrFail,
+    PathUniswapV3,
+    SwapUniswapV3,
+    TokenKeys,
+    unwrapAddressLike,
+} from '@defihub/shared'
 import { BigNumber, chainRegistry, notEmpty } from '@ryze-blockchain/ethereum'
 import { proposeTransactions } from '@src/helpers/safe'
 import { PreparedTransactionRequest } from 'ethers'
@@ -20,7 +27,7 @@ const selectTokens: Partial<Record<TokenKeys, string>> | undefined = {
 
 async function getDcaContract() {
     return DollarCostAverage__factory.connect(
-        await findAddressOrFail('DollarCostAverage'),
+        getAddressOrFail(await getChainId(), 'DollarCostAverage'),
         (await hre.ethers.getSigners())[0],
     )
 }
