@@ -1,4 +1,4 @@
-import { connectors, stablecoins as stablecoinsByChainId, tokenAddresses } from '@defihub/shared'
+import { connectors, stablecoins as stablecoinsByChainId, tokenAddresses as _tokenAddresses } from '@defihub/shared'
 import { BigNumber, EthErrors, notEmpty } from '@ryze-blockchain/ethereum'
 import { getChainId } from '@src/helpers/chain-id'
 import { API } from '@src/helpers/API'
@@ -13,14 +13,20 @@ export class PoolBuilder {
         swapAmountUSD: BigNumber,
         maxPriceImpactPercentage: BigNumber,
     ) {
+        const chainId = await getChainId()
+        const tokenAddressesObject = _tokenAddresses[chainId as keyof typeof _tokenAddresses]
+
+        if (!tokenAddressesObject)
+            throw new Error(EthErrors.UNSUPPORTED_CHAIN)
+
+        const tokenAddresses = Object.values(tokenAddressesObject)
+
         const [
-            chainId,
             possiblePools,
             tokensByAddress,
         ] = await Promise.all([
-            getChainId(),
-            PoolBuilder._generateAllPossibleUniquePools(),
-            PoolBuilder._getTokens(),
+            PoolBuilder._generateAllPossibleUniquePools(tokenAddresses),
+            PoolBuilder._getTokens(tokenAddresses),
         ])
 
         return (
@@ -64,26 +70,20 @@ export class PoolBuilder {
         ).filter(notEmpty)
     }
 
-    private static async _getTokens() {
+    private static async _getTokens(tokenAddresses: string[]) {
         const chainId = await getChainId()
-        // must force type because tokenAddresses uses as const
-        const addresses = tokenAddresses[chainId as keyof typeof tokenAddresses]
 
-        if (!addresses)
-            throw new Error(EthErrors.UNSUPPORTED_CHAIN)
-
-        return API.getTokens(Object.values(addresses).map(address => ({ chainId, address })))
+        return API.getTokens(tokenAddresses.map(address => ({ chainId, address })))
     }
 
-    private static async _generateAllPossibleUniquePools(): Promise<PoolTokens[]> {
+    private static async _generateAllPossibleUniquePools(tokenAddresses: string[]): Promise<PoolTokens[]> {
         const chainId = await getChainId()
         const pairs: PoolTokens[] = []
         const seenPairs = new Set<string>()
-        const allTokens = Object.values(tokenAddresses[chainId as keyof typeof tokenAddresses])
         const stablecoins: readonly string[] = stablecoinsByChainId[chainId as keyof typeof stablecoinsByChainId]
 
         for (const connectorToken of connectors[chainId as keyof typeof connectors]) {
-            for (const genericToken of allTokens) {
+            for (const genericToken of tokenAddresses) {
                 if (connectorToken === genericToken)
                     continue
 
