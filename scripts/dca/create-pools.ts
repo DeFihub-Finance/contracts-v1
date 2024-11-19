@@ -1,5 +1,5 @@
-import { exchangesMeta, PathUniswapV3, unwrapAddressLike } from '@defihub/shared'
-import { BigNumber, chainRegistry } from '@ryze-blockchain/ethereum'
+import { exchangesMeta, PathUniswapV3, SwapUniswapV3, TokenKeys, unwrapAddressLike } from '@defihub/shared'
+import { BigNumber, chainRegistry, notEmpty } from '@ryze-blockchain/ethereum'
 import { proposeTransactions } from '@src/helpers/safe'
 import { PreparedTransactionRequest } from 'ethers'
 import hre from 'hardhat'
@@ -10,6 +10,13 @@ import { bnbTestnetDcaPools } from '@src/constants'
 import { getChainId } from '@src/helpers/chain-id'
 
 const interval = (24 * 60 * 60).toString() // 24 hours
+const selectTokens: Partial<Record<TokenKeys, string>> | undefined = {
+    ape: '0x7f9fbf9bdd3f4105c478b996b648fe6e828a1e98',
+    w: '0xb0ffa8000886e57f86dd5264b9582b2ad87b2b91',
+    cake: '0x1b896893dfc86bb67cf57767298b9073d2c1ba2c',
+    comp: '0x354a6da3fcde098f8389cad84b0182725c6c91de',
+    aave: '0xba5ddd1f9d7f570dc94a51479a000e3bce967196',
+}
 
 async function getDcaContract() {
     return DollarCostAverage__factory.connect(
@@ -18,13 +25,32 @@ async function getDcaContract() {
     )
 }
 
+async function filterSwaps(swaps: SwapUniswapV3[]) {
+    if (!selectTokens)
+        return swaps
+
+    const selectedTokensArray = Object.values(selectTokens)
+
+    return (await Promise.all(
+        swaps.map(async swap => {
+            const inputToken = await unwrapAddressLike(swap.path.inputToken)
+            const outputToken = await unwrapAddressLike(swap.path.outputToken)
+
+            return selectedTokensArray.includes(inputToken) || selectedTokensArray.includes(outputToken)
+                ? swap
+                : null
+        }),
+    )).filter(notEmpty)
+}
+
 async function createProposal() {
     const chainId = await getChainId()
     const swaps = await PoolBuilder.buildPools(new BigNumber(250), new BigNumber(0.02))
+    const filteredSwaps = await filterSwaps(swaps)
     const dcaContract = await getDcaContract()
     const transactions: PreparedTransactionRequest[] = []
 
-    for (const swap of swaps) {
+    for (const swap of filteredSwaps) {
         const routerAddress = exchangesMeta[chainId]
             ?.find(exchange => exchange.protocol === swap.protocol)
             ?.router
