@@ -55,6 +55,7 @@ export class LiquidityHelpers {
             token1.price,
             LiquidityHelpers.parsePricePercentage(investment.lowerBound),
             LiquidityHelpers.parsePricePercentage(investment.upperBound),
+            true,
         )
 
         const [
