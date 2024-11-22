@@ -241,6 +241,7 @@ describe('LiquidityManager#invest', () => {
             token1.price,
             TEN_PERCENT.negated(), // 10% lower
             TEN_PERCENT, // 10% upper
+            true,
         )
 
         const [
@@ -285,6 +286,7 @@ describe('LiquidityManager#invest', () => {
             token1.price,
             TEN_PERCENT.negated(), // 10% lower
             TEN_PERCENT, // 10% upper
+            true,
         )
 
         const [
@@ -329,6 +331,7 @@ describe('LiquidityManager#invest', () => {
             token1.price,
             TEN_PERCENT.negated(), // 10% lower
             new BigNumber(-0.05), // -5% upper
+            true,
         )
 
         const [
@@ -377,6 +380,7 @@ describe('LiquidityManager#invest', () => {
             token1.price,
             TEN_PERCENT.negated(),
             TEN_PERCENT,
+            true,
         )
 
         const [
@@ -431,6 +435,7 @@ describe('LiquidityManager#invest', () => {
             token1.price,
             TEN_PERCENT.negated(),
             TEN_PERCENT,
+            true,
         )
 
         const [
