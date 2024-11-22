@@ -17,13 +17,7 @@ import { bnbTestnetDcaPools } from '@src/constants'
 import { getChainId } from '@src/helpers/chain-id'
 
 const interval = (24 * 60 * 60).toString() // 24 hours
-const selectTokens: Partial<Record<TokenKeys, string>> | undefined = {
-    ape: '0x7f9fbf9bdd3f4105c478b996b648fe6e828a1e98',
-    w: '0xb0ffa8000886e57f86dd5264b9582b2ad87b2b91',
-    cake: '0x1b896893dfc86bb67cf57767298b9073d2c1ba2c',
-    comp: '0x354a6da3fcde098f8389cad84b0182725c6c91de',
-    aave: '0xba5ddd1f9d7f570dc94a51479a000e3bce967196',
-}
+const selectTokens: Partial<Record<TokenKeys, string>> | undefined = undefined
 
 async function getDcaContract() {
     return DollarCostAverage__factory.connect(
