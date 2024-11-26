@@ -22,11 +22,10 @@ import {
     saveAddress,
     sendTransaction,
     verify,
-    findAddressOrFail,
     getImplementationSalt,
     getChainId,
 } from '@src/helpers'
-import { exchangesMeta } from '@defihub/shared'
+import { exchangesMeta, getAddressOrFail } from '@defihub/shared'
 
 interface ExchangeInitializer {
     protocol: string
@@ -47,12 +46,13 @@ const exchangesUniswapV2: ExchangeInitializer[] = []
 
 async function deployProject() {
     const [deployer] = await hre.ethers.getSigners()
-    const safe = await findAddressOrFail('GnosisSafe')
-    const stable = TestERC20__factory.connect(await findAddressOrFail('Stablecoin'), deployer)
+    const chainId = await getChainId()
+    const safe = getAddressOrFail(chainId, 'GnosisSafe')
+    const stable = TestERC20__factory.connect(getAddressOrFail(chainId, 'Stablecoin'), deployer)
     const projectDeployer = await getProjectDeployer(deployer)
     const exchangesUniswapV3 = exchangesMeta[await getChainId()]
 
-    if (!exchangesUniswapV3)
+    if (!exchangesUniswapV3?.length)
         throw new Error('Exchanges not found')
 
     const saltBuilder = new Salt(
