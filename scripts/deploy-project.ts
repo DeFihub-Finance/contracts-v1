@@ -24,8 +24,10 @@ import {
     verify,
     getImplementationSalt,
     getChainId,
+    findAddressOrFail,
 } from '@src/helpers'
 import { exchangesMeta, getAddressOrFail } from '@defihub/shared'
+import { upgrade } from '@src/helpers/upgrade'
 
 interface ExchangeInitializer {
     protocol: string
@@ -304,6 +306,8 @@ async function deployProject() {
             [address.implementation, '0x'],
         )
     }
+
+    await upgrade(await findAddressOrFail('DollarCostAverage'), 'DollarCostAverage__NoDeadline')
 }
 
 deployProject()
