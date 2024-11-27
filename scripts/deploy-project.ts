@@ -89,7 +89,8 @@ async function deployProject() {
     const strategyPositionManagerSalt = await getImplementationSalt(saltBuilder, 'StrategyPositionManager')
 
     await sendTransaction(
-        await projectDeployer.deployStrategyManager.populateTransaction(strategyDeploymentInfo),
+        await projectDeployer.deployStrategyManager
+            .populateTransaction(strategyDeploymentInfo),
         deployer,
     )
     await sendTransaction(
