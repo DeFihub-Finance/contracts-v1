@@ -25,6 +25,7 @@ import {
     getImplementationSalt,
     getChainId,
     findAddressOrFail,
+    getSigner,
 } from '@src/helpers'
 import { exchangesMeta, getAddressOrFail } from '@defihub/shared'
 import { upgrade } from '@src/helpers/upgrade'
@@ -47,7 +48,7 @@ const COMMAND_BUILDER_OPTIONS = { skip: '1' }
 const exchangesUniswapV2: ExchangeInitializer[] = []
 
 async function deployProject() {
-    const [deployer] = await hre.ethers.getSigners()
+    const deployer = await getSigner()
     const chainId = await getChainId()
     const safe = getAddressOrFail(chainId, 'GnosisSafe')
     const stable = TestERC20__factory.connect(getAddressOrFail(chainId, 'Stablecoin'), deployer)
