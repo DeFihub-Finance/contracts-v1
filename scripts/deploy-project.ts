@@ -1,4 +1,3 @@
-import hre, { ethers } from 'hardhat'
 import { CommandBuilder, Salt } from 'hardhat-vanity'
 import {
     TestERC20__factory,
@@ -27,8 +26,10 @@ import {
     findAddressOrFail,
     getSigner,
 } from '@src/helpers'
-import { exchangesMeta, getAddressOrFail } from '@defihub/shared'
+import { exchangesMeta, mainStablecoins, safes } from '@defihub/shared'
 import { upgrade } from '@src/helpers/upgrade'
+import { ChainId, EthErrors } from '@ryze-blockchain/ethereum'
+import { parseUnits } from 'ethers'
 
 interface ExchangeInitializer {
     protocol: string
@@ -47,11 +48,29 @@ const COMMAND_BUILDER_OPTIONS = { skip: '1' }
 
 const exchangesUniswapV2: ExchangeInitializer[] = []
 
+function getSafe(chainId: ChainId) {
+    const safe = safes[chainId as keyof typeof safes]
+
+    if (!safe)
+        throw new Error(EthErrors.UNSUPPORTED_CHAIN)
+
+    return safe
+}
+
+function getStablecoin(chainId: ChainId) {
+    const stablecoin = mainStablecoins[chainId as keyof typeof mainStablecoins]
+
+    if (!stablecoin)
+        throw new Error(EthErrors.UNSUPPORTED_CHAIN)
+
+    return stablecoin
+}
+
 async function deployProject() {
     const deployer = await getSigner()
     const chainId = await getChainId()
-    const safe = getAddressOrFail(chainId, 'GnosisSafe')
-    const stable = TestERC20__factory.connect(getAddressOrFail(chainId, 'Stablecoin'), deployer)
+    const safe = getSafe(chainId)
+    const stable = TestERC20__factory.connect(getStablecoin(chainId), deployer)
     const projectDeployer = await getProjectDeployer(deployer)
     const exchangesUniswapV3 = exchangesMeta[await getChainId()]
 
@@ -151,7 +170,7 @@ async function deployProject() {
         treasury: TREASURY_ADDR,
         subscriptionSigner: SUBSCRIPTION_SIGNER_ADDR,
         token: stable,
-        pricePerMonth: ethers.parseUnits('4.69', await stable.decimals()),
+        pricePerMonth: parseUnits('4.69', await stable.decimals()),
     }
 
     const strategyManagerInitParams: StrategyManager.InitializeParamsStruct = {
