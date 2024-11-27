@@ -71,12 +71,12 @@ async function deployProject() {
     const chainId = await getChainId()
     const safe = getSafe(chainId)
     const stable = TestERC20__factory.connect(getStablecoin(chainId), deployer)
-    const projectDeployer = await getProjectDeployer(deployer)
     const exchangesUniswapV3 = exchangesMeta[await getChainId()]
 
     if (!exchangesUniswapV3?.length)
         throw new Error('Exchanges not found')
 
+    const projectDeployer = await getProjectDeployer(deployer)
     const saltBuilder = new Salt(
         vanityDeployer.matcher,
         new CommandBuilder(COMMAND_BUILDER_OPTIONS),
