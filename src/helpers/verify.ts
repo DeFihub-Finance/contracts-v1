@@ -1,6 +1,12 @@
 import hre from 'hardhat'
 import { sleep } from '@ryze-blockchain/ethereum'
 
+const pendingTransactionMessages = [
+    'has no bytecode',
+    'does not have bytecode',
+    'transaction indexing still in progress',
+]
+
 export async function verify<T>(
     address: string,
     constructorArguments: T[] = [],
@@ -14,9 +20,9 @@ export async function verify<T>(
         })
     }
     catch (e) {
-        const message = (e as Error).message
+        const errorMessage = (e as Error).message
 
-        if (message.includes('has no bytecode') || message.includes('does not have bytecode')) {
+        if (pendingTransactionMessages.some(pendingTransactionMessage => errorMessage.includes(pendingTransactionMessage))) {
             console.log('pending contract index')
 
             await sleep(3_000)
