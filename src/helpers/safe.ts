@@ -1,18 +1,9 @@
-import { safes, unwrapAddressLike } from '@defihub/shared'
-import { ChainId, EthErrors, notEmpty } from '@ryze-blockchain/ethereum'
+import { getSafeOrFail, unwrapAddressLike } from '@defihub/shared'
+import { ChainId, notEmpty } from '@ryze-blockchain/ethereum'
 import Safe, { EthersAdapter } from '@safe-global/protocol-kit'
 import { getAddress, ethers, PreparedTransactionRequest } from 'ethers'
 import SafeApiKit from '@safe-global/api-kit'
 import { getSigner } from '@src/helpers/deployment-helpers'
-
-export function getSafeAddress(chainId: ChainId) {
-    const safe = safes[chainId as keyof typeof safes]
-
-    if (!safe)
-        throw new Error(EthErrors.UNSUPPORTED_CHAIN)
-
-    return safe
-}
 
 async function getSafe(chainId: ChainId) {
     const signer = await getSigner()
@@ -25,7 +16,7 @@ async function getSafe(chainId: ChainId) {
         signer,
         safe: await Safe.create({
             ethAdapter,
-            safeAddress: getAddress(getSafeAddress(chainId)),
+            safeAddress: getAddress(getSafeOrFail(chainId)),
         }),
         apiSdk: new SafeApiKit({ chainId: BigInt(chainId) }),
     }
@@ -64,7 +55,7 @@ export async function proposeTransactions(
         .signHash(safeTxHash)
 
     await apiSdk.proposeTransaction({
-        safeAddress: getAddress(getSafeAddress(chainId)),
+        safeAddress: getAddress(getSafeOrFail(chainId)),
         safeTransactionData: safeTransaction.data,
         safeTxHash,
         senderAddress: getAddress(await signer.getAddress()),

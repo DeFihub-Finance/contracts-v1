@@ -26,11 +26,9 @@ import {
     findAddressOrFail,
     getSigner,
 } from '@src/helpers'
-import { exchangesMeta, mainStablecoins } from '@defihub/shared'
+import { exchangesMeta, getMainStablecoinOrFail, getSafeOrFail } from '@defihub/shared'
 import { upgrade } from '@src/helpers/upgrade'
-import { ChainId, EthErrors } from '@ryze-blockchain/ethereum'
 import { parseUnits } from 'ethers'
-import { getSafeAddress } from '@src/helpers/safe'
 
 interface ExchangeInitializer {
     protocol: string
@@ -49,20 +47,11 @@ const COMMAND_BUILDER_OPTIONS = { skip: '1' }
 
 const exchangesUniswapV2: ExchangeInitializer[] = []
 
-function getStablecoin(chainId: ChainId) {
-    const stablecoin = mainStablecoins[chainId as keyof typeof mainStablecoins]
-
-    if (!stablecoin)
-        throw new Error(EthErrors.UNSUPPORTED_CHAIN)
-
-    return stablecoin
-}
-
 async function deployProject() {
     const deployer = await getSigner()
     const chainId = await getChainId()
-    const safe = getSafeAddress(chainId)
-    const stable = TestERC20__factory.connect(getStablecoin(chainId), deployer)
+    const safe = getSafeOrFail(chainId)
+    const stable = TestERC20__factory.connect(getMainStablecoinOrFail(chainId), deployer)
     const exchangesUniswapV3 = exchangesMeta[await getChainId()]
 
     if (!exchangesUniswapV3?.length)
