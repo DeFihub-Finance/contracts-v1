@@ -11,8 +11,7 @@ import { proposeTransactions } from '@src/helpers/safe'
 import { PreparedTransactionRequest } from 'ethers'
 import hre from 'hardhat'
 import { DollarCostAverage__factory } from '@src/typechain'
-import { getChainId, findAddressOrFail, getSigner, invertPathUniswapV3, sendTransaction } from '@src/helpers'
-import { PoolBuilder } from '@src/helpers/PoolBuilder'
+import { getChainId, findAddressOrFail, getSigner, invertPathUniswapV3, sendTransaction, PoolBuilder } from '@src/helpers'
 import { bnbTestnetDcaPools } from '@src/constants'
 
 const interval = (24 * 60 * 60).toString() // 24 hours
