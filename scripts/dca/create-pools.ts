@@ -11,10 +11,9 @@ import { proposeTransactions } from '@src/helpers/safe'
 import { PreparedTransactionRequest } from 'ethers'
 import hre from 'hardhat'
 import { DollarCostAverage__factory } from '@src/typechain'
-import { findAddressOrFail, invertPathUniswapV3, sendTransaction } from '@src/helpers'
+import { getChainId, findAddressOrFail, getSigner, invertPathUniswapV3, sendTransaction } from '@src/helpers'
 import { PoolBuilder } from '@src/helpers/PoolBuilder'
 import { bnbTestnetDcaPools } from '@src/constants'
-import { getChainId } from '@src/helpers/chain-id'
 
 const interval = (24 * 60 * 60).toString() // 24 hours
 const selectTokens: Partial<Record<TokenKeys, string>> | undefined = undefined
@@ -22,7 +21,7 @@ const selectTokens: Partial<Record<TokenKeys, string>> | undefined = undefined
 async function getDcaContract() {
     return DollarCostAverage__factory.connect(
         getAddressOrFail(await getChainId(), 'DollarCostAverage'),
-        (await hre.ethers.getSigners())[0],
+        await getSigner(),
     )
 }
 
