@@ -94,57 +94,67 @@ contract StrategyInvestor is StrategyStorage {
         if (_params.strategyId > _strategies.length)
             revert StrategyUnavailable();
 
-        Strategy storage strategy = _strategies[_params.strategyId];
+        _invest(
+            _params,
+            _pullFunds(
+                PullFundsParams({
+                    inputToken: _params.inputToken,
+                    inputAmount: _params.inputAmount,
+                    inputTokenSwap: _params.inputTokenSwap
+                })
+            )
+        );
+    }
 
-        uint remainingAmount = _collectFees(
+    function _invest(
+        InvestParams memory _investParams,
+        uint stableAmount
+    ) internal {
+        Strategy storage strategy = _strategies[_investParams.strategyId];
+
+        uint stableAmountAfterFees = _collectFees(
             CollectFeesParams({
-                strategyId: _params.strategyId,
-                stableAmount: _pullFunds(
-                    PullFundsParams({
-                        inputToken: _params.inputToken,
-                        inputAmount: _params.inputAmount,
-                        inputTokenSwap: _params.inputTokenSwap
-                    })
-                ),
-                investorPermit: _params.investorPermit,
-                strategistPermit: _params.strategistPermit
+                strategyId: _investParams.strategyId,
+                stableAmount: stableAmount,
+                investorPermit: _investParams.investorPermit,
+                strategistPermit: _investParams.strategistPermit
             })
         );
 
         uint[] memory dcaPositionIds = _investInDca(
             DcaInvestParams({
-                dcaInvestments: _dcaInvestmentsPerStrategy[_params.strategyId],
+                dcaInvestments: _dcaInvestmentsPerStrategy[_investParams.strategyId],
                 inputToken: stable,
-                amount: remainingAmount,
-                swaps: _params.dcaSwaps
+                amount: stableAmountAfterFees,
+                swaps: _investParams.dcaSwaps
             })
         );
 
         VaultPosition[] memory vaultPositions = _investInVaults(
             VaultInvestParams({
-                vaultInvestments: _vaultInvestmentsPerStrategy[_params.strategyId],
+                vaultInvestments: _vaultInvestmentsPerStrategy[_investParams.strategyId],
                 inputToken: stable,
-                amount: remainingAmount,
-                swaps: _params.vaultSwaps
+                amount: stableAmountAfterFees,
+                swaps: _investParams.vaultSwaps
             })
         );
 
         LiquidityPosition[] memory liquidityPositions = _investInLiquidity(
             LiquidityInvestParams({
-                investments: _liquidityInvestmentsPerStrategy[_params.strategyId],
+                investments: _liquidityInvestmentsPerStrategy[_investParams.strategyId],
                 inputToken: stable,
-                amount: remainingAmount,
+                amount: stableAmountAfterFees,
                 liquidityTotalPercentage: strategy.percentages[PRODUCT_LIQUIDITY],
-                zaps: _params.liquidityZaps
+                zaps: _investParams.liquidityZaps
             })
         );
 
         BuyPosition[] memory buyPositions = _investInToken(
             BuyInvestParams({
-                investments: _buyInvestmentsPerStrategy[_params.strategyId],
+                investments: _buyInvestmentsPerStrategy[_investParams.strategyId],
                 inputToken: stable,
-                amount: remainingAmount,
-                swaps: _params.buySwaps
+                amount: stableAmountAfterFees,
+                swaps: _investParams.buySwaps
             })
         );
 
@@ -152,7 +162,7 @@ contract StrategyInvestor is StrategyStorage {
 
         Position storage position = _positions[msg.sender].push();
 
-        position.strategyId = _params.strategyId;
+        position.strategyId = _investParams.strategyId;
         _dcaPositionsPerPosition[msg.sender][positionId] = dcaPositionIds;
 
         for (uint i; i < vaultPositions.length; ++i)
@@ -166,11 +176,11 @@ contract StrategyInvestor is StrategyStorage {
 
         emit PositionCreated(
             msg.sender,
-            _params.strategyId,
+            _investParams.strategyId,
             positionId,
-            address(_params.inputToken),
-            _params.inputAmount,
-            remainingAmount,
+            address(_investParams.inputToken),
+            _investParams.inputAmount,
+            stableAmountAfterFees,
             dcaPositionIds,
             vaultPositions,
             liquidityPositions,
