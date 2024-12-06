@@ -70,7 +70,7 @@ contract ZapManager is HubOwnable, ICall {
         transferOwnership(_params.owner);
     }
 
-    function callProtocol(ProtocolCall memory _protocolCall) public {
+    function callProtocol(ProtocolCall memory _protocolCall) public payable virtual {
         address protocolAddr = protocolImplementations[_protocolCall.protocolName];
 
         if (protocolAddr == address(0))
