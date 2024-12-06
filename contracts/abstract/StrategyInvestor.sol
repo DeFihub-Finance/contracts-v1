@@ -60,17 +60,16 @@ contract StrategyInvestor is StrategyStorage {
     }
 
     struct PullFundsParams {
-        uint strategyId;
         IERC20Upgradeable inputToken;
         uint inputAmount;
         bytes inputTokenSwap;
-        SubscriptionManager.Permit investorPermit;
-        SubscriptionManager.Permit strategistPermit;
     }
 
-    struct PullFundsResult {
-        uint remainingAmount;
-        uint strategistFee;
+    struct CollectFeesParams {
+        uint strategyId;
+        uint stableAmount;
+        SubscriptionManager.Permit investorPermit;
+        SubscriptionManager.Permit strategistPermit;
     }
 
     /**
@@ -97,12 +96,16 @@ contract StrategyInvestor is StrategyStorage {
 
         Strategy storage strategy = _strategies[_params.strategyId];
 
-        PullFundsResult memory pullFundsResult = _pullFunds(
-            PullFundsParams({
+        uint remainingAmount = _collectFees(
+            CollectFeesParams({
                 strategyId: _params.strategyId,
-                inputToken: _params.inputToken,
-                inputAmount: _params.inputAmount,
-                inputTokenSwap: _params.inputTokenSwap,
+                stableAmount: _pullFunds(
+                    PullFundsParams({
+                        inputToken: _params.inputToken,
+                        inputAmount: _params.inputAmount,
+                        inputTokenSwap: _params.inputTokenSwap
+                    })
+                ),
                 investorPermit: _params.investorPermit,
                 strategistPermit: _params.strategistPermit
             })
@@ -112,7 +115,7 @@ contract StrategyInvestor is StrategyStorage {
             DcaInvestParams({
                 dcaInvestments: _dcaInvestmentsPerStrategy[_params.strategyId],
                 inputToken: stable,
-                amount: pullFundsResult.remainingAmount,
+                amount: remainingAmount,
                 swaps: _params.dcaSwaps
             })
         );
@@ -121,7 +124,7 @@ contract StrategyInvestor is StrategyStorage {
             VaultInvestParams({
                 vaultInvestments: _vaultInvestmentsPerStrategy[_params.strategyId],
                 inputToken: stable,
-                amount: pullFundsResult.remainingAmount,
+                amount: remainingAmount,
                 swaps: _params.vaultSwaps
             })
         );
@@ -130,7 +133,7 @@ contract StrategyInvestor is StrategyStorage {
             LiquidityInvestParams({
                 investments: _liquidityInvestmentsPerStrategy[_params.strategyId],
                 inputToken: stable,
-                amount: pullFundsResult.remainingAmount,
+                amount: remainingAmount,
                 liquidityTotalPercentage: strategy.percentages[PRODUCT_LIQUIDITY],
                 zaps: _params.liquidityZaps
             })
@@ -140,7 +143,7 @@ contract StrategyInvestor is StrategyStorage {
             BuyInvestParams({
                 investments: _buyInvestmentsPerStrategy[_params.strategyId],
                 inputToken: stable,
-                amount: pullFundsResult.remainingAmount,
+                amount: remainingAmount,
                 swaps: _params.buySwaps
             })
         );
@@ -167,7 +170,7 @@ contract StrategyInvestor is StrategyStorage {
             positionId,
             address(_params.inputToken),
             _params.inputAmount,
-            pullFundsResult.remainingAmount,
+            remainingAmount,
             dcaPositionIds,
             vaultPositions,
             liquidityPositions,
@@ -327,27 +330,30 @@ contract StrategyInvestor is StrategyStorage {
 
     function _pullFunds(
         PullFundsParams memory _params
-    ) internal virtual returns (
-        PullFundsResult memory
-    ) {
-        Strategy storage strategy = _strategies[_params.strategyId];
-
-        bool strategistSubscribed = subscriptionManager.isSubscribed(strategy.creator, _params.strategistPermit);
-        bool userSubscribed = subscriptionManager.isSubscribed(msg.sender, _params.investorPermit);
+    ) internal virtual returns (uint collectedAmount) {
         uint initialInputTokenBalance = _params.inputToken.balanceOf(address(this));
 
         _params.inputToken.safeTransferFrom(msg.sender, address(this), _params.inputAmount);
 
-        uint stableAmount = ZapLib.zap(
+        return ZapLib.zap(
             zapManager,
             _params.inputTokenSwap,
             _params.inputToken,
             stable,
             _params.inputToken.balanceOf(address(this)) - initialInputTokenBalance
         );
+    }
+
+    function _collectFees(
+        CollectFeesParams memory _params
+    ) internal virtual returns (uint remainingAmount) {
+        Strategy storage strategy = _strategies[_params.strategyId];
+
+        bool strategistSubscribed = subscriptionManager.isSubscribed(strategy.creator, _params.strategistPermit);
+        bool userSubscribed = subscriptionManager.isSubscribed(msg.sender, _params.investorPermit);
 
         // Divided by multiplier 10_000 (fee percentage) * 100 (strategy percentage per investment) = 1M
-        uint totalFee = stableAmount * (
+        uint totalFee = _params.stableAmount * (
             _getProductFee(strategy.percentages[PRODUCT_DCA], dca, userSubscribed)
             + _getProductFee(strategy.percentages[PRODUCT_VAULTS], vaultManager, userSubscribed)
             + _getProductFee(strategy.percentages[PRODUCT_LIQUIDITY], liquidityManager, userSubscribed)
@@ -375,10 +381,7 @@ contract StrategyInvestor is StrategyStorage {
 
         emit Fee(msg.sender, treasury, protocolFee, abi.encode(_params.strategyId));
 
-        return PullFundsResult(
-            stableAmount - (protocolFee + strategistFee),
-            strategistFee
-        );
+        return _params.stableAmount - totalFee;
     }
 
     function _getProductFee(
