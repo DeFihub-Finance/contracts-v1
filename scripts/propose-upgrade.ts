@@ -12,6 +12,8 @@ import {
     verify,
     findAddressOrFail,
     vanityDeployer,
+    getChainId,
+    getSigner,
 } from '@src/helpers'
 import { CommandBuilder, Salt } from 'hardhat-vanity'
 
@@ -21,7 +23,7 @@ const PROXY_NAME = 'DollarCostAverage'
 const NEW_IMPLEMENTATION_NAME = 'DollarCostAverage__NoDeadline'
 
 async function deployImplementation() {
-    const [deployer] = await hre.ethers.getSigners()
+    const deployer = await getSigner()
     const projectDeployer = await getProjectDeployer(deployer)
     const saltBuilder = new Salt(
         vanityDeployer.matcher,
@@ -38,8 +40,8 @@ async function deployImplementation() {
 }
 
 async function proposeUpgrade() {
-    const chainId = Chain.parseChainIdOrFail((await hre.ethers.provider.getNetwork()).chainId)
-    const [deployer] = await hre.ethers.getSigners()
+    const chainId = await getChainId()
+    const deployer = await getSigner()
     const proxy = await findAddressOrFail(PROXY_NAME)
     const implementation = await deployImplementation()
 

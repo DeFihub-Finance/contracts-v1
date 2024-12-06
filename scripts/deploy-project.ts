@@ -1,4 +1,3 @@
-import hre, { ethers } from 'hardhat'
 import { CommandBuilder, Salt } from 'hardhat-vanity'
 import {
     TestERC20__factory,
@@ -22,11 +21,14 @@ import {
     saveAddress,
     sendTransaction,
     verify,
-    findAddressOrFail,
     getImplementationSalt,
     getChainId,
+    findAddressOrFail,
+    getSigner,
 } from '@src/helpers'
-import { exchangesMeta } from '@defihub/shared'
+import { exchangesMeta, getMainStablecoinOrFail, getSafeOrFail } from '@defihub/shared'
+import { upgrade } from '@src/helpers/upgrade'
+import { parseUnits } from 'ethers'
 
 interface ExchangeInitializer {
     protocol: string
@@ -46,15 +48,16 @@ const COMMAND_BUILDER_OPTIONS = { skip: '1' }
 const exchangesUniswapV2: ExchangeInitializer[] = []
 
 async function deployProject() {
-    const [deployer] = await hre.ethers.getSigners()
-    const safe = await findAddressOrFail('GnosisSafe')
-    const stable = TestERC20__factory.connect(await findAddressOrFail('Stablecoin'), deployer)
-    const projectDeployer = await getProjectDeployer(deployer)
+    const deployer = await getSigner()
+    const chainId = await getChainId()
+    const safe = getSafeOrFail(chainId)
+    const stable = TestERC20__factory.connect(getMainStablecoinOrFail(chainId), deployer)
     const exchangesUniswapV3 = exchangesMeta[await getChainId()]
 
-    if (!exchangesUniswapV3)
+    if (!exchangesUniswapV3?.length)
         throw new Error('Exchanges not found')
 
+    const projectDeployer = await getProjectDeployer(deployer)
     const saltBuilder = new Salt(
         vanityDeployer.matcher,
         new CommandBuilder(COMMAND_BUILDER_OPTIONS),
@@ -67,7 +70,8 @@ async function deployProject() {
     const strategyPositionManagerSalt = await getImplementationSalt(saltBuilder, 'StrategyPositionManager')
 
     await sendTransaction(
-        await projectDeployer.deployStrategyManager.populateTransaction(strategyDeploymentInfo),
+        await projectDeployer.deployStrategyManager
+            .populateTransaction(strategyDeploymentInfo),
         deployer,
     )
     await sendTransaction(
@@ -148,7 +152,7 @@ async function deployProject() {
         treasury: TREASURY_ADDR,
         subscriptionSigner: SUBSCRIPTION_SIGNER_ADDR,
         token: stable,
-        pricePerMonth: ethers.parseUnits('4.69', await stable.decimals()),
+        pricePerMonth: parseUnits('4.69', await stable.decimals()),
     }
 
     const strategyManagerInitParams: StrategyManager.InitializeParamsStruct = {
@@ -304,6 +308,8 @@ async function deployProject() {
             [address.implementation, '0x'],
         )
     }
+
+    await upgrade(await findAddressOrFail('DollarCostAverage'), 'DollarCostAverage__NoDeadline')
 }
 
 deployProject()

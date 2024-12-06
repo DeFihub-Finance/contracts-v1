@@ -9,6 +9,10 @@ export const vanityDeployer = new VanityDeployer({
     endsWith: process.env.ENDS_WITH,
 })
 
+export async function getSigner() {
+    return (await hre.ethers.getSigners())[0]
+}
+
 export async function getProjectDeployer(deployer: Signer) {
     const projectDeployerAddress = await Storage.findAddress('ProjectDeployer')
         || await sendDeploymentTransaction(ProjectDeployer__factory.bytecode, deployer)
