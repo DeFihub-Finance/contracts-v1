@@ -31,8 +31,6 @@ contract ZapManager is HubOwnable, ICall {
     /**
      * @dev Encapsulates data required to perform a protocol-specific zap or swap operation.
      * @param protocolName The name of the protocol to call.
-     * @param inputToken The ERC20 token to be used as input.
-     * @param outputToken The ERC20 token to be received as output.
      * @param zapperFunctionSignature The function signature of the zapper's function to call.
      * @param data The encoded function signature and data to pass to the zapper function.
      *             If `data` represents a swap transaction, the recipient must be set to the address
@@ -43,8 +41,6 @@ contract ZapManager is HubOwnable, ICall {
      */
     struct ProtocolCall {
         string protocolName;
-        IERC20Upgradeable inputToken;
-        IERC20Upgradeable outputToken;
         string zapperFunctionSignature;
         bytes data;
     }
