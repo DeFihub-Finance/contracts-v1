@@ -26,11 +26,15 @@ import {
     BuyProduct,
     BuyProduct__factory,
     StrategyPositionManager__factory,
+    UniversalRouter__factory,
+    UniswapV3Factory,
+    NonFungiblePositionManager,
 } from '@src/typechain'
 import { ZeroHash, ZeroAddress, Signer } from 'ethers'
 import { NetworkService } from '@src/NetworkService'
 import { SubscriptionSignature } from '@src/SubscriptionSignature'
 import { ZapProtocols } from '@defihub/shared'
+import { ADDRESS_ZERO } from '@uniswap/v3-sdk'
 
 export class ProjectDeployer {
     private hashCount = 0
@@ -64,6 +68,7 @@ export class ProjectDeployer {
             positionManagerUniV3,
             quoterUniV3,
         } = await this.deployUniV3(deployer, weth)
+        const universalRouter = await this.deployUniversalRouter(deployer, weth, factoryUniV3, positionManagerUniV3)
 
         const subscriptionManagerDeployParams = this.getDeploymentInfo(SubscriptionManager__factory)
         const strategyManagerDeployParams = this.getDeploymentInfo(StrategyManager__factory)
@@ -256,6 +261,7 @@ export class ProjectDeployer {
             routerUniV3,
             positionManagerUniV3,
             quoterUniV3,
+            universalRouter,
 
             subscriptionSignature,
             deadline,
@@ -315,6 +321,30 @@ export class ProjectDeployer {
             positionManagerUniV3,
             quoterUniV3,
         }
+    }
+
+    private async deployUniversalRouter(
+        deployer: Signer,
+        weth: TestERC20,
+        factoryV3: UniswapV3Factory,
+        positionManagerV3: NonFungiblePositionManager,
+    ) {
+        // Using the zero address won't work, but it's fine because we won't use it in testing or production.
+        return new UniversalRouter__factory(deployer).deploy({
+            // utils
+            weth9: weth,
+            permit2: ADDRESS_ZERO, // Must not use the zero address for the permit to work
+            // v2
+            v2Factory: ADDRESS_ZERO,
+            pairInitCodeHash: '0x96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f', // official uniswap hash
+            // v3
+            v3Factory: factoryV3,
+            v3NFTPositionManager: positionManagerV3,
+            poolInitCodeHash: '0xe34f199b19b2b4f47f68442619d555527d244f78a3297ea89325f843f87b8b54', // official uniswap hash
+            // v4
+            v4PositionManager: ADDRESS_ZERO,
+            v4PoolManager: ADDRESS_ZERO,
+        })
     }
 
     private getDeploymentInfo<T>(contract: T & { bytecode: string }) {
