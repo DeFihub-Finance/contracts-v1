@@ -7,6 +7,9 @@ import { ProjectDeployer } from '@src/ProjectDeployer'
 import { ETH_PRICE, ETH_PRICE_BN, USD_PRICE_BN } from '@src/constants'
 import { CommandType, RoutePlanner } from '@src/helpers/RoutePlanner'
 import { PathUniswapV3 } from '@defihub/shared'
+import { expect } from 'chai'
+import { Compare } from '../src/Compare'
+import { BigNumber } from '@ryze-blockchain/ethereum'
 
 const ONE_BILLION_ETH = parseEther('1000000000')
 
@@ -56,9 +59,10 @@ describe.only('Universal Router', () => {
 
     describe('runs', () => {
         it('works for implementation', async () => {
-            // TODO write expects
-
             const planner = new RoutePlanner()
+
+            expect(await weth.balanceOf(swapper)).to.be.equal(0)
+            expect(await stablecoin.balanceOf(swapper)).to.be.equal(0)
 
             planner.addCommand(
                 CommandType.V3_SWAP_EXACT_IN,
@@ -81,6 +85,13 @@ describe.only('Universal Router', () => {
                 planner.commands,
                 planner.inputs,
             )
+
+            expect(await weth.balanceOf(swapper)).to.be.equal(0)
+            Compare.almostEqualPercentage({
+                value: await stablecoin.balanceOf(swapper),
+                target: parseEther('1') * ETH_PRICE,
+                tolerance: new BigNumber(0.01),
+            })
         })
     })
 })
