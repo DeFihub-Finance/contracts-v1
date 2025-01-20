@@ -13,7 +13,7 @@ import { BigNumber } from '@ryze-blockchain/ethereum'
 
 const ONE_BILLION_ETH = parseEther('1000000000')
 
-describe.only('Universal Router', () => {
+describe('Universal Router', () => {
     let liquidityProvider: Signer
     let swapper: Signer
 
