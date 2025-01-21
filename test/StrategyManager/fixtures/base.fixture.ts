@@ -5,18 +5,13 @@ import { TestERC20__factory, UniswapV3Pool__factory } from '@src/typechain'
 import { deployVaultFixture } from '../../VaultManager/fixtures/deploy-vault.fixture'
 import { parseEther } from 'ethers'
 import { UniswapV3 } from '@src/helpers'
-import { BigNumber } from '@ryze-blockchain/ethereum'
 import { mockTokenWithAddress } from '@src/helpers/mock-token'
 import { StrategyStorage } from '@src/typechain/artifacts/contracts/StrategyManager'
+import { ETH_PRICE, ETH_PRICE_BN, USD_PRICE_BN } from '@src/constants'
 
 export async function baseStrategyManagerFixture() {
     const [deployer] = await ethers.getSigners()
     const anotherToken = await new TestERC20__factory(deployer).deploy(18)
-
-    // TODO move prices from zap.fixture to here and update necessary tests to work with the new price
-    const USD_PRICE_BN = new BigNumber(1)
-    const ETH_PRICE = 3_000n
-    const ETH_PRICE_BN = new BigNumber(ETH_PRICE.toString())
     const ONE_BILLION_ETH = parseEther('1000000000')
 
     /////////////////////////////////////

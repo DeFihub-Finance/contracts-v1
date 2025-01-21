@@ -26,11 +26,15 @@ import {
     BuyProduct,
     BuyProduct__factory,
     StrategyPositionManager__factory,
+    UniversalRouter__factory,
+    UniswapV3Factory,
+    NonFungiblePositionManager,
 } from '@src/typechain'
 import { ZeroHash, ZeroAddress, Signer } from 'ethers'
 import { NetworkService } from '@src/NetworkService'
 import { SubscriptionSignature } from '@src/SubscriptionSignature'
 import { ZapProtocols } from '@defihub/shared'
+import { POOL_INIT_CODE_HASH } from '@uniswap/v3-sdk'
 
 export class ProjectDeployer {
     private hashCount = 0
@@ -64,6 +68,7 @@ export class ProjectDeployer {
             positionManagerUniV3,
             quoterUniV3,
         } = await this.deployUniV3(deployer, weth)
+        const universalRouter = await this.deployUniversalRouter(deployer, weth, factoryUniV3, positionManagerUniV3)
 
         const subscriptionManagerDeployParams = this.getDeploymentInfo(SubscriptionManager__factory)
         const strategyManagerDeployParams = this.getDeploymentInfo(StrategyManager__factory)
@@ -256,6 +261,7 @@ export class ProjectDeployer {
             routerUniV3,
             positionManagerUniV3,
             quoterUniV3,
+            universalRouter,
 
             subscriptionSignature,
             deadline,
@@ -315,6 +321,34 @@ export class ProjectDeployer {
             positionManagerUniV3,
             quoterUniV3,
         }
+    }
+
+    private async deployUniversalRouter(
+        deployer: Signer,
+        weth: TestERC20,
+        factoryV3: UniswapV3Factory,
+        positionManagerV3: NonFungiblePositionManager,
+    ) {
+        /**
+         * Multiple addresses are set to the zero address, effectively disabling those integrations.
+         * This is sufficient for our current testing setup, where these integrations aren't required.
+         * If you need to test or deploy a specific integration, deploy and update the relevant address accordingly.
+         */
+        return new UniversalRouter__factory(deployer).deploy({
+            // utils
+            weth9: weth,
+            permit2: ZeroAddress,
+            // v2
+            v2Factory: ZeroAddress,
+            pairInitCodeHash: ZeroHash,
+            // v3
+            v3Factory: factoryV3,
+            v3NFTPositionManager: positionManagerV3,
+            poolInitCodeHash: POOL_INIT_CODE_HASH,
+            // v4
+            v4PositionManager: ZeroAddress,
+            v4PoolManager: ZeroAddress,
+        })
     }
 
     private getDeploymentInfo<T>(contract: T & { bytecode: string }) {

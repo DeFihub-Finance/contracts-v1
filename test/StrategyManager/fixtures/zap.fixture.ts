@@ -1,17 +1,12 @@
 import { PathUniswapV3, SubscriptionSigner } from '@defihub/shared'
-import { BigNumber } from '@ryze-blockchain/ethereum'
 import { UniswapV2, UniswapV3 } from '@src/helpers'
 import { NetworkService } from '@src/NetworkService'
 import { ProjectDeployer } from '@src/ProjectDeployer'
 import { UniswapV2Pair__factory, UniswapV3Pool__factory } from '@src/typechain'
 import { parseEther, parseUnits } from 'ethers'
+import { BTC_PRICE, BTC_PRICE_BN, ETH_PRICE, ETH_PRICE_BN, USD_PRICE_BN } from '@src/constants'
 
 export async function zapFixture() {
-    const USD_PRICE_BN = new BigNumber(1)
-    const BTC_PRICE = 70_000n
-    const BTC_PRICE_BN = new BigNumber(BTC_PRICE.toString())
-    const ETH_PRICE = 10_000n
-    const ETH_PRICE_BN = new BigNumber(ETH_PRICE.toString())
     const ONE_BILLION_ETH = parseEther('1000000000')
     const ONE_BILLION_USDC = parseUnits('1000000000', 6)
 
