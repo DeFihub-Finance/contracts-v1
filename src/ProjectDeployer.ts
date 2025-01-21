@@ -34,7 +34,6 @@ import { ZeroHash, ZeroAddress, Signer } from 'ethers'
 import { NetworkService } from '@src/NetworkService'
 import { SubscriptionSignature } from '@src/SubscriptionSignature'
 import { ZapProtocols } from '@defihub/shared'
-import { ADDRESS_ZERO } from '@uniswap/v3-sdk'
 
 export class ProjectDeployer {
     private hashCount = 0
@@ -329,21 +328,25 @@ export class ProjectDeployer {
         factoryV3: UniswapV3Factory,
         positionManagerV3: NonFungiblePositionManager,
     ) {
-        // Using the zero address won't work, but it's fine because we won't use it in testing or production.
+        /**
+         * Multiple addresses are set to the zero address, effectively disabling those integrations.
+         * This is sufficient for our current testing setup, where these integrations aren't required.
+         * If you need to test or deploy a specific integration, deploy and update the relevant address accordingly.
+         */
         return new UniversalRouter__factory(deployer).deploy({
             // utils
             weth9: weth,
-            permit2: ADDRESS_ZERO, // Must not use the zero address for the permit to work
+            permit2: ZeroAddress,
             // v2
-            v2Factory: ADDRESS_ZERO,
+            v2Factory: ZeroAddress,
             pairInitCodeHash: '0x96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f', // official uniswap hash
             // v3
             v3Factory: factoryV3,
             v3NFTPositionManager: positionManagerV3,
             poolInitCodeHash: '0xe34f199b19b2b4f47f68442619d555527d244f78a3297ea89325f843f87b8b54', // official uniswap hash
             // v4
-            v4PositionManager: ADDRESS_ZERO,
-            v4PoolManager: ADDRESS_ZERO,
+            v4PositionManager: ZeroAddress,
+            v4PoolManager: ZeroAddress,
         })
     }
 
