@@ -34,6 +34,7 @@ import { ZeroHash, ZeroAddress, Signer } from 'ethers'
 import { NetworkService } from '@src/NetworkService'
 import { SubscriptionSignature } from '@src/SubscriptionSignature'
 import { ZapProtocols } from '@defihub/shared'
+import { POOL_INIT_CODE_HASH } from '@uniswap/v3-sdk'
 
 export class ProjectDeployer {
     private hashCount = 0
@@ -339,11 +340,11 @@ export class ProjectDeployer {
             permit2: ZeroAddress,
             // v2
             v2Factory: ZeroAddress,
-            pairInitCodeHash: '0x96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f', // official uniswap hash
+            pairInitCodeHash: ZeroHash,
             // v3
             v3Factory: factoryV3,
             v3NFTPositionManager: positionManagerV3,
-            poolInitCodeHash: '0xe34f199b19b2b4f47f68442619d555527d244f78a3297ea89325f843f87b8b54', // official uniswap hash
+            poolInitCodeHash: POOL_INIT_CODE_HASH,
             // v4
             v4PositionManager: ZeroAddress,
             v4PoolManager: ZeroAddress,
