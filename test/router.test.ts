@@ -11,6 +11,7 @@ import { expect } from 'chai'
 import { Compare } from '@src/Compare'
 import { BigNumber } from '@ryze-blockchain/ethereum'
 
+const ONE_ETH = parseEther('1')
 const ONE_BILLION_ETH = parseEther('1000000000')
 
 describe('Universal Router', () => {
@@ -67,8 +68,8 @@ describe('Universal Router', () => {
             CommandType.V3_SWAP_EXACT_IN,
             [
                 await swapper.getAddress(),
-                parseEther('1'),
-                parseEther('1') - parseEther('0.01'),
+                ONE_ETH,
+                ONE_ETH - parseEther('0.01'),
                 await new PathUniswapV3(
                     weth,
                     [{ token: stablecoin, fee: 3000 }],
@@ -77,8 +78,8 @@ describe('Universal Router', () => {
             ],
         )
 
-        await weth.connect(swapper).mint(swapper, parseEther('1'))
-        await weth.connect(swapper).transfer(universalRouter, parseEther('1'))
+        await weth.connect(swapper).mint(swapper, ONE_ETH)
+        await weth.connect(swapper).transfer(universalRouter, ONE_ETH)
 
         await universalRouter.connect(swapper)['execute(bytes,bytes[])'](
             planner.commands,
@@ -88,7 +89,7 @@ describe('Universal Router', () => {
         expect(await weth.balanceOf(swapper)).to.be.equal(0)
         Compare.almostEqualPercentage({
             value: await stablecoin.balanceOf(swapper),
-            target: parseEther('1') * ETH_PRICE,
+            target: ONE_ETH * ETH_PRICE,
             tolerance: new BigNumber(0.01),
         })
     })
