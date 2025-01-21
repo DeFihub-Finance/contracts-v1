@@ -28,7 +28,7 @@ describe('Universal Router', () => {
     let stablecoin: TestERC20
 
     beforeEach(async () => {
-        function  fixture() {
+        function fixture() {
             return new ProjectDeployer().deployProjectFixture()
         }
 
