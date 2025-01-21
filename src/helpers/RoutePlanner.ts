@@ -84,20 +84,25 @@ const ABI_DEFINITION: { [key in CommandType]: string[] } = {
 export type BaseSolidityInput = string | bigint | boolean
 export type SolidityInput = BaseSolidityInput | SolidityInput[]
 
+export type RouterCommand = {
+    type: CommandType
+    encodedInput: string
+}
+
 export class RoutePlanner {
     commands: string
     inputs: string[]
 
-    constructor() {
+    public constructor() {
         this.commands = '0x'
         this.inputs = []
     }
 
-    addSubPlan(subplan: RoutePlanner): void {
+    public addSubPlan(subplan: RoutePlanner): void {
         this.addCommand(CommandType.EXECUTE_SUB_PLAN, [subplan.commands, subplan.inputs], true)
     }
 
-    addCommand(type: CommandType, parameters: SolidityInput[], allowRevert = false): void {
+    public addCommand(type: CommandType, parameters: SolidityInput[], allowRevert = false): void {
         const command = createCommand(type, parameters)
 
         this.inputs.push(command.encodedInput)
@@ -113,11 +118,6 @@ export class RoutePlanner {
     }
 }
 
-export type RouterCommand = {
-    type: CommandType
-    encodedInput: string
-}
-
 export function createCommand(type: CommandType, parameters: SolidityInput[]): RouterCommand {
     if (
         type === CommandType.V3_POSITION_MANAGER_CALL ||
@@ -129,9 +129,8 @@ export function createCommand(type: CommandType, parameters: SolidityInput[]): R
 
         return { type, encodedInput: parameters[0] }
     }
-    else {
-        const encodedInput = AbiCoder.defaultAbiCoder().encode(ABI_DEFINITION[type], parameters)
 
-        return { type, encodedInput }
-    }
+    const encodedInput = AbiCoder.defaultAbiCoder().encode(ABI_DEFINITION[type], parameters)
+
+    return { type, encodedInput }
 }
