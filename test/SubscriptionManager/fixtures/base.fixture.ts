@@ -1,5 +1,4 @@
 import { ethers } from 'hardhat'
-import { TestERC20__factory } from '@src/typechain'
 import { ProjectDeployer } from '@src/ProjectDeployer'
 import { SubscriptionSignature } from '@src/SubscriptionSignature'
 

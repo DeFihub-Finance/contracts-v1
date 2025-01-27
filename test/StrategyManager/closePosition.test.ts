@@ -1,7 +1,7 @@
 import { expect } from 'chai'
 import { ethers } from 'hardhat'
 import { UniswapV3 } from '@defihub/shared'
-import { ErrorDescription, Signer } from 'ethers'
+import { Signer } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import {
     DollarCostAverage,
@@ -13,11 +13,16 @@ import {
     UniswapV3Factory,
 } from '@src/typechain'
 import { runStrategy } from './fixtures/run-strategy.fixture'
-import { decodeLowLevelCallError, getEventLog, LiquidityHelpers, UniswapV3 as UniswapV3Helpers } from '@src/helpers'
+import {
+    expectCustomError,
+    getEventLog,
+    LiquidityHelpers,
+    UniswapV3 as UniswapV3Helpers,
+} from '@src/helpers'
 
 // => Given an open position
 //      => When the owner of position calls closePosition
-//          => Then the user receives remaning tokens of all positions in a strategy
+//          => Then the user receives remaining tokens of all positions in a strategy
 //          => Then the contract emits a PositionClosed event
 //          => Then position should be marked as closed
 //
@@ -61,7 +66,7 @@ describe('StrategyManager#closePosition', () => {
             const [
                 { inputTokenBalance, outputTokenBalance },
                 { poolId },
-            ]= await Promise.all([
+            ] = await Promise.all([
                 dca.getPositionBalances(strategyManager, positionId),
                 dca.getPosition(strategyManager, positionId),
             ])
@@ -277,17 +282,10 @@ describe('StrategyManager#closePosition', () => {
 
         describe('When the owner of position calls closePosition', () => {
             it('Then the contract reverts with PositionAlreadyClosed', async () => {
-                try {
-                    await strategyManager.connect(account1).closePosition(dcaPositionId, [])
-
-                    throw new Error('Expected to fail')
-                }
-                catch (e) {
-                    const error = decodeLowLevelCallError(e)
-
-                    expect(error).to.be.instanceof(ErrorDescription)
-                    expect((error as ErrorDescription).name).to.equal('PositionAlreadyClosed')
-                }
+                await expectCustomError(
+                    strategyManager.connect(account1).closePosition(dcaPositionId, []),
+                    'PositionAlreadyClosed',
+                )
             })
         })
 

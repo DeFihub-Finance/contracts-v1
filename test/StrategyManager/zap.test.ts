@@ -1,10 +1,5 @@
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import {
-    UniswapV2,
-    UniswapV2ZapHelper,
-    UniswapV3ZapHelper,
-} from '@src/helpers'
-import {
     BeefyMockStrategy__factory,
     BeefyVaultV7__factory,
     DollarCostAverage,
@@ -13,32 +8,26 @@ import {
     StrategyManager,
     SubscriptionManager,
     TestERC20,
-    UniswapV2Factory,
-    UniswapV2Pair,
     VaultManager,
     ZapManager,
+    UniversalRouter,
 } from '@src/typechain'
 import { expect } from 'chai'
 import { AddressLike, parseEther, Signer, ZeroHash } from 'ethers'
 import hre from 'hardhat'
-import { PathUniswapV3 } from '@defihub/shared'
+import { PathUniswapV3, unwrapAddressLike } from '@defihub/shared'
 import { BigNumber } from '@ryze-blockchain/ethereum'
 import { Compare } from '@src/Compare'
 import { zapFixture } from './fixtures/zap.fixture'
-import { decodeLowLevelCallError } from '@src/helpers'
-import { Fees } from '@src/helpers/Fees'
-import { mockTokenWithAddress } from '@src/helpers/mock-token'
+import { expectCustomError, Fees, SwapEncoder } from '@src/helpers'
+import { BTC_PRICE, BTC_PRICE_BN, ETH_PRICE, ETH_PRICE_BN, USD_PRICE_BN } from '@src/constants'
+
+const USD_QUOTE = { price: USD_PRICE_BN, decimals: 18 }
+const BTC_QUOTE = { price: BTC_PRICE_BN, decimals: 18 }
+const ETH_QUOTE = { price: ETH_PRICE_BN, decimals: 18 }
 
 describe('StrategyManager#invest (zap)', () => {
     const amount = parseEther('1000')
-    const INSUFFICIENT_OUTPUT_AMOUNT = 'UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT'
-
-    // prices
-    let USD_PRICE_BN: BigNumber
-    let BTC_PRICE: bigint
-    let BTC_PRICE_BN: BigNumber
-    let ETH_PRICE: bigint
-    let ETH_PRICE_BN: BigNumber
 
     // accounts
     let account0: Signer
@@ -58,7 +47,7 @@ describe('StrategyManager#invest (zap)', () => {
     let zapManager: ZapManager
 
     // external test contracts
-    let factoryUniV2: UniswapV2Factory
+    let universalRouter: UniversalRouter
 
     // global data
     let strategyId: bigint
@@ -66,7 +55,6 @@ describe('StrategyManager#invest (zap)', () => {
     let btcEthPoolId: bigint
     let initialTreasuryBalance: bigint
     let permitAccount0: SubscriptionManager.PermitStruct
-    let btcEthLpUniV2: UniswapV2Pair
 
     async function createVault(token: AddressLike) {
         const [deployer] = await hre.ethers.getSigners()
@@ -127,7 +115,7 @@ describe('StrategyManager#invest (zap)', () => {
             zapManager,
 
             // external test contracts
-            factoryUniV2,
+            universalRouter,
 
             // global data
             strategyId,
@@ -135,14 +123,6 @@ describe('StrategyManager#invest (zap)', () => {
             btcEthPoolId,
             initialTreasuryBalance,
             permitAccount0,
-            btcEthLpUniV2,
-
-            // constants
-            USD_PRICE_BN,
-            BTC_PRICE,
-            BTC_PRICE_BN,
-            ETH_PRICE,
-            ETH_PRICE_BN,
         } = await loadFixture(zapFixture))
     })
 
@@ -209,12 +189,12 @@ describe('StrategyManager#invest (zap)', () => {
                     inputTokenSwap: '0x',
                     dcaSwaps: [
                         '0x',
-                        await UniswapV2ZapHelper.encodeSwap(
+                        await SwapEncoder.encodeExactInputV2(
+                            universalRouter,
                             amountPerInvestmentMinusFees,
-                            stablecoin,
-                            wbtc,
-                            USD_PRICE_BN,
-                            BTC_PRICE_BN,
+                            [await unwrapAddressLike(stablecoin), await unwrapAddressLike(wbtc)],
+                            USD_QUOTE,
+                            BTC_QUOTE,
                             new BigNumber(0.01),
                             strategyManager,
                         ),
@@ -239,11 +219,15 @@ describe('StrategyManager#invest (zap)', () => {
                     inputTokenSwap: '0x',
                     dcaSwaps: [
                         '0x',
-                        await UniswapV3ZapHelper.encodeExactInputSingle(
+                        await SwapEncoder.encodeExactInputV3(
+                            universalRouter,
                             amountPerInvestmentMinusFees,
-                            await mockTokenWithAddress(USD_PRICE_BN, 18, stablecoin),
-                            await mockTokenWithAddress(BTC_PRICE_BN, 18, wbtc),
-                            3000,
+                            await PathUniswapV3.fromAddressLike(
+                                stablecoin,
+                                [{ token: wbtc, fee: 3000 }],
+                            ),
+                            USD_QUOTE,
+                            BTC_QUOTE,
                             new BigNumber(0.01),
                             strategyManager,
                         ),
@@ -268,17 +252,18 @@ describe('StrategyManager#invest (zap)', () => {
                     inputTokenSwap: '0x',
                     dcaSwaps: [
                         '0x',
-                        await UniswapV3ZapHelper.encodeExactInput(
+                        await SwapEncoder.encodeExactInputV3(
+                            universalRouter,
                             amountPerInvestmentMinusFees,
-                            new PathUniswapV3(
+                            await PathUniswapV3.fromAddressLike(
                                 stablecoin,
                                 [
                                     { token: weth, fee: 3000 },
                                     { token: wbtc, fee: 3000 },
                                 ],
                             ),
-                            USD_PRICE_BN,
-                            BTC_PRICE_BN,
+                            USD_QUOTE,
+                            BTC_QUOTE,
                             new BigNumber(0.05),
                             strategyManager,
                         ),
@@ -296,8 +281,8 @@ describe('StrategyManager#invest (zap)', () => {
         it('fails with 0% slippage', async () => {
             const amountPerInvestmentMinusFees = await deductStrategyFee(amount * 50n / 100n)
 
-            try {
-                await strategyManager
+            await expectCustomError(
+                strategyManager
                     .connect(account0)
                     .invest({
                         strategyId,
@@ -306,12 +291,15 @@ describe('StrategyManager#invest (zap)', () => {
                         inputTokenSwap: '0x',
                         dcaSwaps: [
                             '0x',
-                            await UniswapV2ZapHelper.encodeSwap(
+                            await SwapEncoder.encodeExactInputV3(
+                                universalRouter,
                                 amountPerInvestmentMinusFees,
-                                stablecoin,
-                                wbtc,
-                                USD_PRICE_BN,
-                                BTC_PRICE_BN,
+                                await PathUniswapV3.fromAddressLike(
+                                    stablecoin,
+                                    [{ token: wbtc, fee: 3000 }],
+                                ),
+                                USD_QUOTE,
+                                BTC_QUOTE,
                                 new BigNumber(0),
                                 strategyManager,
                             ),
@@ -321,25 +309,16 @@ describe('StrategyManager#invest (zap)', () => {
                         liquidityZaps: [],
                         investorPermit: permitAccount0,
                         strategistPermit: permitAccount0,
-                    })
-
-                throw new Error('Expected to fail')
-            }
-            catch (e) {
-                const error = decodeLowLevelCallError(e)
-
-                expect(error).to.equal(INSUFFICIENT_OUTPUT_AMOUNT)
-            }
+                    }),
+                'V3TooLittleReceived',
+            )
         })
     })
 
     describe('zaps into Vault strategy', () => {
-        let initialLpBalance: bigint
         let amountPerInvestmentMinusFees: bigint
 
         beforeEach(async () => {
-            initialLpBalance = await btcEthLpUniV2.balanceOf(account0)
-
             await strategyManager.connect(account0).createStrategy({
                 dcaInvestments: [],
                 vaultInvestments: [
@@ -348,7 +327,7 @@ describe('StrategyManager#invest (zap)', () => {
                         percentage: 50n,
                     },
                     {
-                        vault: await createVault(await factoryUniV2.getPair(wbtc, weth)),
+                        vault: await createVault(weth),
                         percentage: 50n,
                     },
                 ],
@@ -374,26 +353,23 @@ describe('StrategyManager#invest (zap)', () => {
                     inputTokenSwap: '0x',
                     dcaSwaps: [],
                     vaultSwaps: [
-                        await UniswapV2ZapHelper.encodeSwap(
+                        await SwapEncoder.encodeExactInputV2(
+                            universalRouter,
                             amountPerInvestmentMinusFees,
-                            stablecoin,
-                            wbtc,
-                            USD_PRICE_BN,
-                            BTC_PRICE_BN,
+                            [stablecoin, wbtc],
+                            USD_QUOTE,
+                            BTC_QUOTE,
                             new BigNumber(0.01),
                             strategyManager,
                         ),
-                        await UniswapV2ZapHelper.encodeZap(
+                        await SwapEncoder.encodeExactInputV2(
+                            universalRouter,
                             amountPerInvestmentMinusFees,
-                            stablecoin,
-                            wbtc,
-                            weth,
-                            USD_PRICE_BN,
-                            BTC_PRICE_BN,
-                            ETH_PRICE_BN,
+                            [stablecoin, weth],
+                            USD_QUOTE,
+                            ETH_QUOTE,
                             new BigNumber(0.01),
-                            zapManager,
-                            factoryUniV2,
+                            strategyManager,
                         ),
                     ],
                     buySwaps: [],
@@ -410,20 +386,16 @@ describe('StrategyManager#invest (zap)', () => {
                 tolerance: new BigNumber(0.01), // Tolerance of 1%
             })
 
-            const amountPerToken = amount * 50n / 100n / 2n
-            const amountA = amountPerToken / BTC_PRICE
-            const amountB = amountPerToken / ETH_PRICE
-
             Compare.almostEqualPercentage({
-                target: await UniswapV2.estimateLiquidityOutput(amountA, amountB),
-                value: await btcEthLpUniV2.balanceOf(account0) - initialLpBalance,
+                target: amount * 50n / 100n / ETH_PRICE,
+                value: await weth.balanceOf(account0),
                 tolerance: new BigNumber(0.01), // Tolerance of 1%
             })
         })
 
         it('fails with 0% slippage', async () => {
-            try {
-                await strategyManager
+            await expectCustomError(
+                strategyManager
                     .connect(account0)
                     .invest({
                         strategyId,
@@ -432,41 +404,24 @@ describe('StrategyManager#invest (zap)', () => {
                         inputTokenSwap: '0x',
                         dcaSwaps: [],
                         vaultSwaps: [
-                            await UniswapV2ZapHelper.encodeSwap(
+                            await SwapEncoder.encodeExactInputV2(
+                                universalRouter,
                                 amountPerInvestmentMinusFees,
-                                stablecoin,
-                                wbtc,
-                                USD_PRICE_BN,
-                                BTC_PRICE_BN,
+                                [stablecoin, wbtc],
+                                USD_QUOTE,
+                                BTC_QUOTE,
                                 new BigNumber(0),
                                 strategyManager,
                             ),
-                            await UniswapV2ZapHelper.encodeZap(
-                                amountPerInvestmentMinusFees,
-                                stablecoin,
-                                wbtc,
-                                weth,
-                                USD_PRICE_BN,
-                                BTC_PRICE_BN,
-                                ETH_PRICE_BN,
-                                new BigNumber(0),
-                                zapManager,
-                                factoryUniV2,
-                            ),
+                            '0x', // no need for this swap since the first will fail making the transaction revert
                         ],
                         buySwaps: [],
                         liquidityZaps: [],
                         investorPermit: permitAccount0,
                         strategistPermit: permitAccount0,
-                    })
-
-                throw new Error('Expected to fail')
-            }
-            catch (e) {
-                const error = decodeLowLevelCallError(e)
-
-                expect(error).to.equal(INSUFFICIENT_OUTPUT_AMOUNT)
-            }
+                    }),
+                'V2TooLittleReceived',
+            )
         })
     })
 
@@ -509,21 +464,21 @@ describe('StrategyManager#invest (zap)', () => {
                     dcaSwaps: [],
                     vaultSwaps: [],
                     buySwaps: [
-                        await UniswapV2ZapHelper.encodeSwap(
+                        await SwapEncoder.encodeExactInputV2(
+                            universalRouter,
                             amountPerInvestmentMinusFees,
-                            stablecoin,
-                            wbtc,
-                            USD_PRICE_BN,
-                            BTC_PRICE_BN,
+                            [stablecoin, wbtc],
+                            USD_QUOTE,
+                            BTC_QUOTE,
                             new BigNumber(0.01),
                             strategyManager,
                         ),
-                        await UniswapV2ZapHelper.encodeSwap(
+                        await SwapEncoder.encodeExactInputV2(
+                            universalRouter,
                             amountPerInvestmentMinusFees,
-                            stablecoin,
-                            weth,
-                            USD_PRICE_BN,
-                            ETH_PRICE_BN,
+                            [stablecoin, weth],
+                            USD_QUOTE,
+                            ETH_QUOTE,
                             new BigNumber(0.01),
                             strategyManager,
                         ),
@@ -572,8 +527,8 @@ describe('StrategyManager#invest (zap)', () => {
         })
 
         it('fails with 0% slippage', async () => {
-            try {
-                await strategyManager
+            await expectCustomError(
+                strategyManager
                     .connect(account0)
                     .invest({
                         strategyId,
@@ -583,21 +538,21 @@ describe('StrategyManager#invest (zap)', () => {
                         dcaSwaps: [],
                         vaultSwaps: [],
                         buySwaps: [
-                            await UniswapV2ZapHelper.encodeSwap(
+                            await SwapEncoder.encodeExactInputV2(
+                                universalRouter,
                                 amountPerInvestmentMinusFees,
-                                stablecoin,
-                                wbtc,
-                                USD_PRICE_BN,
-                                BTC_PRICE_BN,
+                                [stablecoin, wbtc],
+                                USD_QUOTE,
+                                BTC_QUOTE,
                                 new BigNumber(0),
                                 strategyManager,
                             ),
-                            await UniswapV2ZapHelper.encodeSwap(
+                            await SwapEncoder.encodeExactInputV2(
+                                universalRouter,
                                 amountPerInvestmentMinusFees,
-                                stablecoin,
-                                weth,
-                                USD_PRICE_BN,
-                                ETH_PRICE_BN,
+                                [stablecoin, weth],
+                                USD_QUOTE,
+                                ETH_QUOTE,
                                 new BigNumber(0),
                                 strategyManager,
                             ),
@@ -605,25 +560,17 @@ describe('StrategyManager#invest (zap)', () => {
                         liquidityZaps: [],
                         investorPermit: permitAccount0,
                         strategistPermit: permitAccount0,
-                    })
-
-                throw new Error('Expected to fail')
-            }
-            catch (e) {
-                const error = decodeLowLevelCallError(e)
-
-                expect(error).to.equal(INSUFFICIENT_OUTPUT_AMOUNT)
-            }
+                    }),
+                'V2TooLittleReceived',
+            )
         })
     })
 
     describe('zaps into mixed strategy with vaults and dca', () => {
-        let initialLpBalance: bigint
         let initialStablecoinBalance: bigint
         let amountPerInvestmentMinusFees: bigint
 
         beforeEach(async () => {
-            initialLpBalance = await btcEthLpUniV2.balanceOf(account0)
             initialStablecoinBalance = await stablecoin.balanceOf(account0)
 
             await strategyManager.connect(account0).createStrategy({
@@ -645,7 +592,7 @@ describe('StrategyManager#invest (zap)', () => {
                         percentage: 25n,
                     },
                     {
-                        vault: await createVault(await factoryUniV2.getPair(wbtc, weth)),
+                        vault: await createVault(weth),
                         percentage: 25n,
                     },
                 ],
@@ -671,37 +618,34 @@ describe('StrategyManager#invest (zap)', () => {
                     inputTokenSwap: '0x',
                     dcaSwaps: [
                         '0x',
-                        await UniswapV2ZapHelper.encodeSwap(
+                        await SwapEncoder.encodeExactInputV2(
+                            universalRouter,
                             amountPerInvestmentMinusFees,
-                            stablecoin,
-                            wbtc,
-                            USD_PRICE_BN,
-                            BTC_PRICE_BN,
+                            [stablecoin, wbtc],
+                            USD_QUOTE,
+                            BTC_QUOTE,
                             new BigNumber(0.01),
                             strategyManager,
                         ),
                     ],
                     vaultSwaps: [
-                        await UniswapV2ZapHelper.encodeSwap(
+                        await SwapEncoder.encodeExactInputV2(
+                            universalRouter,
                             amountPerInvestmentMinusFees,
-                            stablecoin,
-                            wbtc,
-                            USD_PRICE_BN,
-                            BTC_PRICE_BN,
+                            [stablecoin, wbtc],
+                            USD_QUOTE,
+                            BTC_QUOTE,
                             new BigNumber(0.01),
                             strategyManager,
                         ),
-                        await UniswapV2ZapHelper.encodeZap(
+                        await SwapEncoder.encodeExactInputV2(
+                            universalRouter,
                             amountPerInvestmentMinusFees,
-                            stablecoin,
-                            wbtc,
-                            weth,
-                            USD_PRICE_BN,
-                            BTC_PRICE_BN,
-                            ETH_PRICE_BN,
+                            [stablecoin, weth],
+                            USD_QUOTE,
+                            ETH_QUOTE,
                             new BigNumber(0.01),
-                            zapManager,
-                            factoryUniV2,
+                            strategyManager,
                         ),
                     ],
                     buySwaps: [],
@@ -724,20 +668,16 @@ describe('StrategyManager#invest (zap)', () => {
                 tolerance: new BigNumber(0.01), // Tolerance of 1%
             })
 
-            const amountPerToken = amount * 25n / 100n / 2n
-            const amountA = amountPerToken / BTC_PRICE
-            const amountB = amountPerToken / ETH_PRICE
-
             Compare.almostEqualPercentage({
-                target: await UniswapV2.estimateLiquidityOutput(amountA, amountB),
-                value: await btcEthLpUniV2.balanceOf(account0) - initialLpBalance,
+                target: amount * 25n / 100n / ETH_PRICE, // 25% from vault
+                value: await weth.balanceOf(account0),
                 tolerance: new BigNumber(0.01), // Tolerance of 1%
             })
         })
 
         it('fails with 0% slippage', async () => {
-            try {
-                await strategyManager
+            await expectCustomError(
+                strategyManager
                     .connect(account0)
                     .invest({
                         strategyId,
@@ -746,52 +686,35 @@ describe('StrategyManager#invest (zap)', () => {
                         inputTokenSwap: '0x',
                         dcaSwaps: [
                             '0x',
-                            await UniswapV2ZapHelper.encodeSwap(
+                            await SwapEncoder.encodeExactInputV2(
+                                universalRouter,
                                 amountPerInvestmentMinusFees,
-                                stablecoin,
-                                wbtc,
-                                USD_PRICE_BN,
-                                BTC_PRICE_BN,
+                                [stablecoin, wbtc],
+                                USD_QUOTE,
+                                BTC_QUOTE,
                                 new BigNumber(0),
                                 strategyManager,
                             ),
                         ],
                         vaultSwaps: [
-                            await UniswapV2ZapHelper.encodeSwap(
+                            await SwapEncoder.encodeExactInputV2(
+                                universalRouter,
                                 amountPerInvestmentMinusFees,
-                                stablecoin,
-                                wbtc,
-                                USD_PRICE_BN,
-                                BTC_PRICE_BN,
+                                [stablecoin, wbtc],
+                                USD_QUOTE,
+                                BTC_QUOTE,
                                 new BigNumber(0),
                                 strategyManager,
                             ),
-                            await UniswapV2ZapHelper.encodeZap(
-                                amountPerInvestmentMinusFees,
-                                stablecoin,
-                                wbtc,
-                                weth,
-                                USD_PRICE_BN,
-                                BTC_PRICE_BN,
-                                ETH_PRICE_BN,
-                                new BigNumber(0),
-                                zapManager,
-                                factoryUniV2,
-                            ),
+                            '0x', // no need for this swap since the first will fail making the transaction revert
                         ],
                         buySwaps: [],
                         liquidityZaps: [],
                         investorPermit: permitAccount0,
                         strategistPermit: permitAccount0,
-                    })
-
-                throw new Error('Expected to fail')
-            }
-            catch (e) {
-                const error = decodeLowLevelCallError(e)
-
-                expect(error).to.equal(INSUFFICIENT_OUTPUT_AMOUNT)
-            }
+                    }),
+                'V2TooLittleReceived',
+            )
         })
 
         it('zaps input token with 1% slippage using uni v2', async () => {
@@ -813,48 +736,45 @@ describe('StrategyManager#invest (zap)', () => {
                     strategyId,
                     inputToken: wbtc,
                     inputAmount: amount / BTC_PRICE,
-                    inputTokenSwap: await UniswapV2ZapHelper.encodeSwap(
+                    inputTokenSwap: await SwapEncoder.encodeExactInputV2(
+                        universalRouter,
                         amount / BTC_PRICE,
-                        wbtc,
-                        stablecoin,
-                        BTC_PRICE_BN,
-                        USD_PRICE_BN,
+                        [wbtc, stablecoin],
+                        USD_QUOTE,
+                        BTC_QUOTE,
                         slippage,
                         strategyManager,
                     ),
                     dcaSwaps: [
                         '0x',
-                        await UniswapV2ZapHelper.encodeSwap(
+                        await SwapEncoder.encodeExactInputV2(
+                            universalRouter,
                             amountPerInvestmentMinusSlippage,
-                            stablecoin,
-                            wbtc,
-                            USD_PRICE_BN,
-                            BTC_PRICE_BN,
+                            [stablecoin, wbtc],
+                            USD_QUOTE,
+                            BTC_QUOTE,
                             slippage,
                             strategyManager,
                         ),
                     ],
                     vaultSwaps: [
-                        await UniswapV2ZapHelper.encodeSwap(
+                        await SwapEncoder.encodeExactInputV2(
+                            universalRouter,
                             amountPerInvestmentMinusSlippage,
-                            stablecoin,
-                            wbtc,
-                            USD_PRICE_BN,
-                            BTC_PRICE_BN,
+                            [stablecoin, wbtc],
+                            USD_QUOTE,
+                            BTC_QUOTE,
                             slippage,
                             strategyManager,
                         ),
-                        await UniswapV2ZapHelper.encodeZap(
-                            amountPerInvestmentMinusSlippage,
-                            stablecoin,
-                            wbtc,
-                            weth,
-                            USD_PRICE_BN,
-                            BTC_PRICE_BN,
-                            ETH_PRICE_BN,
-                            slippage,
-                            zapManager,
-                            factoryUniV2,
+                        await SwapEncoder.encodeExactInputV2(
+                            universalRouter,
+                            amountPerInvestmentMinusFees,
+                            [stablecoin, weth],
+                            USD_QUOTE,
+                            ETH_QUOTE,
+                            new BigNumber(0.01),
+                            strategyManager,
                         ),
                     ],
                     buySwaps: [],
@@ -879,14 +799,11 @@ describe('StrategyManager#invest (zap)', () => {
                 tolerance: slippage.times(2), // 2x slippage because of multiple swaps
             })
 
-            // 1/4 investments have btc-eth LP as input token
+            // 1/4 investments have weth as input token
             Compare.almostEqualPercentage({
-                target: await UniswapV2.estimateLiquidityOutput(
-                    amountPerInvestmentMinusFees / 2n / BTC_PRICE,
-                    amountPerInvestmentMinusFees / 2n / ETH_PRICE,
-                ),
-                value: await btcEthLpUniV2.balanceOf(account0) - initialLpBalance,
-                tolerance: slippage.times(2), // 2x slippage because of multiple swaps
+                target: amount * 25n / 100n / ETH_PRICE,
+                value: await weth.balanceOf(account0),
+                tolerance: new BigNumber(0.01), // Tolerance of 1%
             })
         })
     })
@@ -920,7 +837,7 @@ describe('StrategyManager#invest (zap)', () => {
             await stablecoin.connect(account0).approve(strategyManager, amount)
         })
 
-        it('invests in buy when input token is the same as output token', async  () => {
+        it('invests in buy when input token is the same as output token', async () => {
             await strategyManager.connect(account0).invest({
                 strategyId,
                 inputToken: stablecoin,
@@ -931,7 +848,8 @@ describe('StrategyManager#invest (zap)', () => {
                 liquidityZaps: [],
                 buySwaps: [
                     '0x',
-                    await UniswapV3ZapHelper.encodeExactInput(
+                    await SwapEncoder.encodeExactInputV3(
+                        universalRouter,
                         await Fees.deductStrategyFee(
                             amount / 2n,
                             strategyManager,
@@ -943,12 +861,12 @@ describe('StrategyManager#invest (zap)', () => {
                             liquidityManager,
                             buyProduct,
                         ),
-                        new PathUniswapV3(
+                        await PathUniswapV3.fromAddressLike(
                             stablecoin,
                             [{ token: wbtc, fee: 3000 }],
                         ),
-                        USD_PRICE_BN,
-                        BTC_PRICE_BN,
+                        USD_QUOTE,
+                        BTC_QUOTE,
                         new BigNumber(0.05),
                         strategyManager,
                     ),

@@ -29,11 +29,11 @@ import {
     UniversalRouter__factory,
     UniswapV3Factory,
     NonFungiblePositionManager,
+    UniswapV2Factory,
 } from '@src/typechain'
 import { ZeroHash, ZeroAddress, Signer } from 'ethers'
 import { NetworkService } from '@src/NetworkService'
 import { SubscriptionSignature } from '@src/SubscriptionSignature'
-import { ZapProtocols } from '@defihub/shared'
 import { POOL_INIT_CODE_HASH } from '@uniswap/v3-sdk'
 
 export class ProjectDeployer {
@@ -57,7 +57,7 @@ export class ProjectDeployer {
         const projectDeployer = await projectDeployerFactory.deploy()
 
         const stablecoin = await new TestERC20__factory(deployer).deploy(18)
-        // Originally USDC uses 6 decimals, thats why the name choice
+        // Originally USDC uses 6 decimals, that's why the name choice
         const usdc = await new TestERC20__factory(deployer).deploy(6)
         const weth = await new TestERC20__factory(deployer).deploy(18)
         const wbtc = await new TestERC20__factory(account0).deploy(18)
@@ -68,7 +68,7 @@ export class ProjectDeployer {
             positionManagerUniV3,
             quoterUniV3,
         } = await this.deployUniV3(deployer, weth)
-        const universalRouter = await this.deployUniversalRouter(deployer, weth, factoryUniV3, positionManagerUniV3)
+        const universalRouter = await this.deployUniversalRouter(deployer, weth, factoryUniV2, factoryUniV3, positionManagerUniV3)
 
         const subscriptionManagerDeployParams = this.getDeploymentInfo(SubscriptionManager__factory)
         const strategyManagerDeployParams = this.getDeploymentInfo(StrategyManager__factory)
@@ -185,23 +185,8 @@ export class ProjectDeployer {
 
         const zapManagerInit: ZapManager.InitializeParamsStruct = {
             owner: owner.address,
-            zappersUniswapV2: [
-                {
-                    name: ZapProtocols.UniswapV2,
-                    constructorParams: {
-                        treasury: treasury,
-                        swapRouter: routerUniV2,
-                    },
-                },
-            ],
-            swappersUniswapV3: [
-                {
-                    name: ZapProtocols.UniswapV3,
-                    constructorParams: {
-                        swapRouter: routerUniV3,
-                    },
-                },
-            ],
+            zappersUniswapV2: [],
+            swappersUniswapV3: [],
         }
 
         await projectDeployer.initializeProject(
@@ -214,7 +199,7 @@ export class ProjectDeployer {
             zapManagerInit,
         )
 
-        const subscriptionSignature= new SubscriptionSignature(
+        const subscriptionSignature = new SubscriptionSignature(
             subscriptionManager,
             subscriptionSigner,
         )
@@ -326,6 +311,7 @@ export class ProjectDeployer {
     private async deployUniversalRouter(
         deployer: Signer,
         weth: TestERC20,
+        factoryV2: UniswapV2Factory,
         factoryV3: UniswapV3Factory,
         positionManagerV3: NonFungiblePositionManager,
     ) {
@@ -339,8 +325,8 @@ export class ProjectDeployer {
             weth9: weth,
             permit2: ZeroAddress,
             // v2
-            v2Factory: ZeroAddress,
-            pairInitCodeHash: ZeroHash,
+            v2Factory: factoryV2,
+            pairInitCodeHash: '0x96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f', // official uni hash
             // v3
             v3Factory: factoryV3,
             v3NFTPositionManager: positionManagerV3,

@@ -5,8 +5,7 @@ import { UniswapV3 } from '@src/helpers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import { ProjectDeployer } from '@src/ProjectDeployer'
 import { ETH_PRICE, ETH_PRICE_BN, USD_PRICE_BN } from '@src/constants'
-import { CommandType, RoutePlanner } from '@src/helpers/RoutePlanner'
-import { PathUniswapV3 } from '@defihub/shared'
+import { RoutePlanner, UniversalRouterCommand, PathUniswapV3, unwrapAddressLike } from '@defihub/shared'
 import { expect } from 'chai'
 import { Compare } from '@src/Compare'
 import { BigNumber } from '@ryze-blockchain/ethereum'
@@ -59,24 +58,23 @@ describe('Universal Router', () => {
     })
 
     it('swaps', async () => {
-        const planner = new RoutePlanner()
-
         expect(await weth.balanceOf(swapper)).to.be.equal(0)
         expect(await stablecoin.balanceOf(swapper)).to.be.equal(0)
 
-        planner.addCommand(
-            CommandType.V3_SWAP_EXACT_IN,
-            [
-                await swapper.getAddress(),
-                ONE_ETH,
-                ONE_ETH - parseEther('0.01'),
-                await new PathUniswapV3(
-                    weth,
-                    [{ token: stablecoin, fee: 3000 }],
-                ).encodedPath(),
-                false,
-            ],
-        )
+        const planner = new RoutePlanner(await unwrapAddressLike(universalRouter))
+            .addCommand(
+                UniversalRouterCommand.V3_SWAP_EXACT_IN,
+                [
+                    await swapper.getAddress(),
+                    ONE_ETH,
+                    ONE_ETH - parseEther('0.01'),
+                    (await PathUniswapV3.fromAddressLike(
+                        weth,
+                        [{ token: stablecoin, fee: 3000 }],
+                    )).encodedPath(),
+                    false,
+                ],
+            )
 
         await weth.connect(swapper).mint(swapper, ONE_ETH)
         await weth.connect(swapper).transfer(universalRouter, ONE_ETH)

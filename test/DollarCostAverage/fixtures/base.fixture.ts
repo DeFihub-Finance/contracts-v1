@@ -54,13 +54,13 @@ export const baseDcaFixture = async () => {
         account1,
     )
 
-    const path = new PathUniswapV3(stablecoin, [{ token: weth, fee: POOL_FEE }])
+    const path = await PathUniswapV3.fromAddressLike(stablecoin, [{ token: weth, fee: POOL_FEE }])
 
     await dca.createPool(
         stablecoin,
         weth,
         routerUniV3,
-        await path.encodedPath(),
+        path.encodedPath(),
         TWENTY_FOUR_HOURS_IN_SECONDS,
     )
 
