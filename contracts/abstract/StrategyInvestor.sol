@@ -4,10 +4,9 @@ pragma solidity 0.8.26;
 
 import {IERC20Upgradeable, SafeERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import {IBeefyVaultV7} from '../interfaces/IBeefyVaultV7.sol';
+import {HubRouter} from "../libraries/HubRouter.sol";
 import {VaultManager} from '../VaultManager.sol';
 import {LiquidityManager} from "../LiquidityManager.sol";
-import {ZapManager} from "../zap/ZapManager.sol";
-import {ZapLib} from "../libraries/ZapLib.sol";
 import {StrategyStorage} from "./StrategyStorage.sol";
 import {SubscriptionManager} from "../SubscriptionManager.sol";
 import {UseFee} from "./UseFee.sol";
@@ -191,8 +190,7 @@ contract StrategyInvestor is StrategyStorage {
             DcaInvestment memory investment = _params.dcaInvestments[i];
             IERC20Upgradeable poolInputToken = IERC20Upgradeable(dca.getPool(investment.poolId).inputToken);
 
-            uint swapOutput = ZapLib.zap(
-                zapManager,
+            uint swapOutput = HubRouter.execute(
                 _params.swaps[i],
                 _params.inputToken,
                 poolInputToken,
@@ -226,8 +224,7 @@ contract StrategyInvestor is StrategyStorage {
             IBeefyVaultV7 vault = IBeefyVaultV7(investment.vault);
             IERC20Upgradeable vaultWantToken = vault.want();
 
-            uint swapOutput = ZapLib.zap(
-                zapManager,
+            uint swapOutput = HubRouter.execute(
                 _params.swaps[i],
                 _params.inputToken,
                 vaultWantToken,
@@ -311,8 +308,7 @@ contract StrategyInvestor is StrategyStorage {
         for (uint i; i < _params.swaps.length; ++i) {
             BuyInvestment memory investment = _params.investments[i];
 
-            uint swapOutput = ZapLib.zap(
-                zapManager,
+            uint swapOutput = HubRouter.execute(
                 _params.swaps[i],
                 _params.inputToken,
                 investment.token,
@@ -338,8 +334,7 @@ contract StrategyInvestor is StrategyStorage {
 
         _params.inputToken.safeTransferFrom(msg.sender, address(this), _params.inputAmount);
 
-        uint stableAmount = ZapLib.zap(
-            zapManager,
+        uint stableAmount = HubRouter.execute(
             _params.inputTokenSwap,
             _params.inputToken,
             stable,
