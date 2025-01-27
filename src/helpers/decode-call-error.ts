@@ -9,6 +9,8 @@ import {
     LiquidityManager__factory,
     VaultManager__factory,
     ZapManager__factory,
+    HubRouter__factory,
+    UniversalRouter__factory,
 } from '@src/typechain'
 
 const contractInterfaces = [
@@ -20,6 +22,8 @@ const contractInterfaces = [
     VaultManager__factory.createInterface(),
     ZapManager__factory.createInterface(),
     LiquidityManager__factory.createInterface(),
+    HubRouter__factory.createInterface(),
+    UniversalRouter__factory.createInterface(),
 ]
 
 export function decodeLowLevelCallError(error: unknown): string | ErrorDescription | undefined {
