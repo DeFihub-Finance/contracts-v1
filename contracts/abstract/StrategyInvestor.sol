@@ -58,18 +58,11 @@ contract StrategyInvestor is StrategyStorage {
         bytes[] swaps;
     }
 
-    struct PullFundsParams {
+    struct CollectFeesParams {
         uint strategyId;
-        IERC20Upgradeable inputToken;
-        uint inputAmount;
-        bytes inputTokenSwap;
+        uint stableAmount;
         SubscriptionManager.Permit investorPermit;
         SubscriptionManager.Permit strategistPermit;
-    }
-
-    struct PullFundsResult {
-        uint remainingAmount;
-        uint strategistFee;
     }
 
     /**
@@ -88,59 +81,108 @@ contract StrategyInvestor is StrategyStorage {
         SubscriptionManager.Permit strategistPermit;
     }
 
+    struct InvestNativeParams {
+        uint strategyId;
+        bytes inputTokenSwap;
+        bytes[] dcaSwaps;
+        bytes[] vaultSwaps;
+        bytes[] buySwaps;
+        LiquidityInvestZapParams[] liquidityZaps;
+        SubscriptionManager.Permit investorPermit;
+        SubscriptionManager.Permit strategistPermit;
+    }
+
     error StrategyUnavailable();
 
     function invest(InvestParams memory _params) external {
         if (_params.strategyId > _strategies.length)
             revert StrategyUnavailable();
 
-        Strategy storage strategy = _strategies[_params.strategyId];
+        uint initialInputTokenBalance = _params.inputToken.balanceOf(address(this));
 
-        PullFundsResult memory pullFundsResult = _pullFunds(
-            PullFundsParams({
+        _params.inputToken.safeTransferFrom(msg.sender, address(this), _params.inputAmount);
+
+        _invest(
+            _params,
+            HubRouter.execute(
+                _params.inputTokenSwap,
+                _params.inputToken,
+                stable,
+                _params.inputToken.balanceOf(address(this)) - initialInputTokenBalance
+            )
+        );
+    }
+
+    function investNative(InvestNativeParams memory _params) external payable {
+        if (_params.strategyId > _strategies.length)
+            revert StrategyUnavailable();
+
+        _invest(
+            InvestParams({
                 strategyId: _params.strategyId,
-                inputToken: _params.inputToken,
-                inputAmount: _params.inputAmount,
-                inputTokenSwap: _params.inputTokenSwap,
+                inputToken: IERC20Upgradeable(address(0)),
+                inputAmount: msg.value,
+                inputTokenSwap: '',
+                dcaSwaps: _params.dcaSwaps,
+                vaultSwaps: _params.vaultSwaps,
+                buySwaps: _params.buySwaps,
+                liquidityZaps: _params.liquidityZaps,
                 investorPermit: _params.investorPermit,
                 strategistPermit: _params.strategistPermit
+            }),
+            HubRouter.executeNative(_params.inputTokenSwap, stable)
+        );
+    }
+
+    function _invest(
+        InvestParams memory _investParams,
+        uint stableAmount
+    ) internal {
+        Strategy storage strategy = _strategies[_investParams.strategyId];
+
+        uint stableAmountAfterFees = _collectFees(
+            CollectFeesParams({
+                strategyId: _investParams.strategyId,
+                stableAmount: stableAmount,
+                investorPermit: _investParams.investorPermit,
+                strategistPermit: _investParams.strategistPermit
             })
         );
 
         uint[] memory dcaPositionIds = _investInDca(
             DcaInvestParams({
-                dcaInvestments: _dcaInvestmentsPerStrategy[_params.strategyId],
+                dcaInvestments: _dcaInvestmentsPerStrategy[_investParams.strategyId],
                 inputToken: stable,
-                amount: pullFundsResult.remainingAmount,
-                swaps: _params.dcaSwaps
+                amount: stableAmountAfterFees,
+                swaps: _investParams.dcaSwaps
             })
         );
 
         VaultPosition[] memory vaultPositions = _investInVaults(
             VaultInvestParams({
-                vaultInvestments: _vaultInvestmentsPerStrategy[_params.strategyId],
+                vaultInvestments: _vaultInvestmentsPerStrategy[_investParams.strategyId],
                 inputToken: stable,
-                amount: pullFundsResult.remainingAmount,
-                swaps: _params.vaultSwaps
+                amount: stableAmountAfterFees,
+                swaps: _investParams.vaultSwaps
             })
         );
 
         LiquidityPosition[] memory liquidityPositions = _investInLiquidity(
             LiquidityInvestParams({
-                investments: _liquidityInvestmentsPerStrategy[_params.strategyId],
+                investments: _liquidityInvestmentsPerStrategy[_investParams.strategyId],
                 inputToken: stable,
-                amount: pullFundsResult.remainingAmount,
+                amount: stableAmountAfterFees,
                 liquidityTotalPercentage: strategy.percentages[PRODUCT_LIQUIDITY],
-                zaps: _params.liquidityZaps
+                zaps: _investParams.liquidityZaps
             })
         );
 
         BuyPosition[] memory buyPositions = _investInToken(
             BuyInvestParams({
-                investments: _buyInvestmentsPerStrategy[_params.strategyId],
+                investments: _buyInvestmentsPerStrategy[_investParams.strategyId],
                 inputToken: stable,
-                amount: pullFundsResult.remainingAmount,
-                swaps: _params.buySwaps
+                amount: stableAmountAfterFees,
+                swaps: _investParams.buySwaps
             })
         );
 
@@ -148,7 +190,7 @@ contract StrategyInvestor is StrategyStorage {
 
         Position storage position = _positions[msg.sender].push();
 
-        position.strategyId = _params.strategyId;
+        position.strategyId = _investParams.strategyId;
         _dcaPositionsPerPosition[msg.sender][positionId] = dcaPositionIds;
 
         for (uint i; i < vaultPositions.length; ++i)
@@ -162,11 +204,11 @@ contract StrategyInvestor is StrategyStorage {
 
         emit PositionCreated(
             msg.sender,
-            _params.strategyId,
+            _investParams.strategyId,
             positionId,
-            address(_params.inputToken),
-            _params.inputAmount,
-            pullFundsResult.remainingAmount,
+            address(_investParams.inputToken),
+            _investParams.inputAmount,
+            stableAmountAfterFees,
             dcaPositionIds,
             vaultPositions,
             liquidityPositions,
@@ -321,28 +363,16 @@ contract StrategyInvestor is StrategyStorage {
         return buyPositions;
     }
 
-    function _pullFunds(
-        PullFundsParams memory _params
-    ) internal virtual returns (
-        PullFundsResult memory
-    ) {
+    function _collectFees(
+        CollectFeesParams memory _params
+    ) internal virtual returns (uint remainingAmount) {
         Strategy storage strategy = _strategies[_params.strategyId];
 
         bool strategistSubscribed = subscriptionManager.isSubscribed(strategy.creator, _params.strategistPermit);
         bool userSubscribed = subscriptionManager.isSubscribed(msg.sender, _params.investorPermit);
-        uint initialInputTokenBalance = _params.inputToken.balanceOf(address(this));
-
-        _params.inputToken.safeTransferFrom(msg.sender, address(this), _params.inputAmount);
-
-        uint stableAmount = HubRouter.execute(
-            _params.inputTokenSwap,
-            _params.inputToken,
-            stable,
-            _params.inputToken.balanceOf(address(this)) - initialInputTokenBalance
-        );
 
         // Divided by multiplier 10_000 (fee percentage) * 100 (strategy percentage per investment) = 1M
-        uint totalFee = stableAmount * (
+        uint totalFee = _params.stableAmount * (
             _getProductFee(strategy.percentages[PRODUCT_DCA], dca, userSubscribed)
             + _getProductFee(strategy.percentages[PRODUCT_VAULTS], vaultManager, userSubscribed)
             + _getProductFee(strategy.percentages[PRODUCT_LIQUIDITY], liquidityManager, userSubscribed)
@@ -370,10 +400,7 @@ contract StrategyInvestor is StrategyStorage {
 
         emit Fee(msg.sender, treasury, protocolFee, abi.encode(_params.strategyId));
 
-        return PullFundsResult(
-            stableAmount - (protocolFee + strategistFee),
-            strategistFee
-        );
+        return _params.stableAmount - totalFee;
     }
 
     function _getProductFee(
