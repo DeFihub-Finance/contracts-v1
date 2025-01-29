@@ -19,7 +19,7 @@ contract LiquidityManager is HubOwnable, UseFee, UseDust, OnlyStrategyManager {
         address treasury;
         address subscriptionManager;
         address strategyManager;
-        /// @deprecated must keep variable to maintain storage layout
+        // @deprecated must keep variable to maintain storage layout
         address zapManager;
         uint32 baseFeeBP;
         uint32 nonSubscriberFeeBP;
@@ -42,7 +42,7 @@ contract LiquidityManager is HubOwnable, UseFee, UseDust, OnlyStrategyManager {
         uint amount1Min;
     }
 
-    /// @deprecated must keep variable to maintain storage layout
+    // @deprecated must keep variable to maintain storage layout
     address public zapManager;
 
     event PositionCreated(address user, address positionManager, uint tokenId, uint128 liquidity);

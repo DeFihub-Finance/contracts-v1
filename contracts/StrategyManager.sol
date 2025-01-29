@@ -29,7 +29,7 @@ contract StrategyManager is StrategyStorage, HubOwnable, ICall {
         VaultManager vaultManager;
         LiquidityManager liquidityManager;
         UseFee buyProduct;
-        /// @deprecated must keep variable to maintain storage layout
+        // @deprecated must keep variable to maintain storage layout
         address zapManager;
         uint8 maxHottestStrategies;
         uint32 strategistPercentage;
