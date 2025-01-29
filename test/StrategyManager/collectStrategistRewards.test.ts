@@ -2,7 +2,7 @@ import { expect } from 'chai'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import { investFixture } from './fixtures/invest.fixture'
 import { Signer } from 'ethers'
-import { ERC20, StrategyManager, ZapManager } from '@src/typechain'
+import { ERC20, StrategyManager } from '@src/typechain'
 
 // EFFECTS
 // => given a strategist with rewards to collect
@@ -21,7 +21,6 @@ describe('StrategyManager#collectStrategistRewards', () => {
     let account1: Signer
 
     let strategyManager: StrategyManager
-    let zapManager: ZapManager
     let stablecoin: ERC20
 
     const strategistBalance = async () => stablecoin.balanceOf(account0)
@@ -31,7 +30,6 @@ describe('StrategyManager#collectStrategistRewards', () => {
             account0,
             account1,
             strategyManager,
-            zapManager,
             stablecoin,
         } = await loadFixture(investFixture))
     })
@@ -64,21 +62,15 @@ describe('StrategyManager#collectStrategistRewards', () => {
             })
 
             it('calculates rewards properly', async () => {
-                expect(
-                    await strategyManager.getStrategistRewards(account0) +
-                    await stablecoin.balanceOf(zapManager) -
-                    await stablecoin.balanceOf(strategyManager),
-                ).to.equal(0)
+                expect(await strategyManager.getStrategistRewards(account0))
+                    .to.equal(await stablecoin.balanceOf(strategyManager))
 
                 await strategyManager.connect(account0).collectStrategistRewards()
 
                 expect(await strategyManager.getStrategistRewards(account0))
                     .to.equal(0)
 
-                expect(
-                    await stablecoin.balanceOf(zapManager) -
-                    await stablecoin.balanceOf(strategyManager),
-                )
+                expect(await stablecoin.balanceOf(strategyManager))
                     .to.equal(0)
             })
         })

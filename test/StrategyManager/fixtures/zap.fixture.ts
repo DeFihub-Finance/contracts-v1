@@ -34,7 +34,6 @@ export async function zapFixture() {
         liquidityManager,
         subscriptionManager,
         buyProduct,
-        zapManager,
 
         // external test contracts
         universalRouter,
@@ -203,7 +202,6 @@ export async function zapFixture() {
         liquidityManager,
         subscriptionManager,
         buyProduct,
-        zapManager,
 
         // external test contracts
         universalRouter,

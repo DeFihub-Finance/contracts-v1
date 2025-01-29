@@ -9,7 +9,6 @@ import {
     SubscriptionManager,
     TestERC20,
     VaultManager,
-    ZapManager,
     UniversalRouter,
 } from '@src/typechain'
 import { expect } from 'chai'
@@ -44,7 +43,6 @@ describe('StrategyManager#invest (zap)', () => {
     let vaultManager: VaultManager
     let liquidityManager: LiquidityManager
     let buyProduct: BuyProduct
-    let zapManager: ZapManager
 
     // external test contracts
     let universalRouter: UniversalRouter
@@ -112,7 +110,6 @@ describe('StrategyManager#invest (zap)', () => {
             vaultManager,
             liquidityManager,
             buyProduct,
-            zapManager,
 
             // external test contracts
             universalRouter,
@@ -145,7 +142,6 @@ describe('StrategyManager#invest (zap)', () => {
             const { protocolFee, strategistFee } = await getStrategyFeeAmount(amount)
 
             expect(await stablecoin.balanceOf(treasury)).to.equal(initialTreasuryBalance + protocolFee)
-            expect(await stablecoin.balanceOf(zapManager)).to.equal(0)
             expect(await stablecoin.balanceOf(dca)).to.equal(0)
             expect(await stablecoin.balanceOf(strategyManager)).to.equal(strategistFee)
         }
