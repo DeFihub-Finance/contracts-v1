@@ -3,7 +3,6 @@
 pragma solidity 0.8.26;
 
 import {IERC20Upgradeable, SafeERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
-import {ZapManager} from "../zap/ZapManager.sol";
 import {IUniversalRouter} from "../interfaces/IUniversalRouter.sol";
 
 library HubRouter {

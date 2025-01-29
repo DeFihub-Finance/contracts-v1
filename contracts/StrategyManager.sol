@@ -10,7 +10,6 @@ import {StrategyStorage} from "./abstract/StrategyStorage.sol";
 import {StrategyInvestor} from "./abstract/StrategyInvestor.sol";
 import {StrategyPositionManager} from "./abstract/StrategyPositionManager.sol";
 import {ICall} from './interfaces/ICall.sol';
-import {ZapManager} from './zap/ZapManager.sol';
 import {SubscriptionManager} from "./SubscriptionManager.sol";
 import {LiquidityManager} from './LiquidityManager.sol';
 import {VaultManager} from "./VaultManager.sol";
@@ -30,7 +29,8 @@ contract StrategyManager is StrategyStorage, HubOwnable, ICall {
         VaultManager vaultManager;
         LiquidityManager liquidityManager;
         UseFee buyProduct;
-        ZapManager zapManager;
+        /// @deprecated must keep variable to maintain storage layout
+        address zapManager;
         uint8 maxHottestStrategies;
         uint32 strategistPercentage;
         uint32 hotStrategistPercentage;
@@ -77,7 +77,6 @@ contract StrategyManager is StrategyStorage, HubOwnable, ICall {
 
         transferOwnership(_initializeParams.owner);
 
-        zapManager = _initializeParams.zapManager;
         strategyInvestor = _initializeParams.strategyInvestor;
         strategyPositionManager = _initializeParams.strategyPositionManager;
         stable = _initializeParams.stable;

@@ -11,7 +11,6 @@ import {DollarCostAverage} from '../DollarCostAverage.sol';
 import {VaultManager} from '../VaultManager.sol';
 import {LiquidityManager} from '../LiquidityManager.sol';
 import {BuyProduct} from '../BuyProduct.sol';
-import {ZapManager} from '../zap/ZapManager.sol';
 
 contract ProjectDeployer is GenericDeployer {
     // Strategies
@@ -27,7 +26,6 @@ contract ProjectDeployer is GenericDeployer {
 
     // Helpers
     ProxyAddress public subscriptionManager;
-    ProxyAddress public zapManager;
 
     function deployStrategyInvestor(
         bytes memory _code,
@@ -79,20 +77,13 @@ contract ProjectDeployer is GenericDeployer {
         buyProduct = deployProxy(_buyProductDeploymentInfo);
     }
 
-    function deployZapManager(
-        ProxyDeploymentInfo calldata _zapManagerInfo
-    ) external onlyOwner {
-        zapManager = deployProxy(_zapManagerInfo);
-    }
-
     function initializeProject(
         SubscriptionManager.InitializeParams memory _subscriptionManagerParams,
         StrategyManager.InitializeParams memory _strategyManagerParam,
         DollarCostAverage.InitializeParams memory _dcaParams,
         VaultManager.InitializeParams memory _vaultManagerParams,
         LiquidityManager.InitializeParams memory _liquidityManagerParams,
-        BuyProduct.InitializeParams memory _buyProductParams,
-        ZapManager.InitializeParams memory _zapManagerParams
+        BuyProduct.InitializeParams memory _buyProductParams
     ) external onlyOwner {
         StrategyManager(strategyManager.proxy).initialize(_strategyManagerParam);
 
@@ -104,6 +95,5 @@ contract ProjectDeployer is GenericDeployer {
 
         // Helpers
         SubscriptionManager(subscriptionManager.proxy).initialize(_subscriptionManagerParams);
-        ZapManager(zapManager.proxy).initialize(_zapManagerParams);
     }
 }
