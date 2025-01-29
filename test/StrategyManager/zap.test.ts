@@ -14,16 +14,12 @@ import {
 import { expect } from 'chai'
 import { AddressLike, parseEther, Signer, ZeroHash } from 'ethers'
 import hre from 'hardhat'
-import { PathUniswapV3, unwrapAddressLike } from '@defihub/shared'
+import { PathUniswapV3 } from '@defihub/shared'
 import { BigNumber } from '@ryze-blockchain/ethereum'
 import { Compare } from '@src/Compare'
 import { zapFixture } from './fixtures/zap.fixture'
 import { expectCustomError, Fees, SwapEncoder } from '@src/helpers'
-import { BTC_PRICE, BTC_PRICE_BN, ETH_PRICE, ETH_PRICE_BN, USD_PRICE_BN } from '@src/constants'
-
-const USD_QUOTE = { price: USD_PRICE_BN, decimals: 18 }
-const BTC_QUOTE = { price: BTC_PRICE_BN, decimals: 18 }
-const ETH_QUOTE = { price: ETH_PRICE_BN, decimals: 18 }
+import { BTC_PRICE, BTC_PRICE_BN, BTC_QUOTE, ETH_PRICE, ETH_PRICE_BN, ETH_QUOTE, USD_QUOTE } from '@src/constants'
 
 describe('StrategyManager#invest (zap)', () => {
     const amount = parseEther('1000')
@@ -188,7 +184,7 @@ describe('StrategyManager#invest (zap)', () => {
                         await SwapEncoder.encodeExactInputV2(
                             universalRouter,
                             amountPerInvestmentMinusFees,
-                            [await unwrapAddressLike(stablecoin), await unwrapAddressLike(wbtc)],
+                            [stablecoin, wbtc],
                             USD_QUOTE,
                             BTC_QUOTE,
                             new BigNumber(0.01),

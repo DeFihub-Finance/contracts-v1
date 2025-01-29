@@ -6,7 +6,7 @@ import { PathUniswapV3, UniswapV3 } from '@defihub/shared'
 import { LiquidityHelpers } from '@src/helpers'
 import { Fees } from '@src/helpers/Fees'
 import { BigNumber } from '@ryze-blockchain/ethereum'
-import { ETH_PRICE_BN, USD_PRICE_BN } from '@src/constants'
+import { ETH_QUOTE, USD_QUOTE } from '@src/constants'
 
 export async function investFixture() {
     const amountToInvest = parseEther('30')
@@ -175,8 +175,8 @@ export async function investFixture() {
                     buyProduct,
                 ),
                 new PathUniswapV3(stablecoinPriced.address, [{ token: wethPriced.address, fee: 3000 }]),
-                { price: USD_PRICE_BN, decimals: 18 },
-                { price: ETH_PRICE_BN, decimals: 18 },
+                USD_QUOTE,
+                ETH_QUOTE,
                 new BigNumber(0.01),
                 strategyManager,
             ),
