@@ -28,11 +28,11 @@ import {
     UniversalRouter,
 } from '@src/typechain'
 import { zapFixture } from 'test/StrategyManager/fixtures/zap.fixture'
-import { BTC_PRICE_BN, ETH_PRICE_BN, USD_PRICE_BN } from '@src/constants'
+import { BTC_PRICE_BN, ETH_PRICE_BN, ONE_PERCENT, USD_PRICE_BN } from '@src/constants'
 
 describe('LiquidityManager#invest', () => {
     const amount = parseEther('1000')
-    const SLIPPAGE_BN = new BigNumber(0.01)
+    const SLIPPAGE_BN = ONE_PERCENT
     const TEN_PERCENT = new BigNumber(0.1)
 
     let amountWithDeductedFees: BigNumber

@@ -19,7 +19,16 @@ import { BigNumber } from '@ryze-blockchain/ethereum'
 import { Compare } from '@src/Compare'
 import { zapFixture } from './fixtures/zap.fixture'
 import { expectCustomError, Fees, SwapEncoder } from '@src/helpers'
-import { BTC_PRICE, BTC_PRICE_BN, BTC_QUOTE, ETH_PRICE, ETH_PRICE_BN, ETH_QUOTE, USD_QUOTE } from '@src/constants'
+import {
+    BTC_PRICE,
+    BTC_PRICE_BN,
+    BTC_QUOTE,
+    ETH_PRICE,
+    ETH_PRICE_BN,
+    ETH_QUOTE,
+    USD_QUOTE,
+    ONE_PERCENT,
+} from '@src/constants'
 
 describe('StrategyManager#invest (zap)', () => {
     const amount = parseEther('1000')
@@ -187,7 +196,7 @@ describe('StrategyManager#invest (zap)', () => {
                             [stablecoin, wbtc],
                             USD_QUOTE,
                             BTC_QUOTE,
-                            new BigNumber(0.01),
+                            ONE_PERCENT,
                             strategyManager,
                         ),
                     ],
@@ -198,7 +207,7 @@ describe('StrategyManager#invest (zap)', () => {
                     strategistPermit: permitAccount0,
                 })
 
-            await validateDcaZap(new BigNumber(0.01))
+            await validateDcaZap(ONE_PERCENT)
         })
 
         it('zaps with 1% slippage uni v3 single-hop', async () => {
@@ -220,7 +229,7 @@ describe('StrategyManager#invest (zap)', () => {
                             ),
                             USD_QUOTE,
                             BTC_QUOTE,
-                            new BigNumber(0.01),
+                            ONE_PERCENT,
                             strategyManager,
                         ),
                     ],
@@ -231,7 +240,7 @@ describe('StrategyManager#invest (zap)', () => {
                     strategistPermit: permitAccount0,
                 })
 
-            await validateDcaZap(new BigNumber(0.01))
+            await validateDcaZap(ONE_PERCENT)
         })
 
         it('zaps with 1% slippage uni v3 multi-hop', async () => {
@@ -351,7 +360,7 @@ describe('StrategyManager#invest (zap)', () => {
                             [stablecoin, wbtc],
                             USD_QUOTE,
                             BTC_QUOTE,
-                            new BigNumber(0.01),
+                            ONE_PERCENT,
                             strategyManager,
                         ),
                         await SwapEncoder.encodeExactInputV2(
@@ -360,7 +369,7 @@ describe('StrategyManager#invest (zap)', () => {
                             [stablecoin, weth],
                             USD_QUOTE,
                             ETH_QUOTE,
-                            new BigNumber(0.01),
+                            ONE_PERCENT,
                             strategyManager,
                         ),
                     ],
@@ -375,13 +384,13 @@ describe('StrategyManager#invest (zap)', () => {
             Compare.almostEqualPercentage({
                 target: amount * 50n / 100n / BTC_PRICE,
                 value: await wbtc.balanceOf(account0),
-                tolerance: new BigNumber(0.01), // Tolerance of 1%
+                tolerance: ONE_PERCENT, // Tolerance of 1%
             })
 
             Compare.almostEqualPercentage({
                 target: amount * 50n / 100n / ETH_PRICE,
                 value: await weth.balanceOf(account0),
-                tolerance: new BigNumber(0.01), // Tolerance of 1%
+                tolerance: ONE_PERCENT, // Tolerance of 1%
             })
         })
 
@@ -462,7 +471,7 @@ describe('StrategyManager#invest (zap)', () => {
                             [stablecoin, wbtc],
                             USD_QUOTE,
                             BTC_QUOTE,
-                            new BigNumber(0.01),
+                            ONE_PERCENT,
                             strategyManager,
                         ),
                         await SwapEncoder.encodeExactInputV2(
@@ -471,7 +480,7 @@ describe('StrategyManager#invest (zap)', () => {
                             [stablecoin, weth],
                             USD_QUOTE,
                             ETH_QUOTE,
-                            new BigNumber(0.01),
+                            ONE_PERCENT,
                             strategyManager,
                         ),
                     ],
@@ -494,13 +503,13 @@ describe('StrategyManager#invest (zap)', () => {
             Compare.almostEqualPercentage({
                 target: expectedAmountBTC,
                 value: await wbtc.balanceOf(strategyManager),
-                tolerance: new BigNumber(0.01), // Tolerance of 1%
+                tolerance: ONE_PERCENT, // Tolerance of 1%
             })
 
             Compare.almostEqualPercentage({
                 target: expectedAmountETH,
                 value: await weth.balanceOf(strategyManager),
-                tolerance: new BigNumber(0.01), // Tolerance of 1%
+                tolerance: ONE_PERCENT, // Tolerance of 1%
             })
 
             await strategyManager.connect(account0).closePosition(0, [])
@@ -508,13 +517,13 @@ describe('StrategyManager#invest (zap)', () => {
             Compare.almostEqualPercentage({
                 target: expectedAmountBTC,
                 value: await wbtc.balanceOf(account0),
-                tolerance: new BigNumber(0.01), // Tolerance of 1%
+                tolerance: ONE_PERCENT, // Tolerance of 1%
             })
 
             Compare.almostEqualPercentage({
                 target: expectedAmountETH,
                 value: await weth.balanceOf(account0),
-                tolerance: new BigNumber(0.01), // Tolerance of 1%
+                tolerance: ONE_PERCENT, // Tolerance of 1%
             })
         })
 
@@ -616,7 +625,7 @@ describe('StrategyManager#invest (zap)', () => {
                             [stablecoin, wbtc],
                             USD_QUOTE,
                             BTC_QUOTE,
-                            new BigNumber(0.01),
+                            ONE_PERCENT,
                             strategyManager,
                         ),
                     ],
@@ -627,7 +636,7 @@ describe('StrategyManager#invest (zap)', () => {
                             [stablecoin, wbtc],
                             USD_QUOTE,
                             BTC_QUOTE,
-                            new BigNumber(0.01),
+                            ONE_PERCENT,
                             strategyManager,
                         ),
                         await SwapEncoder.encodeExactInputV2(
@@ -636,7 +645,7 @@ describe('StrategyManager#invest (zap)', () => {
                             [stablecoin, weth],
                             USD_QUOTE,
                             ETH_QUOTE,
-                            new BigNumber(0.01),
+                            ONE_PERCENT,
                             strategyManager,
                         ),
                     ],
@@ -651,19 +660,19 @@ describe('StrategyManager#invest (zap)', () => {
             Compare.almostEqualPercentage({
                 target: amount * 25n / 100n,
                 value: (await stablecoin.balanceOf(account0)) - initialStablecoinBalance,
-                tolerance: new BigNumber(0.01), // Tolerance of 1%
+                tolerance: ONE_PERCENT, // Tolerance of 1%
             })
 
             Compare.almostEqualPercentage({
                 target: amount * 50n / 100n / BTC_PRICE, // 25% from DCA and 25% from vault
                 value: await wbtc.balanceOf(account0),
-                tolerance: new BigNumber(0.01), // Tolerance of 1%
+                tolerance: ONE_PERCENT, // Tolerance of 1%
             })
 
             Compare.almostEqualPercentage({
                 target: amount * 25n / 100n / ETH_PRICE, // 25% from vault
                 value: await weth.balanceOf(account0),
-                tolerance: new BigNumber(0.01), // Tolerance of 1%
+                tolerance: ONE_PERCENT, // Tolerance of 1%
             })
         })
 
@@ -713,7 +722,7 @@ describe('StrategyManager#invest (zap)', () => {
             await wbtc.mint(account0, amount / BTC_PRICE)
             await wbtc.approve(strategyManager, amount / BTC_PRICE)
 
-            const slippage = new BigNumber(0.01)
+            const slippage = ONE_PERCENT
             const amountPerInvestmentBn = new BigNumber(amountPerInvestmentMinusFees.toString())
             const amountPerInvestmentMinusSlippage = BigInt(
                 amountPerInvestmentBn
@@ -765,7 +774,7 @@ describe('StrategyManager#invest (zap)', () => {
                             [stablecoin, weth],
                             USD_QUOTE,
                             ETH_QUOTE,
-                            new BigNumber(0.01),
+                            ONE_PERCENT,
                             strategyManager,
                         ),
                     ],
@@ -795,7 +804,7 @@ describe('StrategyManager#invest (zap)', () => {
             Compare.almostEqualPercentage({
                 target: amount * 25n / 100n / ETH_PRICE,
                 value: await weth.balanceOf(account0),
-                tolerance: new BigNumber(0.01), // Tolerance of 1%
+                tolerance: ONE_PERCENT, // Tolerance of 1%
             })
         })
     })
@@ -875,13 +884,13 @@ describe('StrategyManager#invest (zap)', () => {
             Compare.almostEqualPercentage({
                 value: buyPositions[0].amount,
                 target: amount / 2n,
-                tolerance: new BigNumber(0.01),
+                tolerance: ONE_PERCENT,
             })
 
             Compare.almostEqualPercentage({
                 value: BigInt(BTC_PRICE_BN.times(buyPositions[1].amount.toString()).toFixed(0)),
                 target: amount / 2n,
-                tolerance: new BigNumber(0.01),
+                tolerance: ONE_PERCENT,
             })
         })
     })

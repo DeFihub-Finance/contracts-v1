@@ -22,10 +22,10 @@ import {
     UniswapV3 as UniswapV3Helper,
 } from '@src/helpers'
 import { ERC20Priced, UniswapV3, unwrapAddressLike } from '@defihub/shared'
-import { BigNumber } from '@ryze-blockchain/ethereum'
 import { Fees } from '@src/helpers/Fees'
 import { SubscriptionSignature } from '@src/SubscriptionSignature'
 import { Compare } from '@src/Compare'
+import { ONE_PERCENT } from '@src/constants'
 
 // EFFECTS
 // => when user is subscribed
@@ -51,7 +51,7 @@ import { Compare } from '@src/Compare'
 // => if swap paths are different than the vaults length in strategy
 // => if swap paths are different than the dca length in strategy
 describe('StrategyManager#invest', () => {
-    const SLIPPAGE_BN = new BigNumber(0.01)
+    const SLIPPAGE_BN = ONE_PERCENT
     const amountToInvest = parseEther('10')
 
     // accounts
@@ -330,7 +330,7 @@ describe('StrategyManager#invest', () => {
                             .plus(pricedToken1.price.times(amount1.toString()))
                             .toFixed(0),
                     ),
-                    tolerance: new BigNumber(0.01),
+                    tolerance: ONE_PERCENT,
                 })
             })
         })
@@ -427,7 +427,7 @@ describe('StrategyManager#invest', () => {
                             .plus(pricedToken1.price.times(amount1.toString()))
                             .toFixed(0),
                     ),
-                    tolerance: new BigNumber(0.01),
+                    tolerance: ONE_PERCENT,
                 })
             })
         })

@@ -6,13 +6,14 @@ import { StrategyStorage } from '@src/typechain/artifacts/contracts/StrategyMana
 import { NonFungiblePositionManager, UniswapV3Factory, UniversalRouter, UseFee } from '@src/typechain'
 import { UniswapV3 as UniswapV3Helper } from './UniswapV3'
 import { SwapEncoder } from '@src/helpers/SwapEncoder'
+import { ONE_PERCENT } from '@src/constants'
 
 export class LiquidityHelpers {
     public static getMinOutput(
         amount: bigint,
         inputToken: ERC20Priced,
         outputToken: ERC20Priced,
-        slippage: BigNumber = new BigNumber(0.01),
+        slippage: BigNumber = ONE_PERCENT,
     ) {
         if (outputToken.address === inputToken.address)
             return Slippage.deductSlippage(amount, slippage)
@@ -34,7 +35,7 @@ export class LiquidityHelpers {
         token1: ERC20Priced,
         factory: UniswapV3Factory,
         liquidityManager: UseFee,
-        slippage = new BigNumber(0.01),
+        slippage = ONE_PERCENT,
     ) {
         const pool = await UniswapV3Helper.getPoolByFactoryContract(
             factory,

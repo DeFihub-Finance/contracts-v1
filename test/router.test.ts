@@ -4,11 +4,10 @@ import hre from 'hardhat'
 import { UniswapV3 } from '@src/helpers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import { ProjectDeployer } from '@src/ProjectDeployer'
-import { ETH_PRICE, ETH_PRICE_BN, USD_PRICE_BN } from '@src/constants'
+import { ETH_PRICE, ETH_PRICE_BN, ONE_PERCENT, USD_PRICE_BN } from '@src/constants'
 import { RoutePlanner, UniversalRouterCommand, PathUniswapV3, unwrapAddressLike } from '@defihub/shared'
 import { expect } from 'chai'
 import { Compare } from '@src/Compare'
-import { BigNumber } from '@ryze-blockchain/ethereum'
 
 const ONE_ETH = parseEther('1')
 const ONE_BILLION_ETH = parseEther('1000000000')
@@ -88,7 +87,7 @@ describe('Universal Router', () => {
         Compare.almostEqualPercentage({
             value: await stablecoin.balanceOf(swapper),
             target: ONE_ETH * ETH_PRICE,
-            tolerance: new BigNumber(0.01),
+            tolerance: ONE_PERCENT,
         })
     })
 })
