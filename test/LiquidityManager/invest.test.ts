@@ -78,8 +78,8 @@ describe('LiquidityManager#invest', () => {
                 universalRouter,
                 amount,
                 [inputToken.address, outputToken.address],
-                { price: inputToken.price, decimals: inputToken.decimals },
-                { price: outputToken.price, decimals: outputToken.decimals },
+                inputToken,
+                outputToken,
                 SLIPPAGE_BN,
                 liquidityManager,
             )
