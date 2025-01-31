@@ -63,12 +63,14 @@ describe('DCA#setters', () => {
                 ],
             )
 
+            const newEncodedPath = newPath.encodedPath()
+
             for (let i = 0; i < 10; i++)
-                await dca.setPoolPath(positionParams.poolId, newPath.encodedPath())
+                await dca.setPoolPath(positionParams.poolId, newEncodedPath)
 
             const poolPath = await dca.poolPath(positionParams.poolId)
 
-            expect(poolPath).to.be.deep.equal(newPath.encodedPath())
+            expect(poolPath).to.be.deep.equal(newEncodedPath)
         })
 
         it('sets a new router to pool', async () => {
