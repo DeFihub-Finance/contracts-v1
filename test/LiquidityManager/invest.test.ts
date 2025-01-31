@@ -28,7 +28,7 @@ import {
     UniversalRouter,
 } from '@src/typechain'
 import { zapFixture } from 'test/StrategyManager/fixtures/zap.fixture'
-import { BTC_PRICE_BN, ETH_PRICE_BN, USD_PRICE_BN, USD_QUOTE } from '@src/constants'
+import { BTC_PRICE_BN, ETH_PRICE_BN, USD_PRICE_BN } from '@src/constants'
 
 describe('LiquidityManager#invest', () => {
     const amount = parseEther('1000')
@@ -77,8 +77,8 @@ describe('LiquidityManager#invest', () => {
             ? SwapEncoder.encodeExactInputV2(
                 universalRouter,
                 amount,
-                [await unwrapAddressLike(stablecoin), outputToken.address],
-                USD_QUOTE,
+                [inputToken.address, outputToken.address],
+                { price: inputToken.price, decimals: inputToken.decimals },
                 { price: outputToken.price, decimals: outputToken.decimals },
                 SLIPPAGE_BN,
                 liquidityManager,
