@@ -1,5 +1,5 @@
 import { expect } from 'chai'
-import { AbiCoder, ErrorDescription, parseEther, Signer } from 'ethers'
+import { AbiCoder, parseEther, Signer } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import {
     DollarCostAverage,
@@ -11,15 +11,21 @@ import {
     TestVault,
     UniswapPositionManager,
     UniswapV3Factory,
+    UniversalRouter,
     UseFee,
 } from '@src/typechain'
 import { createStrategyFixture } from './fixtures/create-strategy.fixture'
-import { decodeLowLevelCallError, getEventLog, LiquidityHelpers, UniswapV3 as UniswapV3Helper } from '@src/helpers'
+import {
+    expectCustomError,
+    getEventLog,
+    LiquidityHelpers,
+    UniswapV3 as UniswapV3Helper,
+} from '@src/helpers'
 import { ERC20Priced, UniswapV3, unwrapAddressLike } from '@defihub/shared'
-import { BigNumber } from '@ryze-blockchain/ethereum'
 import { Fees } from '@src/helpers/Fees'
 import { SubscriptionSignature } from '@src/SubscriptionSignature'
 import { Compare } from '@src/Compare'
+import { ONE_PERCENT } from '@src/constants'
 
 // EFFECTS
 // => when user is subscribed
@@ -45,7 +51,7 @@ import { Compare } from '@src/Compare'
 // => if swap paths are different than the vaults length in strategy
 // => if swap paths are different than the dca length in strategy
 describe('StrategyManager#invest', () => {
-    const SLIPPAGE_BN = new BigNumber(0.01)
+    const SLIPPAGE_BN = ONE_PERCENT
     const amountToInvest = parseEther('10')
 
     // accounts
@@ -70,6 +76,7 @@ describe('StrategyManager#invest', () => {
     let buyProduct: UseFee
 
     // external test contracts
+    let universalRouter: UniversalRouter
     let positionManagerUniV3: UniswapPositionManager
     let factoryUniV3: UniswapV3Factory
 
@@ -160,6 +167,7 @@ describe('StrategyManager#invest', () => {
 
         const liquidityZaps = await Promise.all(liquidityInvestments.map(
             investment => LiquidityHelpers.getLiquidityZap(
+                universalRouter,
                 amountWithDeductedFees,
                 investment,
                 stablecoinPriced,
@@ -215,6 +223,7 @@ describe('StrategyManager#invest', () => {
             buyProduct,
 
             // external test contracts
+            universalRouter,
             positionManagerUniV3,
             factoryUniV3,
 
@@ -321,7 +330,7 @@ describe('StrategyManager#invest', () => {
                             .plus(pricedToken1.price.times(amount1.toString()))
                             .toFixed(0),
                     ),
-                    tolerance: new BigNumber(0.01),
+                    tolerance: ONE_PERCENT,
                 })
             })
         })
@@ -418,7 +427,7 @@ describe('StrategyManager#invest', () => {
                             .plus(pricedToken1.price.times(amount1.toString()))
                             .toFixed(0),
                     ),
-                    tolerance: new BigNumber(0.01),
+                    tolerance: ONE_PERCENT,
                 })
             })
         })
@@ -579,83 +588,55 @@ describe('StrategyManager#invest', () => {
 
     describe('REVERTS', () => {
         it('if swap paths are different than the vault length in strategy', async () => {
-            try {
-                await _invest(
+            await expectCustomError(
+                _invest(
                     account2,
                     {
                         ...await getInvestParams(account2, { _investorSubscribed: false }),
                         vaultSwaps: [],
                     },
-                )
-            }
-            catch (e) {
-                const decodedError = decodeLowLevelCallError(e)
-
-                if (!(decodedError instanceof ErrorDescription))
-                    throw new Error('Error decoding custom error')
-
-                expect(decodedError.name).to.be.equal('InvalidParamsLength')
-            }
+                ),
+                'InvalidParamsLength',
+            )
         })
 
         it('if swap paths are different than the dca length in strategy', async () => {
-            try {
-                await _invest(
+            await expectCustomError(
+                _invest(
                     account2,
                     {
                         ...await getInvestParams(account2, { _investorSubscribed: false }),
                         dcaSwaps: [],
                     },
-                )
-            }
-            catch (e) {
-                const decodedError = decodeLowLevelCallError(e)
-
-                if (!(decodedError instanceof ErrorDescription))
-                    throw new Error('Error decoding custom error')
-
-                expect(decodedError.name).to.be.equal('InvalidParamsLength')
-            }
+                ),
+                'InvalidParamsLength',
+            )
         })
 
         it('if swap paths are different than the liquidity length in strategy', async () => {
-            try {
-                await _invest(
+            await expectCustomError(
+                _invest(
                     account2,
                     {
                         ...await getInvestParams(account2, { _investorSubscribed: false }),
                         liquidityZaps: [],
                     },
-                )
-            }
-            catch (e) {
-                const decodedError = decodeLowLevelCallError(e)
-
-                if (!(decodedError instanceof ErrorDescription))
-                    throw new Error('Error decoding custom error')
-
-                expect(decodedError.name).to.be.equal('InvalidParamsLength')
-            }
+                ),
+                'InvalidParamsLength',
+            )
         })
 
         it('if strategyId do not exist', async () => {
-            try {
-                await _invest(
+            await expectCustomError(
+                _invest(
                     account2,
                     {
                         ...await getInvestParams(account2, { _investorSubscribed: false }),
                         strategyId: 99,
                     },
-                )
-
-                throw new Error('Expected to revert')
-            }
-            catch (e) {
-                const decodedError = decodeLowLevelCallError(e)
-
-                expect(decodedError).to.be.instanceof(ErrorDescription)
-                expect((decodedError as ErrorDescription).name).to.be.equal('StrategyUnavailable')
-            }
+                ),
+                'StrategyUnavailable',
+            )
         })
     })
 })

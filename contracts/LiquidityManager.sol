@@ -8,8 +8,7 @@ import {HubOwnable} from "./abstract/HubOwnable.sol";
 import {OnlyStrategyManager} from "./abstract/OnlyStrategyManager.sol";
 import {UseFee} from "./abstract/UseFee.sol";
 import {UseDust} from "./abstract/UseDust.sol";
-import {ZapLib} from "./libraries/ZapLib.sol";
-import {ZapManager} from "./zap/ZapManager.sol";
+import {HubRouter} from "./libraries/HubRouter.sol";
 import {SubscriptionManager} from "./SubscriptionManager.sol";
 
 contract LiquidityManager is HubOwnable, UseFee, UseDust, OnlyStrategyManager {
@@ -20,7 +19,8 @@ contract LiquidityManager is HubOwnable, UseFee, UseDust, OnlyStrategyManager {
         address treasury;
         address subscriptionManager;
         address strategyManager;
-        ZapManager zapManager;
+        // @deprecated must keep variable to maintain storage layout
+        address zapManager;
         uint32 baseFeeBP;
         uint32 nonSubscriberFeeBP;
     }
@@ -42,7 +42,8 @@ contract LiquidityManager is HubOwnable, UseFee, UseDust, OnlyStrategyManager {
         uint amount1Min;
     }
 
-    ZapManager public zapManager;
+    // @deprecated must keep variable to maintain storage layout
+    address public zapManager;
 
     event PositionCreated(address user, address positionManager, uint tokenId, uint128 liquidity);
 
@@ -104,15 +105,13 @@ contract LiquidityManager is HubOwnable, UseFee, UseDust, OnlyStrategyManager {
         uint tokenId,
         uint128 liquidity
     ) {
-        uint inputAmount0 = ZapLib.zap(
-            zapManager,
+        uint inputAmount0 = HubRouter.execute(
             _params.swapToken0,
             _params.inputToken,
             _params.token0,
             _params.swapAmountToken0
         );
-        uint inputAmount1 = ZapLib.zap(
-            zapManager,
+        uint inputAmount1 = HubRouter.execute(
             _params.swapToken1,
             _params.inputToken,
             _params.token1,

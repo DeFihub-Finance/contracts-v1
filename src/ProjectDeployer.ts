@@ -15,8 +15,6 @@ import {
     TestERC20__factory,
     TestERC20,
     NonFungiblePositionManager__factory,
-    ZapManager,
-    ZapManager__factory,
     UniswapV2Factory__factory,
     UniswapV2Router02__factory,
     Quoter__factory,
@@ -29,11 +27,11 @@ import {
     UniversalRouter__factory,
     UniswapV3Factory,
     NonFungiblePositionManager,
+    UniswapV2Factory,
 } from '@src/typechain'
 import { ZeroHash, ZeroAddress, Signer } from 'ethers'
 import { NetworkService } from '@src/NetworkService'
 import { SubscriptionSignature } from '@src/SubscriptionSignature'
-import { ZapProtocols } from '@defihub/shared'
 import { POOL_INIT_CODE_HASH } from '@uniswap/v3-sdk'
 
 export class ProjectDeployer {
@@ -57,7 +55,7 @@ export class ProjectDeployer {
         const projectDeployer = await projectDeployerFactory.deploy()
 
         const stablecoin = await new TestERC20__factory(deployer).deploy(18)
-        // Originally USDC uses 6 decimals, thats why the name choice
+        // Originally USDC uses 6 decimals, that's why the name choice
         const usdc = await new TestERC20__factory(deployer).deploy(6)
         const weth = await new TestERC20__factory(deployer).deploy(18)
         const wbtc = await new TestERC20__factory(account0).deploy(18)
@@ -68,14 +66,13 @@ export class ProjectDeployer {
             positionManagerUniV3,
             quoterUniV3,
         } = await this.deployUniV3(deployer, weth)
-        const universalRouter = await this.deployUniversalRouter(deployer, weth, factoryUniV3, positionManagerUniV3)
+        const universalRouter = await this.deployUniversalRouter(deployer, weth, factoryUniV2, factoryUniV3, positionManagerUniV3)
 
         const subscriptionManagerDeployParams = this.getDeploymentInfo(SubscriptionManager__factory)
         const strategyManagerDeployParams = this.getDeploymentInfo(StrategyManager__factory)
         const dcaDeployParams = this.getDeploymentInfo(DollarCostAverage__factory)
         const vaultManagerDeployParams = this.getDeploymentInfo(VaultManager__factory)
         const liquidityManagerDeployParams = this.getDeploymentInfo(LiquidityManager__factory)
-        const zapManagerDeployParams = this.getDeploymentInfo(ZapManager__factory)
         const buyProductDeployParams = this.getDeploymentInfo(BuyProduct__factory)
 
         await projectDeployer.deployStrategyInvestor(StrategyInvestor__factory.bytecode, ZeroHash)
@@ -85,7 +82,6 @@ export class ProjectDeployer {
         await projectDeployer.deployDca(dcaDeployParams)
         await projectDeployer.deployVaultManager(vaultManagerDeployParams)
         await projectDeployer.deployLiquidityManager(liquidityManagerDeployParams)
-        await projectDeployer.deployZapManager(zapManagerDeployParams)
         await projectDeployer.deployBuyProduct(buyProductDeployParams)
 
         // non-proxy contracts
@@ -105,7 +101,6 @@ export class ProjectDeployer {
             vaultManager,
             liquidityManager,
             buyProduct,
-            zapManager,
         ] = (await Promise.all([
             projectDeployer.strategyManager(),
             projectDeployer.subscriptionManager(),
@@ -113,7 +108,6 @@ export class ProjectDeployer {
             projectDeployer.vaultManager(),
             projectDeployer.liquidityManager(),
             projectDeployer.buyProduct(),
-            projectDeployer.zapManager(),
         ])).map(({ proxy }) => proxy)
 
         const subscriptionManager = SubscriptionManager__factory.connect(
@@ -140,7 +134,7 @@ export class ProjectDeployer {
             vaultManager,
             liquidityManager,
             buyProduct,
-            zapManager,
+            zapManager: ZeroAddress,
             maxHottestStrategies: 10n,
             strategistPercentage: 20n,
             hotStrategistPercentage: 40n,
@@ -170,7 +164,7 @@ export class ProjectDeployer {
             treasury: treasury.address,
             strategyManager,
             subscriptionManager,
-            zapManager,
+            zapManager: ZeroAddress,
             baseFeeBP: 30n,
             nonSubscriberFeeBP: 30n,
         }
@@ -183,27 +177,6 @@ export class ProjectDeployer {
             nonSubscriberFeeBP: 30n,
         }
 
-        const zapManagerInit: ZapManager.InitializeParamsStruct = {
-            owner: owner.address,
-            zappersUniswapV2: [
-                {
-                    name: ZapProtocols.UniswapV2,
-                    constructorParams: {
-                        treasury: treasury,
-                        swapRouter: routerUniV2,
-                    },
-                },
-            ],
-            swappersUniswapV3: [
-                {
-                    name: ZapProtocols.UniswapV3,
-                    constructorParams: {
-                        swapRouter: routerUniV3,
-                    },
-                },
-            ],
-        }
-
         await projectDeployer.initializeProject(
             subscriptionManagerInitParams,
             strategyManagerInitParams,
@@ -211,10 +184,9 @@ export class ProjectDeployer {
             vaultManagerInit,
             liquidityManagerInit,
             buyProductManagerInit,
-            zapManagerInit,
         )
 
-        const subscriptionSignature= new SubscriptionSignature(
+        const subscriptionSignature = new SubscriptionSignature(
             subscriptionManager,
             subscriptionSigner,
         )
@@ -227,7 +199,6 @@ export class ProjectDeployer {
             subscriptionManager,
             dca: DollarCostAverage__factory.connect(dca, owner),
             vaultManager: VaultManager__factory.connect(vaultManager, owner),
-            zapManager: ZapManager__factory.connect(zapManager, owner),
             buyProduct: BuyProduct__factory.connect(buyProduct, owner),
             liquidityManager: LiquidityManager__factory.connect(liquidityManager, owner),
 
@@ -326,6 +297,7 @@ export class ProjectDeployer {
     private async deployUniversalRouter(
         deployer: Signer,
         weth: TestERC20,
+        factoryV2: UniswapV2Factory,
         factoryV3: UniswapV3Factory,
         positionManagerV3: NonFungiblePositionManager,
     ) {
@@ -339,8 +311,8 @@ export class ProjectDeployer {
             weth9: weth,
             permit2: ZeroAddress,
             // v2
-            v2Factory: ZeroAddress,
-            pairInitCodeHash: ZeroHash,
+            v2Factory: factoryV2,
+            pairInitCodeHash: '0x96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f', // official uni hash
             // v3
             v3Factory: factoryV3,
             v3NFTPositionManager: positionManagerV3,

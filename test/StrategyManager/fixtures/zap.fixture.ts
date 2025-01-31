@@ -34,9 +34,9 @@ export async function zapFixture() {
         liquidityManager,
         subscriptionManager,
         buyProduct,
-        zapManager,
 
         // external test contracts
+        universalRouter,
         routerUniV2,
         factoryUniV2,
         factoryUniV3,
@@ -165,7 +165,7 @@ export async function zapFixture() {
         stablecoin,
         wbtc,
         routerUniV3,
-        await new PathUniswapV3(stablecoin, [{ token: wbtc, fee: 3000 }]).encodedPath(),
+        (await PathUniswapV3.fromAddressLike(stablecoin, [{ token: wbtc, fee: 3000 }])).encodedPath(),
         60 * 60 * 24, // 24h
     )
 
@@ -175,7 +175,7 @@ export async function zapFixture() {
         wbtc,
         weth,
         routerUniV3,
-        await new PathUniswapV3(wbtc, [{ token: weth, fee: 3000 }]).encodedPath(),
+        (await PathUniswapV3.fromAddressLike(wbtc, [{ token: weth, fee: 3000 }])).encodedPath(),
         60 * 60 * 24, // 24h
     )
 
@@ -202,9 +202,9 @@ export async function zapFixture() {
         liquidityManager,
         subscriptionManager,
         buyProduct,
-        zapManager,
 
         // external test contracts
+        universalRouter,
         routerUniV2,
         factoryUniV2,
         factoryUniV3,
@@ -223,11 +223,6 @@ export async function zapFixture() {
         btcEthLpUniV3,
 
         // constants,
-        USD_PRICE_BN,
-        BTC_PRICE,
-        BTC_PRICE_BN,
-        ETH_PRICE,
-        ETH_PRICE_BN,
         ONE_BILLION_ETH,
     }
 }

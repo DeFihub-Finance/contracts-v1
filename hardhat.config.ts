@@ -77,7 +77,6 @@ const config: HardhatUserConfig = {
             'SwapperUniswapV3.sol',
             'UseFee.sol',
             'VaultManager.sol',
-            'ZapLib.sol',
             'ZapManager.sol',
             'ZapperUniswapV2.sol',
         ],

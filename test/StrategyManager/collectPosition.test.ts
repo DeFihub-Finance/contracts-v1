@@ -9,9 +9,9 @@ import {
     UniswapPositionManager,
     UniswapV3Factory,
 } from '@src/typechain'
-import { AddressLike, ErrorDescription, Signer } from 'ethers'
+import { AddressLike, Signer } from 'ethers'
 import { runStrategy } from './fixtures/run-strategy.fixture'
-import { decodeLowLevelCallError, getEventLog, LiquidityHelpers } from '@src/helpers'
+import { expectCustomError, getEventLog, LiquidityHelpers } from '@src/helpers'
 
 // => Given an investor with a position in a strategy which contains a DCA pool
 //      => When the investor collects the position
@@ -243,17 +243,10 @@ describe('StrategyManager#collectPosition', () => {
     describe('Given an investor with no position', () => {
         describe('When the investor collects the position', () => {
             it('Then revert with InvalidPositionId', async () => {
-                try {
-                    await strategyManager.connect(account2).collectPosition(dcaPositionId)
-
-                    throw new Error('Expected to fail')
-                }
-                catch (e) {
-                    const error = decodeLowLevelCallError(e)
-
-                    expect(error).to.be.instanceof(ErrorDescription)
-                    expect((error as ErrorDescription).name).to.equal('InvalidPositionId')
-                }
+                await expectCustomError(
+                    strategyManager.connect(account2).collectPosition(dcaPositionId),
+                    'InvalidPositionId',
+                )
             })
         })
     })

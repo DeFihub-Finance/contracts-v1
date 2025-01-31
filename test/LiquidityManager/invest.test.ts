@@ -2,24 +2,21 @@ import { expect } from 'chai'
 import type { Pool } from '@uniswap/v3-sdk'
 import { BigNumber } from '@ryze-blockchain/ethereum'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
-import { Fees, unwrapAddressLike, UniswapV3, ERC20Priced } from '@defihub/shared'
+import { Fees, unwrapAddressLike, UniswapV3, ERC20Priced, PathUniswapV3 } from '@defihub/shared'
 import {
-    ErrorDescription,
     type Signer,
-    ZeroAddress,
     parseEther,
     parseUnits,
     ContractTransactionReceipt,
 } from 'ethers'
 import { Compare } from '@src/Compare'
 import { mockTokenWithAddress } from '@src/helpers/mock-token'
-import { decodeLowLevelCallError } from '@src/helpers/decode-call-error'
 import {
-    UniswapV2ZapHelper,
-    UniswapV3ZapHelper,
     UniswapV3 as UniswapV3Helpers,
     getEventLog,
     LiquidityHelpers,
+    SwapEncoder,
+    expectCustomError,
 } from '@src/helpers'
 import {
     LiquidityManager,
@@ -28,21 +25,18 @@ import {
     TestERC20,
     UniswapV3Pool,
     UniswapV3Pool__factory,
+    UniversalRouter,
 } from '@src/typechain'
 import { zapFixture } from 'test/StrategyManager/fixtures/zap.fixture'
+import { BTC_PRICE_BN, ETH_PRICE_BN, ONE_PERCENT, USD_PRICE_BN } from '@src/constants'
 
 describe('LiquidityManager#invest', () => {
     const amount = parseEther('1000')
-    const SLIPPAGE_BN = new BigNumber(0.01)
+    const SLIPPAGE_BN = ONE_PERCENT
     const TEN_PERCENT = new BigNumber(0.1)
 
     let amountWithDeductedFees: BigNumber
     let inputToken: ERC20Priced
-
-    // prices
-    let USD_PRICE_BN: BigNumber
-    let BTC_PRICE_BN: BigNumber
-    let ETH_PRICE_BN: BigNumber
 
     // accounts
     let account0: Signer
@@ -57,6 +51,7 @@ describe('LiquidityManager#invest', () => {
     let liquidityManager: LiquidityManager
 
     // external test contracts
+    let universalRouter: UniversalRouter
     let positionManagerUniV3: NonFungiblePositionManager
     let stableBtcLpUniV3: UniswapV3Pool
     let usdcEthLpUniV3: UniswapV3Pool
@@ -79,20 +74,24 @@ describe('LiquidityManager#invest', () => {
             return '0x'
 
         return protocol === 'uniswapV2'
-            ? UniswapV2ZapHelper.encodeSwap(
+            ? SwapEncoder.encodeExactInputV2(
+                universalRouter,
                 amount,
-                stablecoin,
-                outputToken.address,
-                USD_PRICE_BN,
-                outputToken.price,
+                [inputToken.address, outputToken.address],
+                inputToken,
+                outputToken,
                 SLIPPAGE_BN,
                 liquidityManager,
             )
-            : UniswapV3ZapHelper.encodeExactInputSingle(
+            : SwapEncoder.encodeExactInputV3(
+                universalRouter,
                 amount,
+                new PathUniswapV3(
+                    inputToken.address,
+                    [{ fee: 3000, token: outputToken.address }],
+                ),
                 inputToken,
                 outputToken,
-                3000,
                 SLIPPAGE_BN,
                 liquidityManager,
             )
@@ -189,11 +188,6 @@ describe('LiquidityManager#invest', () => {
 
     beforeEach(async () => {
         ({
-            // prices
-            USD_PRICE_BN,
-            BTC_PRICE_BN,
-            ETH_PRICE_BN,
-
             // accounts
             account0,
 
@@ -210,6 +204,7 @@ describe('LiquidityManager#invest', () => {
             permitAccount0,
 
             // external test contracts
+            universalRouter,
             positionManagerUniV3,
             stableBtcLpUniV3,
             usdcEthLpUniV3,
@@ -469,19 +464,24 @@ describe('LiquidityManager#invest', () => {
     })
 
     it('fails if swap amount is greater than deposit amount', async () => {
-        try {
-            await liquidityManager
+        const { token0, token1 } = UniswapV3Helpers.sortTokens(
+            await unwrapAddressLike(stablecoin),
+            await unwrapAddressLike(wbtc),
+        )
+
+        await expect(
+            liquidityManager
                 .connect(account0)
                 .investUniswapV3(
                     {
-                        positionManager: ZeroAddress,
+                        positionManager: positionManagerUniV3,
                         inputToken: stablecoin,
                         depositAmountInputToken: amount,
 
                         fee: 0,
 
-                        token0: ZeroAddress,
-                        token1: ZeroAddress,
+                        token0,
+                        token1,
 
                         swapToken0: '0x',
                         swapToken1: '0x',
@@ -496,16 +496,8 @@ describe('LiquidityManager#invest', () => {
                         amount1Min: 0,
                     },
                     permitAccount0,
-                )
-        }
-        catch (e) {
-            const error = decodeLowLevelCallError(e)
-
-            if (!(error instanceof ErrorDescription))
-                throw new Error('Error decoding custom error')
-
-            expect(error.name).to.equal('InsufficientFunds')
-        }
+                ),
+        ).to.be.revertedWithCustomError(liquidityManager, 'InsufficientFunds')
     })
 
     it('fails if token0 address is greater than token1 address', async () => {
@@ -514,8 +506,8 @@ describe('LiquidityManager#invest', () => {
             await unwrapAddressLike(wbtc),
         )
 
-        try {
-            await liquidityManager
+        await expectCustomError(
+            liquidityManager
                 .connect(account0)
                 .investUniswapV3(
                     {
@@ -541,15 +533,8 @@ describe('LiquidityManager#invest', () => {
                         amount1Min: 0,
                     },
                     permitAccount0,
-                )
-        }
-        catch (e) {
-            const error = decodeLowLevelCallError(e)
-
-            if (!(error instanceof ErrorDescription))
-                throw new Error('Error decoding custom error')
-
-            expect(error.name).to.equal('InvalidInvestment')
-        }
+                ),
+            'InvalidInvestment',
+        )
     })
 })

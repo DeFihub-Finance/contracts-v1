@@ -1,11 +1,11 @@
 import { createStrategyFixture } from './create-strategy.fixture'
 import { parseEther } from 'ethers'
 import { NetworkService } from '@src/NetworkService'
-import { createStrategy, UniswapV3ZapHelper } from '@src/helpers'
-import { UniswapV3 } from '@defihub/shared'
+import { createStrategy, SwapEncoder } from '@src/helpers'
+import { PathUniswapV3, UniswapV3 } from '@defihub/shared'
 import { LiquidityHelpers } from '@src/helpers'
 import { Fees } from '@src/helpers/Fees'
-import { BigNumber } from '@ryze-blockchain/ethereum'
+import { ETH_QUOTE, ONE_PERCENT, USD_QUOTE } from '@src/constants'
 
 export async function investFixture() {
     const amountToInvest = parseEther('30')
@@ -26,6 +26,7 @@ export async function investFixture() {
         permitAccount0,
         factoryUniV3,
         positionManagerUniV3,
+        universalRouter,
         ...rest
     } = await createStrategyFixture()
     const deadline = await NetworkService.getBlockTimestamp() + 10_000
@@ -122,6 +123,7 @@ export async function investFixture() {
     )
     const liquidityZaps = await Promise.all(liquidityInvestments.map(
         investment => LiquidityHelpers.getLiquidityZap(
+            universalRouter,
             amountWithDeductedFees,
             investment,
             stablecoinPriced,
@@ -158,7 +160,8 @@ export async function investFixture() {
         vaultSwaps: [],
         liquidityZaps: [],
         buySwaps: [
-            await UniswapV3ZapHelper.encodeExactInputSingle(
+            await SwapEncoder.encodeExactInputV3(
+                universalRouter,
                 await Fees.deductStrategyFee(
                     amountPerInvestmentStrategy,
                     strategyManager,
@@ -170,10 +173,10 @@ export async function investFixture() {
                     liquidityManager,
                     buyProduct,
                 ),
-                stablecoinPriced,
-                wethPriced,
-                3000,
-                new BigNumber(0.01),
+                new PathUniswapV3(stablecoinPriced.address, [{ token: wethPriced.address, fee: 3000 }]),
+                USD_QUOTE,
+                ETH_QUOTE,
+                ONE_PERCENT,
                 strategyManager,
             ),
         ],

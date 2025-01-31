@@ -27,9 +27,9 @@ export class UniswapV3 {
         poolFee: bigint,
         amountIn: bigint,
     ) {
-        const path = new PathUniswapV3(inputToken, [{ fee: poolFee, token: outputToken }])
+        const path = await PathUniswapV3.fromAddressLike(inputToken, [{ fee: poolFee, token: outputToken }])
 
-        return quoter.quoteExactInput.staticCall(await path.encodedPath(), amountIn)
+        return quoter.quoteExactInput.staticCall(path.encodedPath(), amountIn)
     }
 
     public static calculateSqrtPriceX96(

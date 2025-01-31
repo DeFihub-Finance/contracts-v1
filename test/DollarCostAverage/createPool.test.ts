@@ -35,10 +35,10 @@ describe('DCA#createPool', () => {
 
         beforeEach(async () => {
             poolId = await dca.getPoolsLength()
-            reversePoolPath = await new PathUniswapV3(
+            reversePoolPath = (await PathUniswapV3.fromAddressLike(
                 weth,
                 [{ token: stablecoin, fee: 3_000 }],
-            ).encodedPath()
+            )).encodedPath()
         })
 
         it('creates a new pool', async () => {
@@ -98,10 +98,10 @@ describe('DCA#createPool', () => {
                 stablecoin,
                 wbtc,
                 routerUniV3,
-                await new PathUniswapV3(
+                (await PathUniswapV3.fromAddressLike(
                     wbtc,
                     [{ token: weth, fee: 3000 }],
-                ).encodedPath(),
+                )).encodedPath(),
                 TWENTY_FOUR_HOURS_IN_SECONDS,
             )
 
@@ -113,10 +113,10 @@ describe('DCA#createPool', () => {
                 stablecoin,
                 wbtc,
                 routerUniV3,
-                await new PathUniswapV3(
+                (await PathUniswapV3.fromAddressLike(
                     stablecoin,
                     [{ token: weth, fee: 3000 }],
-                ).encodedPath(),
+                )).encodedPath(),
                 TWENTY_FOUR_HOURS_IN_SECONDS,
             )
 
@@ -128,19 +128,19 @@ describe('DCA#createPool', () => {
                 stablecoin,
                 wbtc,
                 routerUniV3,
-                await path.encodedPath(),
+                path.encodedPath(),
                 TWENTY_FOUR_HOURS_IN_SECONDS,
             )
 
             await expect(tx).to.be.revertedWith('Ownable: caller is not the owner')
         })
 
-        it ('if interval in less than the min interval', async () => {
+        it('if interval in less than the min interval', async () => {
             const tx = dca.createPool(
                 stablecoin,
                 weth,
                 routerUniV3,
-                await path.encodedPath(),
+                path.encodedPath(),
                 60 * 60,
             )
 

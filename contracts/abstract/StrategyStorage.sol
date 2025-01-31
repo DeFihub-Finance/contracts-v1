@@ -5,7 +5,6 @@ pragma solidity 0.8.26;
 import {IERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 
 import {INonfungiblePositionManager} from '../interfaces/INonfungiblePositionManager.sol';
-import {ZapManager} from '../zap/ZapManager.sol';
 import {SubscriptionManager} from '../SubscriptionManager.sol';
 import {LiquidityManager} from '../LiquidityManager.sol';
 import {VaultManager} from "../VaultManager.sol";
@@ -94,7 +93,7 @@ contract StrategyStorage is UseTreasury {
     mapping(address => uint) internal _strategistRewards;
 
     IERC20Upgradeable public stable;
-    ZapManager public zapManager;
+    address public zapManager;
     SubscriptionManager public subscriptionManager;
     DollarCostAverage public dca;
     VaultManager public vaultManager;
