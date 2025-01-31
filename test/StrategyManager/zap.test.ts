@@ -14,7 +14,7 @@ import {
 import { expect } from 'chai'
 import { AddressLike, parseEther, Signer, ZeroHash } from 'ethers'
 import hre from 'hardhat'
-import { PathUniswapV3 } from '@defihub/shared'
+import { PathUniswapV3, TokenQuote } from '@defihub/shared'
 import { BigNumber } from '@ryze-blockchain/ethereum'
 import { Compare } from '@src/Compare'
 import { zapFixture } from './fixtures/zap.fixture'
@@ -95,6 +95,24 @@ describe('StrategyManager#invest (zap)', () => {
             vaultManager,
             liquidityManager,
             buyProduct,
+        )
+    }
+
+    function encodeSwapV2(
+        amount: bigint,
+        path: AddressLike[],
+        inputQuote: TokenQuote,
+        outputQuote: TokenQuote,
+        slippage: BigNumber,
+    ) {
+        return SwapEncoder.encodeExactInputV2(
+            universalRouter,
+            amount,
+            path,
+            inputQuote,
+            outputQuote,
+            slippage,
+            strategyManager,
         )
     }
 
@@ -190,14 +208,12 @@ describe('StrategyManager#invest (zap)', () => {
                     inputTokenSwap: '0x',
                     dcaSwaps: [
                         '0x',
-                        await SwapEncoder.encodeExactInputV2(
-                            universalRouter,
+                        await encodeSwapV2(
                             amountPerInvestmentMinusFees,
                             [stablecoin, wbtc],
                             USD_QUOTE,
                             BTC_QUOTE,
                             ONE_PERCENT,
-                            strategyManager,
                         ),
                     ],
                     vaultSwaps: [],
@@ -354,23 +370,19 @@ describe('StrategyManager#invest (zap)', () => {
                     inputTokenSwap: '0x',
                     dcaSwaps: [],
                     vaultSwaps: [
-                        await SwapEncoder.encodeExactInputV2(
-                            universalRouter,
+                        await encodeSwapV2(
                             amountPerInvestmentMinusFees,
                             [stablecoin, wbtc],
                             USD_QUOTE,
                             BTC_QUOTE,
                             ONE_PERCENT,
-                            strategyManager,
                         ),
-                        await SwapEncoder.encodeExactInputV2(
-                            universalRouter,
+                        await encodeSwapV2(
                             amountPerInvestmentMinusFees,
                             [stablecoin, weth],
                             USD_QUOTE,
                             ETH_QUOTE,
                             ONE_PERCENT,
-                            strategyManager,
                         ),
                     ],
                     buySwaps: [],
@@ -405,14 +417,12 @@ describe('StrategyManager#invest (zap)', () => {
                         inputTokenSwap: '0x',
                         dcaSwaps: [],
                         vaultSwaps: [
-                            await SwapEncoder.encodeExactInputV2(
-                                universalRouter,
+                            await encodeSwapV2(
                                 amountPerInvestmentMinusFees,
                                 [stablecoin, wbtc],
                                 USD_QUOTE,
                                 BTC_QUOTE,
                                 new BigNumber(0),
-                                strategyManager,
                             ),
                             '0x', // no need for this swap since the first will fail making the transaction revert
                         ],
@@ -465,23 +475,19 @@ describe('StrategyManager#invest (zap)', () => {
                     dcaSwaps: [],
                     vaultSwaps: [],
                     buySwaps: [
-                        await SwapEncoder.encodeExactInputV2(
-                            universalRouter,
+                        await encodeSwapV2(
                             amountPerInvestmentMinusFees,
                             [stablecoin, wbtc],
                             USD_QUOTE,
                             BTC_QUOTE,
                             ONE_PERCENT,
-                            strategyManager,
                         ),
-                        await SwapEncoder.encodeExactInputV2(
-                            universalRouter,
+                        await encodeSwapV2(
                             amountPerInvestmentMinusFees,
                             [stablecoin, weth],
                             USD_QUOTE,
                             ETH_QUOTE,
                             ONE_PERCENT,
-                            strategyManager,
                         ),
                     ],
                     liquidityZaps: [],
@@ -539,23 +545,19 @@ describe('StrategyManager#invest (zap)', () => {
                         dcaSwaps: [],
                         vaultSwaps: [],
                         buySwaps: [
-                            await SwapEncoder.encodeExactInputV2(
-                                universalRouter,
+                            await encodeSwapV2(
                                 amountPerInvestmentMinusFees,
                                 [stablecoin, wbtc],
                                 USD_QUOTE,
                                 BTC_QUOTE,
                                 new BigNumber(0),
-                                strategyManager,
                             ),
-                            await SwapEncoder.encodeExactInputV2(
-                                universalRouter,
+                            await encodeSwapV2(
                                 amountPerInvestmentMinusFees,
                                 [stablecoin, weth],
                                 USD_QUOTE,
                                 ETH_QUOTE,
                                 new BigNumber(0),
-                                strategyManager,
                             ),
                         ],
                         liquidityZaps: [],
@@ -619,34 +621,28 @@ describe('StrategyManager#invest (zap)', () => {
                     inputTokenSwap: '0x',
                     dcaSwaps: [
                         '0x',
-                        await SwapEncoder.encodeExactInputV2(
-                            universalRouter,
+                        await encodeSwapV2(
                             amountPerInvestmentMinusFees,
                             [stablecoin, wbtc],
                             USD_QUOTE,
                             BTC_QUOTE,
                             ONE_PERCENT,
-                            strategyManager,
                         ),
                     ],
                     vaultSwaps: [
-                        await SwapEncoder.encodeExactInputV2(
-                            universalRouter,
+                        await encodeSwapV2(
                             amountPerInvestmentMinusFees,
                             [stablecoin, wbtc],
                             USD_QUOTE,
                             BTC_QUOTE,
                             ONE_PERCENT,
-                            strategyManager,
                         ),
-                        await SwapEncoder.encodeExactInputV2(
-                            universalRouter,
+                        await encodeSwapV2(
                             amountPerInvestmentMinusFees,
                             [stablecoin, weth],
                             USD_QUOTE,
                             ETH_QUOTE,
                             ONE_PERCENT,
-                            strategyManager,
                         ),
                     ],
                     buySwaps: [],
@@ -687,25 +683,21 @@ describe('StrategyManager#invest (zap)', () => {
                         inputTokenSwap: '0x',
                         dcaSwaps: [
                             '0x',
-                            await SwapEncoder.encodeExactInputV2(
-                                universalRouter,
+                            await encodeSwapV2(
                                 amountPerInvestmentMinusFees,
                                 [stablecoin, wbtc],
                                 USD_QUOTE,
                                 BTC_QUOTE,
                                 new BigNumber(0),
-                                strategyManager,
                             ),
                         ],
                         vaultSwaps: [
-                            await SwapEncoder.encodeExactInputV2(
-                                universalRouter,
+                            await encodeSwapV2(
                                 amountPerInvestmentMinusFees,
                                 [stablecoin, wbtc],
                                 USD_QUOTE,
                                 BTC_QUOTE,
                                 new BigNumber(0),
-                                strategyManager,
                             ),
                             '0x', // no need for this swap since the first will fail making the transaction revert
                         ],
@@ -737,45 +729,37 @@ describe('StrategyManager#invest (zap)', () => {
                     strategyId,
                     inputToken: wbtc,
                     inputAmount: amount / BTC_PRICE,
-                    inputTokenSwap: await SwapEncoder.encodeExactInputV2(
-                        universalRouter,
+                    inputTokenSwap: await encodeSwapV2(
                         amount / BTC_PRICE,
                         [wbtc, stablecoin],
                         USD_QUOTE,
                         BTC_QUOTE,
                         slippage,
-                        strategyManager,
                     ),
                     dcaSwaps: [
                         '0x',
-                        await SwapEncoder.encodeExactInputV2(
-                            universalRouter,
+                        await encodeSwapV2(
                             amountPerInvestmentMinusSlippage,
                             [stablecoin, wbtc],
                             USD_QUOTE,
                             BTC_QUOTE,
                             slippage,
-                            strategyManager,
                         ),
                     ],
                     vaultSwaps: [
-                        await SwapEncoder.encodeExactInputV2(
-                            universalRouter,
+                        await encodeSwapV2(
                             amountPerInvestmentMinusSlippage,
                             [stablecoin, wbtc],
                             USD_QUOTE,
                             BTC_QUOTE,
                             slippage,
-                            strategyManager,
                         ),
-                        await SwapEncoder.encodeExactInputV2(
-                            universalRouter,
+                        await encodeSwapV2(
                             amountPerInvestmentMinusFees,
                             [stablecoin, weth],
                             USD_QUOTE,
                             ETH_QUOTE,
                             ONE_PERCENT,
-                            strategyManager,
                         ),
                     ],
                     buySwaps: [],
