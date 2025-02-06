@@ -8,10 +8,11 @@ import {HubRouter} from "../libraries/HubRouter.sol";
 import {VaultManager} from '../VaultManager.sol';
 import {LiquidityManager} from "../LiquidityManager.sol";
 import {StrategyStorage} from "./StrategyStorage.sol";
+import {StrategyStorage__v2} from "./StrategyStorage__v2.sol";
 import {SubscriptionManager} from "../SubscriptionManager.sol";
 import {UseFee} from "./UseFee.sol";
 
-contract StrategyInvestor is StrategyStorage {
+contract StrategyInvestor is StrategyStorage, StrategyStorage__v2 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     error InvalidParamsLength();
@@ -90,6 +91,11 @@ contract StrategyInvestor is StrategyStorage {
         LiquidityInvestZapParams[] liquidityZaps;
         SubscriptionManager.Permit investorPermit;
         SubscriptionManager.Permit strategistPermit;
+    }
+
+    struct WeightedProduct {
+        UseFee product;
+        uint8 weight;
     }
 
     error StrategyUnavailable();
@@ -367,50 +373,87 @@ contract StrategyInvestor is StrategyStorage {
         CollectFeesParams memory _params
     ) internal virtual returns (uint remainingAmount) {
         Strategy storage strategy = _strategies[_params.strategyId];
+        address referrer = referrals[msg.sender];
 
         bool strategistSubscribed = subscriptionManager.isSubscribed(strategy.creator, _params.strategistPermit);
         bool userSubscribed = subscriptionManager.isSubscribed(msg.sender, _params.investorPermit);
 
-        // Divided by multiplier 10_000 (fee percentage) * 100 (strategy percentage per investment) = 1M
-        uint totalFee = _params.stableAmount * (
-            _getProductFee(strategy.percentages[PRODUCT_DCA], dca, userSubscribed)
-            + _getProductFee(strategy.percentages[PRODUCT_VAULTS], vaultManager, userSubscribed)
-            + _getProductFee(strategy.percentages[PRODUCT_LIQUIDITY], liquidityManager, userSubscribed)
-            + _getProductFee(strategy.percentages[PRODUCT_BUY], buyProduct, userSubscribed)
-        ) / 1_000_000;
+        (uint amountBaseFee, uint amountNonSubscriberFee) = _calculateFees(
+            _params.stableAmount,
+            userSubscribed,
+            [
+                WeightedProduct(dca, strategy.percentages[PRODUCT_DCA]),
+                WeightedProduct(vaultManager, strategy.percentages[PRODUCT_VAULTS]),
+                WeightedProduct(liquidityManager, strategy.percentages[PRODUCT_LIQUIDITY]),
+                WeightedProduct(buyProduct, strategy.percentages[PRODUCT_BUY])
+            ]
+        );
+
+        // TODO check if matches expected fee
         uint strategistFee;
+        uint referrerFee;
 
         if (strategistSubscribed) {
-            uint currentStrategistPercentage = _hottestStrategiesMapping[_params.strategyId]
+            uint32 currentStrategistPercentage = _hottestStrategiesMapping[_params.strategyId]
                 ? hotStrategistPercentage
                 : strategistPercentage;
 
-            strategistFee = totalFee * currentStrategistPercentage / 100;
-        }
+            strategistFee = amountBaseFee * currentStrategistPercentage / 100;
 
-        uint protocolFee = totalFee - strategistFee;
-
-        stable.safeTransfer(treasury, protocolFee);
-
-        if (strategistFee > 0) {
             _strategistRewards[strategy.creator] += strategistFee;
 
             emit Fee(msg.sender, strategy.creator, strategistFee, abi.encode(_params.strategyId));
         }
 
+        if (referrer != address(0)) {
+            referrerFee = amountBaseFee * referrerPercentage / 100;
+
+            _referrerRewards[referrer] += referrerFee;
+
+            emit Fee(msg.sender, referrer, referrerFee, abi.encode(_params.strategyId));
+        }
+
+        uint protocolFee = amountBaseFee + amountNonSubscriberFee - strategistFee - referrerFee;
+
+        stable.safeTransfer(treasury, protocolFee);
+
         emit Fee(msg.sender, treasury, protocolFee, abi.encode(_params.strategyId));
 
-        return _params.stableAmount - totalFee;
+        // TODO update typescript fee calculation function to support new fee split
+
+        return _params.stableAmount - amountBaseFee - amountNonSubscriberFee;
     }
 
-    function _getProductFee(
-        uint8 _productPercentage,
-        UseFee _product,
-        bool _userSubscribed
-    ) internal view returns (uint32) {
-        if (_productPercentage == 0)
-            return 0;
+    function _calculateFees(
+        uint _amount,
+        bool _userSubscribed,
+        WeightedProduct[4] memory _weightedProducts
+    ) internal view returns (
+        uint amountBaseFee,
+        uint amountNonSubscriberFee
+    ) {
+        uint32 totalBaseFeeBP;
+        uint32 totalNonSubscriberFeeBP;
 
-        return _product.getFeePercentage(_userSubscribed) * _productPercentage;
+        if (_userSubscribed) {
+            for (uint i; i < _weightedProducts.length; ++i) {
+                totalBaseFeeBP += _weightedProducts[i].product.baseFeeBP() * _weightedProducts[i].weight;
+            }
+        }
+        else {
+            for (uint i; i < _weightedProducts.length; ++i) {
+                WeightedProduct memory weightedProduct = _weightedProducts[i];
+
+                totalBaseFeeBP += weightedProduct.product.baseFeeBP() * weightedProduct.weight;
+                totalNonSubscriberFeeBP += weightedProduct.product.nonSubscriberFeeBP() * weightedProduct.weight;
+            }
+        }
+
+        return (
+            totalBaseFeeBP * _amount / 1_000_000,
+            _userSubscribed // ternary for gas optimization only
+                ? 0
+                : totalNonSubscriberFeeBP * _amount / 1_000_000
+        );
     }
 }
