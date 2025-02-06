@@ -4,16 +4,16 @@ import { StrategyManager } from '@src/typechain'
 import { baseStrategyManagerFixture } from './fixtures/base.fixture'
 
 // => setStrategistPercentage
-//      => when strategist percentege is greater than 100
+//      => when strategist percentage is greater than 100
 //          => then reverts with PercentageTooHigh
-//      => when strategist percentege is less than or equal to 100
-//          => then sets strategis percentage to 99
-//          => then sets strategis percentage to 100
+//      => when strategist percentage is less than or equal to 100
+//          => then sets strategies percentage to 99
+//          => then sets strategies percentage to 100
 //          => then emits StrategistPercentageUpdated
 // => setHotStrategistPercentage
 //      => when hot strategy percentage is greater than 100
 //          => then reverts with PercentageTooHigh
-//      => when hot strategy percentege is less than or equal to 100
+//      => when hot strategy percentage is less than or equal to 100
 //          => then sets hot strategy percentage to 99
 //          => then sets hot strategy percentage to 100
 //          => then emits event HotStrategistPercentageUpdated
