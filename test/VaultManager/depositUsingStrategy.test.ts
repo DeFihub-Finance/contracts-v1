@@ -1,7 +1,13 @@
 import { expect } from 'chai'
 import { Signer, parseEther, ContractTransactionResponse } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
-import { StrategyManager, SubscriptionManager, TestERC20, TestVault, VaultManager } from '@src/typechain'
+import {
+    StrategyManager__v2,
+    SubscriptionManager,
+    TestERC20,
+    TestVault,
+    VaultManager,
+} from '@src/typechain'
 import { baseVaultManagerFixture } from './fixtures/base.fixture'
 import { Fees } from '@src/helpers/Fees'
 import { createStrategy } from '@src/helpers'
@@ -21,7 +27,7 @@ describe('VaultManager#investUsingStrategy', () => {
     let vaultManager: VaultManager
     let vault: TestVault
     let stablecoin: TestERC20
-    let strategyManager: StrategyManager
+    let strategyManager: StrategyManager__v2
     let strategyId: bigint
     let permitAccount0: SubscriptionManager.PermitStruct
 

@@ -6,7 +6,7 @@ import {
     SubscriptionManager,
     DollarCostAverage__factory,
     SubscriptionManager__factory,
-    StrategyManager__factory,
+    StrategyManager__v2__factory,
     VaultManager__factory,
     StrategyManager,
     VaultManager,
@@ -69,7 +69,7 @@ export class ProjectDeployer {
         const universalRouter = await this.deployUniversalRouter(deployer, weth, factoryUniV2, factoryUniV3, positionManagerUniV3)
 
         const subscriptionManagerDeployParams = this.getDeploymentInfo(SubscriptionManager__factory)
-        const strategyManagerDeployParams = this.getDeploymentInfo(StrategyManager__factory)
+        const strategyManagerDeployParams = this.getDeploymentInfo(StrategyManager__v2__factory)
         const dcaDeployParams = this.getDeploymentInfo(DollarCostAverage__factory)
         const vaultManagerDeployParams = this.getDeploymentInfo(VaultManager__factory)
         const liquidityManagerDeployParams = this.getDeploymentInfo(LiquidityManager__factory)
@@ -195,7 +195,7 @@ export class ProjectDeployer {
         return {
             // Contracts
             strategyPositionManager: StrategyPositionManager__factory.connect(strategyPositionManager, owner),
-            strategyManager: StrategyManager__factory.connect(strategyManager, owner),
+            strategyManager: StrategyManager__v2__factory.connect(strategyManager, owner),
             subscriptionManager,
             dca: DollarCostAverage__factory.connect(dca, owner),
             vaultManager: VaultManager__factory.connect(vaultManager, owner),

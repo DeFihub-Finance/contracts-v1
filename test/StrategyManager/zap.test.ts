@@ -5,7 +5,7 @@ import {
     DollarCostAverage,
     BuyProduct,
     LiquidityManager,
-    StrategyManager,
+    StrategyManager__v2,
     SubscriptionManager,
     TestERC20,
     VaultManager,
@@ -43,7 +43,7 @@ describe('StrategyManager#invest (zap)', () => {
     let wbtc: TestERC20
 
     // hub contracts
-    let strategyManager: StrategyManager
+    let strategyManager: StrategyManager__v2
     let dca: DollarCostAverage
     let vaultManager: VaultManager
     let liquidityManager: LiquidityManager

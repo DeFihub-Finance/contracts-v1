@@ -2,7 +2,7 @@ import { expect } from 'chai'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import { investFixture } from './fixtures/invest.fixture'
 import { Signer } from 'ethers'
-import { ERC20, StrategyManager } from '@src/typechain'
+import { ERC20, StrategyManager__v2 } from '@src/typechain'
 
 // EFFECTS
 // => given a strategist with rewards to collect
@@ -20,7 +20,7 @@ describe('StrategyManager#collectStrategistRewards', () => {
     /** Subscribed Investor */
     let account1: Signer
 
-    let strategyManager: StrategyManager
+    let strategyManager: StrategyManager__v2
     let stablecoin: ERC20
 
     const strategistBalance = async () => stablecoin.balanceOf(account0)

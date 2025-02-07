@@ -1,6 +1,6 @@
 import { expect } from 'chai'
 import { Signer, keccak256, ContractTransactionResponse, ZeroAddress } from 'ethers'
-import { StrategyManager } from '@src/typechain'
+import { StrategyManager__v2 } from '@src/typechain'
 import { StrategyStorage } from '@src/typechain/artifacts/contracts/StrategyManager'
 import { SubscriptionSignature } from '@src/SubscriptionSignature'
 import { NetworkService } from '@src/NetworkService'
@@ -17,11 +17,11 @@ import { baseStrategyManagerFixture } from './fixtures/base.fixture'
 // REVERTS
 // => if msg.sender doesn't have an active subscription
 // => if strategy uses more than 20 investments
-// => if vault used by strategy doesn't belong to DefiHub
+// => if vault used by strategy doesn't belong to DeFihub
 describe('StrategyManager#createStrategy', () => {
     let account0: Signer
     let account1: Signer
-    let strategyManager: StrategyManager
+    let strategyManager: StrategyManager__v2
     let dcaStrategyPositions: StrategyStorage.DcaInvestmentStruct[]
     let vaultStrategyPosition: StrategyStorage.VaultInvestmentStruct[]
     let subscriptionSignature: SubscriptionSignature

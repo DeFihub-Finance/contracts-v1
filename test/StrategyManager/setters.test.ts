@@ -1,6 +1,6 @@
 import { expect } from 'chai'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
-import { StrategyManager } from '@src/typechain'
+import { StrategyManager__v2 } from '@src/typechain'
 import { baseStrategyManagerFixture } from './fixtures/base.fixture'
 
 // => setStrategistPercentage
@@ -28,7 +28,7 @@ import { baseStrategyManagerFixture } from './fixtures/base.fixture'
 //      => should set max strategy hot strategy
 //      => should emit MaxHotStrategiesUpdated
 describe('StrategyManager#setters', () => {
-    let strategyManager: StrategyManager
+    let strategyManager: StrategyManager__v2
 
     beforeEach(async () => ({ strategyManager } = await loadFixture(baseStrategyManagerFixture)))
 
