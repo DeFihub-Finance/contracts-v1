@@ -8,11 +8,10 @@ import {HubRouter} from "../libraries/HubRouter.sol";
 import {VaultManager} from '../VaultManager.sol';
 import {LiquidityManager} from "../LiquidityManager.sol";
 import {StrategyStorage} from "./StrategyStorage.sol";
-import {StrategyStorage__v2} from "./StrategyStorage__v2.sol";
 import {SubscriptionManager} from "../SubscriptionManager.sol";
 import {UseFee} from "./UseFee.sol";
 
-contract StrategyInvestor is StrategyStorage, StrategyStorage__v2 {
+contract StrategyInvestor is StrategyStorage {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     error InvalidParamsLength();
@@ -373,7 +372,6 @@ contract StrategyInvestor is StrategyStorage, StrategyStorage__v2 {
         CollectFeesParams memory _params
     ) internal virtual returns (uint remainingAmount) {
         Strategy storage strategy = _strategies[_params.strategyId];
-        address referrer = referrals[msg.sender];
 
         bool strategistSubscribed = subscriptionManager.isSubscribed(strategy.creator, _params.strategistPermit);
         bool userSubscribed = subscriptionManager.isSubscribed(msg.sender, _params.investorPermit);
@@ -391,7 +389,6 @@ contract StrategyInvestor is StrategyStorage, StrategyStorage__v2 {
 
         // TODO check if matches expected fee
         uint strategistFee;
-        uint referrerFee;
 
         if (strategistSubscribed) {
             uint32 currentStrategistPercentage = _hottestStrategiesMapping[_params.strategyId]
@@ -405,15 +402,7 @@ contract StrategyInvestor is StrategyStorage, StrategyStorage__v2 {
             emit Fee(msg.sender, strategy.creator, strategistFee, abi.encode(_params.strategyId));
         }
 
-        if (referrer != address(0)) {
-            referrerFee = amountBaseFee * referrerPercentage / 100;
-
-            _referrerRewards[referrer] += referrerFee;
-
-            emit Fee(msg.sender, referrer, referrerFee, abi.encode(_params.strategyId));
-        }
-
-        uint protocolFee = amountBaseFee + amountNonSubscriberFee - strategistFee - referrerFee;
+        uint protocolFee = amountBaseFee + amountNonSubscriberFee - strategistFee;
 
         stable.safeTransfer(treasury, protocolFee);
 
