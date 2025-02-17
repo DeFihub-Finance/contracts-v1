@@ -432,11 +432,12 @@ describe('StrategyManager#invest', () => {
             })
         })
 
-        describe('when strategist is subscribed and strategy is not hot', async () => {
-            it('increase strategist rewards and send fees to treasury', async () => {
+        describe('when strategist is subscribed', async () => {
+            it('increase strategist rewards and send fees to treasury if strategy is hot', async () => {
                 const treasuryBalanceBefore = await stablecoin.balanceOf(treasury)
                 const strategistRewardsBefore = await strategyManager.getStrategistRewards(account0)
 
+                await strategyManager.setHottestStrategies([0])
                 await _invest(account1)
 
                 const { strategistFee, protocolFee } = await getStrategyFeeAmount(amountToInvest)
@@ -447,14 +448,11 @@ describe('StrategyManager#invest', () => {
                 expect(treasuryBalanceDelta).to.be.equal(protocolFee)
                 expect(strategistRewardsDelta).to.be.equal(strategistFee)
             })
-        })
 
-        describe('when strategist is subscribed and strategy is hot', async () => {
-            it('increase strategist rewards and send fees to treasury', async () => {
+            it('increase strategist rewards and send fees to treasury if strategy is not hot', async () => {
                 const treasuryBalanceBefore = await stablecoin.balanceOf(treasury)
                 const strategistRewardsBefore = await strategyManager.getStrategistRewards(account0)
 
-                await strategyManager.setHottestStrategies([0])
                 await _invest(account1)
 
                 const { strategistFee, protocolFee } = await getStrategyFeeAmount(amountToInvest)
