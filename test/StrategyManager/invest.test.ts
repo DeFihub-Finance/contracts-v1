@@ -463,6 +463,37 @@ describe('StrategyManager#invest', () => {
                 expect(treasuryBalanceDelta).to.be.equal(protocolFee)
                 expect(strategistRewardsDelta).to.be.equal(strategistFee)
             })
+
+            it('increase strategist rewards by same amount whether the investor is subscribed or not', async () => {
+                const strategistRewardsBefore = await strategyManager.getStrategistRewards(account0)
+
+                await _invest(account1)
+
+                const strategistRewardsDelta1 = (await strategyManager.getStrategistRewards(account0)) - strategistRewardsBefore
+
+                await _invest(
+                    account2,
+                    await getInvestParams(account2, { _investorSubscribed: false }),
+                )
+
+                const strategistRewardsDelta2 = (await strategyManager.getStrategistRewards(account0)) - strategistRewardsDelta1
+
+                const [
+                    { strategistFee: strategistFees1 },
+                    { strategistFee: strategistFees2 },
+                ] = await Promise.all([
+                    getStrategyFeeAmount(amountToInvest),
+                    getStrategyFeeAmount(amountToInvest, strategyId, false),
+                ])
+
+                const strategistRewardsDeltaTotal = strategistRewardsDelta1 + strategistRewardsDelta2
+
+                expect(strategistFees1).to.be.equal(strategistFees2)
+                expect(strategistRewardsDelta1).to.be.equal(strategistFees1)
+                expect(strategistRewardsDelta2).to.be.equal(strategistFees2)
+                expect(strategistRewardsDelta1).to.be.equal(strategistRewardsDelta2)
+                expect(strategistRewardsDeltaTotal).to.be.equal(strategistFees1 + strategistFees2)
+            })
         })
 
         describe('when strategist is not subscribed', () => {
