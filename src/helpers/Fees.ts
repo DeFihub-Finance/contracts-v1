@@ -26,7 +26,7 @@ export class Fees {
         const dcaPercentage = Fees._sumInvestmentPercentages(dcaInvestments)
         const vaultPercentage = Fees._sumInvestmentPercentages(vaultInvestments)
         const liquidityPercentage = Fees._sumInvestmentPercentages(liquidityInvestments)
-        const tokensPercentage = Fees._sumInvestmentPercentages(buyInvestments)
+        const buyPercentage = Fees._sumInvestmentPercentages(buyInvestments)
 
         const [
             strategistPercentage,
@@ -39,7 +39,7 @@ export class Fees {
                     { product: dca, weight: dcaPercentage },
                     { product: vaultManager, weight: vaultPercentage },
                     { product: liquidityManager, weight: liquidityPercentage },
-                    { product: exchangeManager, weight: tokensPercentage },
+                    { product: exchangeManager, weight: buyPercentage },
                 ],
             ),
         ])
