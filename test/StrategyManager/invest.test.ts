@@ -19,13 +19,15 @@ import {
     expectCustomError,
     getEventLog,
     LiquidityHelpers,
+    SwapEncoder,
     UniswapV3 as UniswapV3Helper,
 } from '@src/helpers'
-import { ERC20Priced, UniswapV3, unwrapAddressLike } from '@defihub/shared'
+import { ERC20Priced, PathUniswapV3, Slippage, UniswapV3, unwrapAddressLike } from '@defihub/shared'
 import { Fees } from '@src/helpers/Fees'
 import { SubscriptionSignature } from '@src/SubscriptionSignature'
 import { Compare } from '@src/Compare'
 import { ONE_PERCENT } from '@src/constants'
+import { BigNumber } from '@ryze-blockchain/ethereum'
 
 // EFFECTS
 // => when user is subscribed
@@ -40,6 +42,7 @@ import { ONE_PERCENT } from '@src/constants'
 //      => send fees to treasury
 // => emit Invested event
 // => swap and create investment position
+// => invest with native
 //
 // SIDE-EFFECTS
 // => save position in the array of investments
@@ -66,6 +69,7 @@ describe('StrategyManager#invest', () => {
     // tokens
     let stablecoin: TestERC20
     let stablecoinPriced: ERC20Priced
+    let wethPriced: ERC20Priced
 
     // hub contracts
     let strategyManager: StrategyManager__v2
@@ -136,31 +140,74 @@ describe('StrategyManager#invest', () => {
         )
     }
 
-    async function getInvestParams(investor: Signer, {
-        _amount = amountToInvest,
-        _strategyId = strategyId,
-        _investorSubscribed = true,
-        _strategistSubscribed = true,
-    }: {
-        _amount?: bigint,
-        _strategyId?: bigint,
-        _investorSubscribed?: boolean,
-        _strategistSubscribed?: boolean,
-    } = {
-        _amount: amountToInvest,
-        _strategyId: strategyId,
-        _investorSubscribed: true,
-        _strategistSubscribed: true,
-    }): Promise<StrategyInvestor.InvestParamsStruct> {
-        const deadlineInvestor = _investorSubscribed ? deadline : 0
+    function parseToStableAmount(amount: bigint, token: ERC20Priced) {
+        const parsedStableAmountWithDecimals = new BigNumber(amount.toString())
+            .shiftedBy(stablecoinPriced.decimals - token.decimals)
+            .times(token.price)
+            .toFixed(0)
+
+        return Slippage.deductSlippage(BigInt(parsedStableAmountWithDecimals), SLIPPAGE_BN)
+    }
+
+    function getSwapV3(
+        amount: bigint,
+        inputToken: ERC20Priced,
+        outputToken: ERC20Priced,
+        fromNative = false,
+    ) {
+        if (inputToken.address === stablecoinPriced.address || amount === 0n)
+            return '0x'
+
+        const encodeFunction = fromNative
+            ? SwapEncoder.encodeExactNativeInputV3
+            : SwapEncoder.encodeExactInputV3
+
+        return encodeFunction(
+            universalRouter,
+            amount,
+            new PathUniswapV3(inputToken.address, [{ fee: 3000, token: outputToken.address }]),
+            inputToken,
+            outputToken,
+            SLIPPAGE_BN,
+            strategyManager,
+        )
+    }
+
+    // Retrieves base invest params between default invest and native invest.
+    async function getBaseInvestParams(
+        strategyId: bigint,
+        amountToInvest: bigint,
+        inputToken: ERC20Priced,
+        investor: Signer,
+        {
+            investorSubscribed = true,
+            strategistSubscribed = true,
+            isNativeInvest = false,
+        }: {
+            investorSubscribed?: boolean
+            strategistSubscribed?: boolean
+            isNativeInvest?: boolean
+        } = {
+            investorSubscribed: true,
+            strategistSubscribed: true,
+            isNativeInvest: false,
+        },
+    ) {
+        const deadlineInvestor = investorSubscribed ? deadline : 0
+
+        const stableAmount = inputToken.address === stablecoinPriced.address
+            ? amountToInvest
+            : parseToStableAmount(amountToInvest, inputToken)
 
         const [
             { dcaInvestments, vaultInvestments, liquidityInvestments },
             amountWithDeductedFees,
+            inputTokenSwap,
             investorPermit,
         ] = await Promise.all([
-            strategyManager.getStrategyInvestments(_strategyId),
-            deductFees(_amount, _strategyId, _investorSubscribed, _strategistSubscribed),
+            strategyManager.getStrategyInvestments(strategyId),
+            deductFees(stableAmount, strategyId, investorSubscribed, strategistSubscribed),
+            getSwapV3(amountToInvest, inputToken, stablecoinPriced, isNativeInvest),
             subscriptionSignature
                 .signSubscriptionPermit(await investor.getAddress(), deadlineInvestor),
         ])
@@ -180,17 +227,70 @@ describe('StrategyManager#invest', () => {
         ))
 
         return {
-            strategyId: _strategyId,
-            inputToken: stablecoin,
-            inputAmount: _amount,
-            inputTokenSwap: '0x',
+            strategyId,
+            inputTokenSwap,
             dcaSwaps: dcaInvestments.map(_ => '0x'),
             vaultSwaps: vaultInvestments.map(_ => '0x'),
             liquidityZaps,
             buySwaps: [], // TODO
             investorPermit,
-            strategistPermit: _strategistSubscribed ? permitAccount0 : expiredPermitAccount0,
+            strategistPermit: strategistSubscribed ? permitAccount0 : expiredPermitAccount0,
         }
+    }
+
+    async function getInvestParams(investor: Signer, {
+        amount = amountToInvest,
+        inputToken = stablecoinPriced,
+        _strategyId = strategyId,
+        investorSubscribed = true,
+        strategistSubscribed = true,
+    }: {
+        amount?: bigint,
+        inputToken?: ERC20Priced,
+        _strategyId?: bigint,
+        investorSubscribed?: boolean,
+        strategistSubscribed?: boolean,
+    } = {
+        amount: amountToInvest,
+        inputToken: stablecoinPriced,
+        _strategyId: strategyId,
+        investorSubscribed: true,
+        strategistSubscribed: true,
+    }): Promise<StrategyInvestor.InvestParamsStruct> {
+        return {
+            ...await getBaseInvestParams(
+                _strategyId,
+                amount,
+                inputToken,
+                investor,
+                { investorSubscribed, strategistSubscribed },
+            ),
+            inputToken: inputToken.address,
+            inputAmount: amount,
+        }
+    }
+
+    async function getInvestNativeParams(
+        investor: Signer,
+        {
+            amount = amountToInvest,
+            _strategyId = strategyId,
+            investorSubscribed = true,
+            strategistSubscribed = true,
+        }: Parameters<typeof getInvestParams>[1] = {
+            amount: amountToInvest,
+            _strategyId: strategyId,
+            investorSubscribed: true,
+            strategistSubscribed: true,
+        },
+    ): Promise<StrategyInvestor.InvestNativeParamsStruct> {
+        return getBaseInvestParams(
+            _strategyId,
+            amount,
+            wethPriced,
+            investor,
+            { investorSubscribed, strategistSubscribed, isNativeInvest: true },
+        )
     }
 
     async function _invest(
@@ -199,7 +299,17 @@ describe('StrategyManager#invest', () => {
     ) {
         return strategyManager
             .connect(investor)
-            .invest(investParams ? investParams : await getInvestParams(investor))
+            .invest(investParams || await getInvestParams(investor))
+    }
+
+    async function _investNative(
+        investor: Signer,
+        investParams?: StrategyInvestor.InvestNativeParamsStruct,
+        value = amountToInvest,
+    ) {
+        return strategyManager
+            .connect(investor)
+            .investNative(investParams || await getInvestNativeParams(investor), { value })
     }
 
     beforeEach(async () => {
@@ -211,6 +321,7 @@ describe('StrategyManager#invest', () => {
             treasury,
 
             // tokens
+            wethPriced,
             stablecoin,
             stablecoinPriced,
 
@@ -337,7 +448,7 @@ describe('StrategyManager#invest', () => {
 
         describe('when user is not subscribed', () => {
             it('create investment position in dca, vaults and liquidity', async () => {
-                const investParams = await getInvestParams(account2, { _investorSubscribed: false })
+                const investParams = await getInvestParams(account2, { investorSubscribed: false })
 
                 await _invest(account2, investParams)
 
@@ -481,7 +592,7 @@ describe('StrategyManager#invest', () => {
                 const receipt = await (
                     await _invest(
                         account1,
-                        await getInvestParams(account1, { _strategistSubscribed: false }),
+                        await getInvestParams(account1, { strategistSubscribed: false }),
                     )
                 ).wait()
 
@@ -506,7 +617,7 @@ describe('StrategyManager#invest', () => {
                 const receipt = await (
                     await _invest(
                         account2,
-                        await getInvestParams(account2, { _investorSubscribed: false, _strategistSubscribed: false }),
+                        await getInvestParams(account2, { investorSubscribed: false, strategistSubscribed: false }),
                     )
                 ).wait()
 
@@ -525,6 +636,111 @@ describe('StrategyManager#invest', () => {
                     protocolFee,
                     AbiCoder.defaultAbiCoder().encode(['uint'], [strategyId]),
                 ])
+            })
+        })
+
+        it('invest using native ETH', async () => {
+            const investParams = await getInvestNativeParams(account1)
+            const amountToInvestInStable = parseToStableAmount(amountToInvest, wethPriced)
+
+            await _investNative(account1, investParams)
+
+            const [
+                dcaPosition0,
+                dcaPosition1,
+                dcaPositionBalance0,
+                dcaPositionBalance1,
+                amountWithDeductedFees,
+                investments,
+                { liquidityPositions, vaultPositions },
+            ] = await Promise.all([
+                dca.getPosition(strategyManager, 0),
+                dca.getPosition(strategyManager, 1),
+                dca.getPositionBalances(strategyManager, 0),
+                dca.getPositionBalances(strategyManager, 1),
+                deductFees(amountToInvestInStable),
+                strategyManager.getStrategyInvestments(strategyId),
+                strategyManager.getPositionInvestments(account1, 0),
+            ])
+
+            /////////////////////
+            // DCA Position 0 //
+            ///////////////////
+            expect(dcaPosition0.swaps).to.be.equal(investments.dcaInvestments[0].swaps)
+            expect(dcaPosition0.poolId).to.be.equal(investments.dcaInvestments[0].poolId)
+            Compare.almostEqualPercentage({
+                value: amountWithDeductedFees * investments.dcaInvestments[0].percentage / 100n,
+                target: dcaPositionBalance0.inputTokenBalance,
+                tolerance: ONE_PERCENT,
+            })
+
+            /////////////////////
+            // DCA Position 1 //
+            ///////////////////
+            expect(dcaPosition1.swaps).to.be.equal(investments.dcaInvestments[1].swaps)
+            expect(dcaPosition1.poolId).to.be.equal(investments.dcaInvestments[1].poolId)
+            Compare.almostEqualPercentage({
+                value: amountWithDeductedFees * investments.dcaInvestments[1].percentage / 100n,
+                target: dcaPositionBalance1.inputTokenBalance,
+                tolerance: ONE_PERCENT,
+            })
+
+            ////////////////////
+            // VaultPosition //
+            //////////////////
+            expect(vaultPositions[0].vault).to.be.equal(await vault.getAddress())
+            Compare.almostEqualPercentage({
+                value: amountWithDeductedFees * investments.vaultInvestments[0].percentage / 100n,
+                target: vaultPositions[0].amount,
+                tolerance: ONE_PERCENT,
+            })
+
+            ////////////////////////
+            // LiquidityPosition //
+            //////////////////////
+            const {
+                token0,
+                token1,
+                fee,
+                tickLower,
+                tickUpper,
+                liquidity,
+            } = await positionManagerUniV3
+                .positions(liquidityPositions[0].tokenId)
+
+            const { amount0, amount1 } = UniswapV3.getPositionTokenAmounts(
+                await UniswapV3Helper.getPoolByFactoryContract(
+                    factoryUniV3,
+                    token0,
+                    token1,
+                    fee,
+                ),
+                liquidity,
+                tickLower,
+                tickUpper,
+            )
+
+            const pricedToken0 = getPricedTokenOrFail(token0)
+            const pricedToken1 = getPricedTokenOrFail(token1)
+
+            expect(fee).to.be.equal(investments.liquidityInvestments[0].fee)
+            expect(token0).to.be.equal(investments.liquidityInvestments[0].token0)
+            expect(token1).to.be.equal(investments.liquidityInvestments[0].token1)
+
+            expect(tickLower).to.be.equal(investParams.liquidityZaps[0].tickLower)
+            expect(tickUpper).to.be.equal(investParams.liquidityZaps[0].tickUpper)
+
+            expect(liquidity).to.be.equal(liquidityPositions[0].liquidity)
+            expect(await positionManagerUniV3.getAddress()).to.be.equal(liquidityPositions[0].positionManager)
+
+            Compare.almostEqualPercentage({
+                value: amountWithDeductedFees * investments.liquidityInvestments[0].percentage / 100n,
+                target: BigInt(
+                    pricedToken0.price.times(amount0.toString())
+                        .plus(pricedToken1.price.times(amount1.toString()))
+                        .toFixed(0),
+                ),
+                tolerance: ONE_PERCENT,
             })
         })
     })
@@ -592,7 +808,7 @@ describe('StrategyManager#invest', () => {
                 _invest(
                     account2,
                     {
-                        ...await getInvestParams(account2, { _investorSubscribed: false }),
+                        ...await getInvestParams(account2, { investorSubscribed: false }),
                         vaultSwaps: [],
                     },
                 ),
@@ -605,7 +821,7 @@ describe('StrategyManager#invest', () => {
                 _invest(
                     account2,
                     {
-                        ...await getInvestParams(account2, { _investorSubscribed: false }),
+                        ...await getInvestParams(account2, { investorSubscribed: false }),
                         dcaSwaps: [],
                     },
                 ),
@@ -618,7 +834,7 @@ describe('StrategyManager#invest', () => {
                 _invest(
                     account2,
                     {
-                        ...await getInvestParams(account2, { _investorSubscribed: false }),
+                        ...await getInvestParams(account2, { investorSubscribed: false }),
                         liquidityZaps: [],
                     },
                 ),
@@ -631,7 +847,7 @@ describe('StrategyManager#invest', () => {
                 _invest(
                     account2,
                     {
-                        ...await getInvestParams(account2, { _investorSubscribed: false }),
+                        ...await getInvestParams(account2, { investorSubscribed: false }),
                         strategyId: 99,
                     },
                 ),
