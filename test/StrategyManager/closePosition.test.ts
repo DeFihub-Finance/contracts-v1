@@ -25,6 +25,10 @@ import {
 //          => Then the user receives remaining tokens of all positions in a strategy
 //          => Then the contract emits a PositionClosed event
 //          => Then position should be marked as closed
+//      => When the owner of position calls closePositionIgnoringSlippage
+//          => Then the user receives remaining tokens of all positions in a strategy
+//          => Then the contract emits a PositionClosed event
+//          => Then position should be marked as closed
 //
 // => Given a closed position
 //     => When the owner of position calls closePosition
@@ -278,6 +282,39 @@ describe('StrategyManager#closePosition', () => {
                         strategyTokenBalancesBefore[token] + userTokenBalancesBefore[token],
                     )
                 }
+            })
+
+            it('Then the contract emits a PositionClosed event', async () => {
+                const liquidityWithdrawnAmounts = await getLiquidityWithdrawnAmounts(liquidityPositionId)
+
+                const receipt = await (
+                    await strategyManager
+                        .connect(account1)
+                        .closePositionIgnoringSlippage(liquidityPositionId)
+                ).wait()
+
+                const feeEvent = getEventLog(receipt, 'PositionClosed', strategyPositionManager.interface)
+
+                expect(feeEvent?.args).to.deep.equal([
+                    await unwrapAddressLike(account1),
+                    liquidityStrategyId,
+                    liquidityPositionId,
+                    [],
+                    [],
+                    liquidityWithdrawnAmounts,
+                    [],
+                ])
+            })
+
+            it('Then position should be marked as closed', async () => {
+                await strategyManager.connect(account1).closePositionIgnoringSlippage(liquidityPositionId)
+
+                const { closed } = await strategyManager.getPosition(
+                    account1,
+                    liquidityPositionId,
+                )
+
+                expect(closed).to.be.true
             })
         })
     })
