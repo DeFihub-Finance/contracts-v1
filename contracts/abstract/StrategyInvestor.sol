@@ -66,7 +66,7 @@ contract StrategyInvestor is StrategyStorage {
     }
 
     /**
-     * @dev swaps bytes are the encoded versions of ZapManager.ProtocolCall used in the callProtocol function
+     * @dev swaps bytes are the encoded versions of HubRouter.SwapData used in the "execute" and "executeNative" functions
      */
     struct InvestParams {
         uint strategyId;
