@@ -5,7 +5,7 @@ import {
     DollarCostAverage,
     BuyProduct,
     LiquidityManager,
-    StrategyManager,
+    StrategyManager__v2,
     SubscriptionManager,
     TestERC20,
     VaultManager,
@@ -43,7 +43,7 @@ describe('StrategyManager#invest (zap)', () => {
     let wbtc: TestERC20
 
     // hub contracts
-    let strategyManager: StrategyManager
+    let strategyManager: StrategyManager__v2
     let dca: DollarCostAverage
     let vaultManager: VaultManager
     let liquidityManager: LiquidityManager
@@ -711,8 +711,8 @@ describe('StrategyManager#invest (zap)', () => {
         })
 
         it('zaps input token with 1% slippage using uni v2', async () => {
-            await wbtc.mint(account0, amount / BTC_PRICE)
-            await wbtc.approve(strategyManager, amount / BTC_PRICE)
+            await wbtc.connect(account0).mint(account0, amount / BTC_PRICE)
+            await wbtc.connect(account0).approve(strategyManager, amount / BTC_PRICE)
 
             const slippage = ONE_PERCENT
             const amountPerInvestmentBn = new BigNumber(amountPerInvestmentMinusFees.toString())

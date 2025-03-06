@@ -5,7 +5,7 @@ import {
     DollarCostAverage,
     StrategyInvestor,
     StrategyInvestor__factory,
-    StrategyManager,
+    StrategyManager__v2,
     SubscriptionManager,
     TestERC20,
     TestVault,
@@ -68,7 +68,7 @@ describe('StrategyManager#invest', () => {
     let stablecoinPriced: ERC20Priced
 
     // hub contracts
-    let strategyManager: StrategyManager
+    let strategyManager: StrategyManager__v2
     let vault: TestVault
     let dca: DollarCostAverage
     let liquidityManager: UseFee

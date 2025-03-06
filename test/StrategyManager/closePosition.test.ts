@@ -1,12 +1,12 @@
 import { expect } from 'chai'
 import { ethers } from 'hardhat'
-import { UniswapV3 } from '@defihub/shared'
-import { Signer } from 'ethers'
+import { UniswapV3, unwrapAddressLike } from '@defihub/shared'
+import { AddressLike, Signer } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import {
     DollarCostAverage,
     IBeefyVaultV7__factory,
-    StrategyManager,
+    StrategyManager__v2,
     StrategyPositionManager,
     TestERC20__factory,
     UniswapPositionManager,
@@ -25,6 +25,10 @@ import {
 //          => Then the user receives remaining tokens of all positions in a strategy
 //          => Then the contract emits a PositionClosed event
 //          => Then position should be marked as closed
+//      => When the owner of position calls closePositionIgnoringSlippage
+//          => Then the user receives remaining tokens of all positions in a strategy
+//          => Then the contract emits a PositionClosed event
+//          => Then position should be marked as closed
 //
 // => Given a closed position
 //     => When the owner of position calls closePosition
@@ -32,7 +36,7 @@ import {
 describe('StrategyManager#closePosition', () => {
     let account1: Signer
     let dca: DollarCostAverage
-    let strategyManager: StrategyManager
+    let strategyManager: StrategyManager__v2
     let strategyPositionManager: StrategyPositionManager
 
     let dcaPositionId: bigint
@@ -111,7 +115,7 @@ describe('StrategyManager#closePosition', () => {
         return positionTokenBalances
     }
 
-    async function snapshotTokenBalances(tokens: Set<string>, account: string) {
+    async function snapshotTokenBalances(tokens: Set<string>, account: AddressLike) {
         const userTokenBalancesBefore: Record<string, bigint> = {}
 
         await Promise.all(
@@ -181,15 +185,13 @@ describe('StrategyManager#closePosition', () => {
     describe('Given an open position with only DCA', () => {
         describe('When the owner of position calls closePosition', () => {
             it('Then the user receives remaining tokens of all DCA positions in a strategy', async () => {
-                const account1Address = await account1.getAddress()
-
                 const strategyTokenBalancesBefore = await snapshotStrategyTokenBalances(dcaPositionId)
                 const strategyTokens = new Set(Object.keys(strategyTokenBalancesBefore))
-                const userTokenBalancesBefore = await snapshotTokenBalances(strategyTokens, account1Address)
+                const userTokenBalancesBefore = await snapshotTokenBalances(strategyTokens, account1)
 
                 await strategyManager.connect(account1).closePosition(dcaPositionId, [])
 
-                const userTokenBalancesAfter = await snapshotTokenBalances(strategyTokens, account1Address)
+                const userTokenBalancesAfter = await snapshotTokenBalances(strategyTokens, account1)
 
                 for (const token of strategyTokens) {
                     expect(userTokenBalancesAfter[token]).to.equal(
@@ -199,14 +201,9 @@ describe('StrategyManager#closePosition', () => {
             })
 
             it('Then position should be marked as closed', async () => {
-                const account1Address = await account1.getAddress()
-
                 await strategyManager.connect(account1).closePosition(dcaPositionId, [])
 
-                const { closed } = await strategyManager.getPosition(
-                    account1Address,
-                    dcaPositionId,
-                )
+                const { closed } = await strategyManager.getPosition(account1, dcaPositionId)
 
                 expect(closed).to.be.true
             })
@@ -215,19 +212,17 @@ describe('StrategyManager#closePosition', () => {
 
     describe('Given an open position with only liquidity', () => {
         describe('When the owner of position calls closePosition', () => {
-            it('Then the user receives remaning tokens of all liquidity positions in a strategy', async () => {
-                const account1Address = await account1.getAddress()
-
+            it('Then the user receives remaining tokens of all liquidity positions in a strategy', async () => {
                 const strategyTokenBalancesBefore = await snapshotStrategyTokenBalances(liquidityPositionId)
                 const strategyTokens = new Set(Object.keys(strategyTokenBalancesBefore))
-                const userTokenBalancesBefore = await snapshotTokenBalances(strategyTokens, account1Address)
+                const userTokenBalancesBefore = await snapshotTokenBalances(strategyTokens, account1)
 
                 await strategyManager.connect(account1).closePosition(
                     liquidityPositionId,
                     await getLiquidityMinOutputs(liquidityPositionId),
                 )
 
-                const userTokenBalancesAfter = await snapshotTokenBalances(strategyTokens, account1Address)
+                const userTokenBalancesAfter = await snapshotTokenBalances(strategyTokens, account1)
 
                 for (const token of strategyTokens) {
                     expect(userTokenBalancesAfter[token]).to.equal(
@@ -247,7 +242,7 @@ describe('StrategyManager#closePosition', () => {
                 const feeEvent = getEventLog(receipt, 'PositionClosed', strategyPositionManager.interface)
 
                 expect(feeEvent?.args).to.deep.equal([
-                    await account1.getAddress(),
+                    await unwrapAddressLike(account1),
                     liquidityStrategyId,
                     liquidityPositionId,
                     [],
@@ -258,15 +253,64 @@ describe('StrategyManager#closePosition', () => {
             })
 
             it('Then position should be marked as closed', async () => {
-                const account1Address = await account1.getAddress()
-
                 await strategyManager.connect(account1).closePosition(
                     liquidityPositionId,
                     await getLiquidityMinOutputs(liquidityPositionId),
                 )
 
                 const { closed } = await strategyManager.getPosition(
-                    account1Address,
+                    account1,
+                    liquidityPositionId,
+                )
+
+                expect(closed).to.be.true
+            })
+        })
+
+        describe('When the owner of position calls closePositionIgnoringSlippage', () => {
+            it('Then the user receives remaining tokens of all liquidity positions in a strategy', async () => {
+                const strategyTokenBalancesBefore = await snapshotStrategyTokenBalances(liquidityPositionId)
+                const strategyTokens = new Set(Object.keys(strategyTokenBalancesBefore))
+                const userTokenBalancesBefore = await snapshotTokenBalances(strategyTokens, account1)
+
+                await strategyManager.connect(account1).closePositionIgnoringSlippage(liquidityPositionId)
+
+                const userTokenBalancesAfter = await snapshotTokenBalances(strategyTokens, account1)
+
+                for (const token of strategyTokens) {
+                    expect(userTokenBalancesAfter[token]).to.equal(
+                        strategyTokenBalancesBefore[token] + userTokenBalancesBefore[token],
+                    )
+                }
+            })
+
+            it('Then the contract emits a PositionClosed event', async () => {
+                const liquidityWithdrawnAmounts = await getLiquidityWithdrawnAmounts(liquidityPositionId)
+
+                const receipt = await (
+                    await strategyManager
+                        .connect(account1)
+                        .closePositionIgnoringSlippage(liquidityPositionId)
+                ).wait()
+
+                const feeEvent = getEventLog(receipt, 'PositionClosed', strategyPositionManager.interface)
+
+                expect(feeEvent?.args).to.deep.equal([
+                    await unwrapAddressLike(account1),
+                    liquidityStrategyId,
+                    liquidityPositionId,
+                    [],
+                    [],
+                    liquidityWithdrawnAmounts,
+                    [],
+                ])
+            })
+
+            it('Then position should be marked as closed', async () => {
+                await strategyManager.connect(account1).closePositionIgnoringSlippage(liquidityPositionId)
+
+                const { closed } = await strategyManager.getPosition(
+                    account1,
                     liquidityPositionId,
                 )
 
@@ -276,9 +320,7 @@ describe('StrategyManager#closePosition', () => {
     })
 
     describe('Given a closed position', () => {
-        beforeEach(async () => {
-            await strategyManager.connect(account1).closePosition(dcaPositionId, [])
-        })
+        beforeEach(() => strategyManager.connect(account1).closePosition(dcaPositionId, []))
 
         describe('When the owner of position calls closePosition', () => {
             it('Then the contract reverts with PositionAlreadyClosed', async () => {

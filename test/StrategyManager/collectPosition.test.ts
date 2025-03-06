@@ -2,7 +2,7 @@ import { expect } from 'chai'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import {
     DollarCostAverage,
-    StrategyManager,
+    StrategyManager__v2,
     StrategyPositionManager,
     TestERC20,
     TestERC20__factory,
@@ -24,7 +24,7 @@ import { expectCustomError, getEventLog, LiquidityHelpers } from '@src/helpers'
 //     => When the investor collects the position
 //          => Then revert with InvalidPositionId
 describe('StrategyManager#collectPosition', () => {
-    let strategyManager: StrategyManager
+    let strategyManager: StrategyManager__v2
     let strategyPositionManager: StrategyPositionManager
     let dca: DollarCostAverage
     let account1: Signer

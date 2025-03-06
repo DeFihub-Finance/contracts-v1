@@ -111,7 +111,9 @@ contract StrategyPositionManager is StrategyStorage {
 
         for (uint i; i < _positions.length; ++i) {
             LiquidityPosition memory position = _positions[i];
-            LiquidityMinOutputs memory minOutput = _minOutputs[i];
+            LiquidityMinOutputs memory minOutput = _minOutputs.length > i
+                ? _minOutputs[i]
+                : LiquidityMinOutputs(0, 0);
 
             position.positionManager.decreaseLiquidity(
                 INonfungiblePositionManager.DecreaseLiquidityParams({
