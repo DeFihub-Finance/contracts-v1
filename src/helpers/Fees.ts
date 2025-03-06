@@ -4,6 +4,8 @@ import { BigNumber } from '@ryze-blockchain/ethereum'
 
 // TODO move to shared
 export class Fees {
+    public static readonly FEE_DECIMALS = 4
+
     public static async getStrategyFeePercentage(
         strategyManager: StrategyManager,
         strategyId: BigNumberish,
@@ -24,46 +26,30 @@ export class Fees {
         const dcaPercentage = Fees._sumInvestmentPercentages(dcaInvestments)
         const vaultPercentage = Fees._sumInvestmentPercentages(vaultInvestments)
         const liquidityPercentage = Fees._sumInvestmentPercentages(liquidityInvestments)
-        const tokensPercentage = Fees._sumInvestmentPercentages(buyInvestments)
+        const buyPercentage = Fees._sumInvestmentPercentages(buyInvestments)
 
         const [
             strategistPercentage,
-            { baseFeeBP: dcaBaseFeeBP, nonSubscriberFeeBP: dcaNonSubscriberFeeBP },
-            { baseFeeBP: vaultBaseFeeBP, nonSubscriberFeeBP: vaultNonSubscriberFeeBP },
-            { baseFeeBP: liquidityBaseFeeBP, nonSubscriberFeeBP: liquidityNonSubscriberFeeBP },
-            { baseFeeBP: exchangeBaseFeeBP, nonSubscriberFeeBP: exchangeNonSubscriberFeeBP },
+            { totalBaseFee, totalNonSubscriberFee },
         ] = await Promise.all([
             Fees._getStrategistPercentage(strategyManager, strategyId, subscribedStrategist),
-            Fees._getProductFees(dca, subscribedUser),
-            Fees._getProductFees(vaultManager, subscribedUser),
-            Fees._getProductFees(liquidityManager, subscribedUser),
-            Fees._getProductFees(exchangeManager, subscribedUser),
+            Fees._calculateProductsFees(
+                subscribedUser,
+                [
+                    { product: dca, weight: dcaPercentage },
+                    { product: vaultManager, weight: vaultPercentage },
+                    { product: liquidityManager, weight: liquidityPercentage },
+                    { product: exchangeManager, weight: buyPercentage },
+                ],
+            ),
         ])
 
-        const baseFee = new BigNumber(
-            (
-                dcaBaseFeeBP * dcaPercentage +
-                vaultBaseFeeBP * vaultPercentage +
-                liquidityBaseFeeBP * liquidityPercentage +
-                exchangeBaseFeeBP * tokensPercentage
-            ).toString(),
-        ).div(10_000)
-        const nonSubscriberFee = new BigNumber(
-            (
-                dcaNonSubscriberFeeBP * dcaPercentage +
-                vaultNonSubscriberFeeBP * vaultPercentage +
-                liquidityNonSubscriberFeeBP * liquidityPercentage +
-                exchangeNonSubscriberFeeBP * tokensPercentage
-            ).toString(),
-        ).div(10_000)
-
-        const totalFee = baseFee.plus(nonSubscriberFee)
-        const strategistFee = totalFee
+        const strategistFee = totalBaseFee
             .times(strategistPercentage.toString())
             .div(100)
 
         return {
-            protocolFee: totalFee.minus(strategistFee),
+            protocolFee: totalBaseFee.plus(totalNonSubscriberFee).minus(strategistFee),
             strategistFee,
         }
     }
@@ -177,5 +163,37 @@ export class Fees {
         return isHottestDeal
             ? strategyManager.hotStrategistPercentage()
             : strategyManager.strategistPercentage()
+    }
+
+    private static async _calculateProductsFees(
+        subscribedUser: boolean,
+        weightedProducts: { product: UseFee, weight: bigint }[],
+    ) {
+        const feesWithWeights = await Promise.all(weightedProducts.map(
+            async ({ product, weight }) => {
+                const {
+                    baseFeeBP,
+                    nonSubscriberFeeBP,
+                } = await Fees._getProductFees(product, subscribedUser)
+
+                return {
+                    baseFee: baseFeeBP * weight,
+                    nonSubscriberFee: nonSubscriberFeeBP * weight,
+                }
+            },
+        ))
+
+        let totalBaseFee = new BigNumber(0)
+        let totalNonSubscriberFee = new BigNumber(0)
+
+        for (const { baseFee, nonSubscriberFee } of feesWithWeights) {
+            totalBaseFee = totalBaseFee.plus(baseFee.toString())
+            totalNonSubscriberFee = totalNonSubscriberFee.plus(nonSubscriberFee.toString())
+        }
+
+        return {
+            totalBaseFee: totalBaseFee.shiftedBy(-Fees.FEE_DECIMALS),
+            totalNonSubscriberFee: totalNonSubscriberFee.shiftedBy(-Fees.FEE_DECIMALS),
+        }
     }
 }

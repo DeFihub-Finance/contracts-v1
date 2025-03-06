@@ -432,25 +432,8 @@ describe('StrategyManager#invest', () => {
             })
         })
 
-        describe('when strategist is subscribed and strategy is not hot', async () => {
-            it('increase strategist rewards and send fees to treasury', async () => {
-                const treasuryBalanceBefore = await stablecoin.balanceOf(treasury)
-                const strategistRewardsBefore = await strategyManager.getStrategistRewards(account0)
-
-                await _invest(account1)
-
-                const { strategistFee, protocolFee } = await getStrategyFeeAmount(amountToInvest)
-
-                const treasuryBalanceDelta = (await stablecoin.balanceOf(treasury)) - treasuryBalanceBefore
-                const strategistRewardsDelta = (await strategyManager.getStrategistRewards(account0)) - strategistRewardsBefore
-
-                expect(treasuryBalanceDelta).to.be.equal(protocolFee)
-                expect(strategistRewardsDelta).to.be.equal(strategistFee)
-            })
-        })
-
-        describe('when strategist is subscribed and strategy is hot', async () => {
-            it('increase strategist rewards and send fees to treasury', async () => {
+        describe('when strategist is subscribed', async () => {
+            it('increase strategist rewards and send fees to treasury if strategy is hot', async () => {
                 const treasuryBalanceBefore = await stablecoin.balanceOf(treasury)
                 const strategistRewardsBefore = await strategyManager.getStrategistRewards(account0)
 
@@ -464,6 +447,52 @@ describe('StrategyManager#invest', () => {
 
                 expect(treasuryBalanceDelta).to.be.equal(protocolFee)
                 expect(strategistRewardsDelta).to.be.equal(strategistFee)
+            })
+
+            it('increase strategist rewards and send fees to treasury if strategy is not hot', async () => {
+                const treasuryBalanceBefore = await stablecoin.balanceOf(treasury)
+                const strategistRewardsBefore = await strategyManager.getStrategistRewards(account0)
+
+                await _invest(account1)
+
+                const { strategistFee, protocolFee } = await getStrategyFeeAmount(amountToInvest)
+
+                const treasuryBalanceDelta = (await stablecoin.balanceOf(treasury)) - treasuryBalanceBefore
+                const strategistRewardsDelta = (await strategyManager.getStrategistRewards(account0)) - strategistRewardsBefore
+
+                expect(treasuryBalanceDelta).to.be.equal(protocolFee)
+                expect(strategistRewardsDelta).to.be.equal(strategistFee)
+            })
+
+            it('increase strategist rewards by same amount whether the investor is subscribed or not', async () => {
+                const strategistRewardsBefore = await strategyManager.getStrategistRewards(account0)
+
+                await _invest(account1)
+
+                const strategistRewardsDelta1 = (await strategyManager.getStrategistRewards(account0)) - strategistRewardsBefore
+
+                await _invest(
+                    account2,
+                    await getInvestParams(account2, { _investorSubscribed: false }),
+                )
+
+                const strategistRewardsDelta2 = (await strategyManager.getStrategistRewards(account0)) - strategistRewardsDelta1
+
+                const [
+                    { strategistFee: strategistFees1 },
+                    { strategistFee: strategistFees2 },
+                ] = await Promise.all([
+                    getStrategyFeeAmount(amountToInvest),
+                    getStrategyFeeAmount(amountToInvest, strategyId, false),
+                ])
+
+                const strategistRewardsDeltaTotal = strategistRewardsDelta1 + strategistRewardsDelta2
+
+                expect(strategistFees1).to.be.equal(strategistFees2)
+                expect(strategistRewardsDelta1).to.be.equal(strategistFees1)
+                expect(strategistRewardsDelta2).to.be.equal(strategistFees2)
+                expect(strategistRewardsDelta1).to.be.equal(strategistRewardsDelta2)
+                expect(strategistRewardsDeltaTotal).to.be.equal(strategistFees1 + strategistFees2)
             })
         })
 
