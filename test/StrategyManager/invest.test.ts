@@ -149,7 +149,7 @@ describe('StrategyManager#invest', () => {
         return Slippage.deductSlippage(BigInt(parsedStableAmountWithDecimals), SLIPPAGE_BN)
     }
 
-    function getSwapV3(
+    async function getSwapV3(
         amount: bigint,
         inputToken: ERC20Priced,
         outputToken: ERC20Priced,
