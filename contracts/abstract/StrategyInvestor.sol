@@ -387,7 +387,6 @@ contract StrategyInvestor is StrategyStorage {
             ]
         );
 
-        // TODO check if matches expected fee
         uint strategistFee;
 
         if (strategistSubscribed) {
@@ -407,8 +406,6 @@ contract StrategyInvestor is StrategyStorage {
         stable.safeTransfer(treasury, protocolFee);
 
         emit Fee(msg.sender, treasury, protocolFee, abi.encode(_params.strategyId));
-
-        // TODO update typescript fee calculation function to support new fee split
 
         return _params.stableAmount - amountBaseFee - amountNonSubscriberFee;
     }
