@@ -8,11 +8,11 @@ import {HubRouter} from "../libraries/HubRouter.sol";
 import {VaultManager} from '../VaultManager.sol';
 import {LiquidityManager} from "../LiquidityManager.sol";
 import {StrategyStorage} from "./StrategyStorage.sol";
-import {StrategyStorage__v2} from "./StrategyStorage__v2.sol";
+import {ReferralStorage} from "../libraries/ReferralStorage.sol";
 import {SubscriptionManager} from "../SubscriptionManager.sol";
 import {UseFee} from "./UseFee.sol";
 
-contract StrategyInvestor is StrategyStorage, StrategyStorage__v2 {
+contract StrategyInvestor is StrategyStorage {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     error InvalidParamsLength();
@@ -373,7 +373,8 @@ contract StrategyInvestor is StrategyStorage, StrategyStorage__v2 {
         CollectFeesParams memory _params
     ) internal virtual returns (uint remainingAmount) {
         Strategy storage strategy = _strategies[_params.strategyId];
-        address referrer = referrals[msg.sender];
+        ReferralStorage.ReferralStruct storage referralStorage = ReferralStorage.getReferralStruct();
+        address referrer = referralStorage.referrals[msg.sender];
 
         bool strategistSubscribed = subscriptionManager.isSubscribed(strategy.creator, _params.strategistPermit);
         bool userSubscribed = subscriptionManager.isSubscribed(msg.sender, _params.investorPermit);
@@ -406,9 +407,9 @@ contract StrategyInvestor is StrategyStorage, StrategyStorage__v2 {
         }
 
         if (referrer != address(0)) {
-            referrerFee = amountBaseFee * referrerPercentage / 100;
+            referrerFee = amountBaseFee * referralStorage.referrerPercentage / 100;
 
-            _referrerRewards[referrer] += referrerFee;
+            referralStorage.referrerRewards[referrer] += referrerFee;
 
             emit Fee(msg.sender, referrer, referrerFee, abi.encode(_params.strategyId));
         }
