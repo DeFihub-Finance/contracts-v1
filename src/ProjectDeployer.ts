@@ -7,6 +7,7 @@ import {
     SubscriptionManager,
     DollarCostAverage__factory,
     SubscriptionManager__factory,
+    StrategyManager__factory,
     StrategyManager__v2__factory,
     VaultManager__factory,
     StrategyManager,
@@ -186,7 +187,7 @@ export class ProjectDeployer {
         return {
             // Contracts
             strategyPositionManager: StrategyPositionManager__factory.connect(strategyPositionManager, owner),
-            strategyManager: StrategyManager__v2__factory.connect(strategyManager, owner),
+            strategyManager: StrategyManager__factory.connect(strategyManager, owner),
             subscriptionManager,
             dca: DollarCostAverage__factory.connect(dca, owner),
             vaultManager: VaultManager__factory.connect(vaultManager, owner),
@@ -234,6 +235,30 @@ export class ProjectDeployer {
                 .signSubscriptionPermit(await account0.getAddress(), 0),
         }
     }
+
+    public async deployProjectAndUpgradeStrategyManagerFixture() {
+        const {
+            owner,
+            deployer,
+            strategyManager,
+            ...rest
+        } = await this.deployProjectFixture()
+
+        // Upgrade to V2
+        await strategyManager.upgradeTo(
+            await new StrategyManager__v2__factory(deployer).deploy(),
+        )
+
+        return {
+            ...rest,
+            // Override strategy manager to use V2 contract
+            strategyManager: StrategyManager__v2__factory.connect(
+                await strategyManager.getAddress(),
+                owner,
+            ),
+        }
+    }
+
     private async deployProducts(projectDeployer: ProjectDeployerContract) {
         const dcaDeployParams = this.getDeploymentInfo(DollarCostAverage__factory)
         const buyProductDeployParams = this.getDeploymentInfo(BuyProduct__factory)

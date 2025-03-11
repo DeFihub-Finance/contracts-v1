@@ -32,7 +32,7 @@ export async function baseStrategyManagerFixture() {
         routerUniV3,
         positionManagerUniV3,
         ...rest
-    } = await new ProjectDeployer().deployProjectFixture()
+    } = await new ProjectDeployer().deployProjectAndUpgradeStrategyManagerFixture()
 
     /////////////////////////////////////
     // Initialize investment contracts //
