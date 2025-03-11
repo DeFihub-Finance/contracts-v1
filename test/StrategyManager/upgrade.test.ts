@@ -18,7 +18,7 @@ import {
     UseFee,
 } from '@src/typechain'
 
-describe.only('StrategyManager#upgrade', () => {
+describe('StrategyManager#upgrade', () => {
     const AMOUNT_TO_INVEST = parseEther('100')
     const ONE_BILLION_ETH = parseEther('1000000000')
 
