@@ -73,7 +73,7 @@ describe('UseFee#calculateFee', () => {
             })
         })
 
-        describe('when the user calculates the fee with an invalid permit', () => {
+        describe('when the user calculates the fee with an expired permit', () => {
             let permit: SubscriptionManager.PermitStruct
 
             beforeEach(async () => {
@@ -83,12 +83,12 @@ describe('UseFee#calculateFee', () => {
                 )
             })
 
-            it('then SubscriptionExpired is emitted', async () => {
+            it('then PermitExpired is emitted', async () => {
                 await expect(useFee.calculateFee(
                     account0,
                     amount,
                     permit,
-                )).to.be.revertedWithCustomError(subscriptionManager, 'SubscriptionExpired')
+                )).to.be.revertedWithCustomError(subscriptionManager, 'PermitExpired')
             })
         })
     })

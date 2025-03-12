@@ -39,8 +39,8 @@ contract SubscriptionManager is HubOwnable, UseTreasury, EIP712Upgradeable {
     event SubscriptionSignerUpdated(address subscriptionSigner);
     event PricePerMonthUpdated(uint pricePerMonth);
 
+    error PermitExpired();
     error InvalidSignature();
-    error SubscriptionExpired();
     error InvalidSubscriberFee();
 
     function initialize(InitializeParams calldata _initializeParams) initializer public {
@@ -70,7 +70,7 @@ contract SubscriptionManager is HubOwnable, UseTreasury, EIP712Upgradeable {
             return false;
 
         if (_permit.deadline < block.timestamp)
-            revert SubscriptionExpired();
+            revert PermitExpired();
 
         bytes32 structHash = keccak256(abi.encode(_PERMIT_TYPEHASH, _user, _permit.deadline));
         bytes32 hash = _hashTypedDataV4(structHash);
