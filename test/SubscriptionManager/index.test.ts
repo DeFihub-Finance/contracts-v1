@@ -118,7 +118,7 @@ describe('SubscriptionManager', () => {
         })
 
         describe('REVERTS', () => {
-            it('reverts if deadline is expired', async () => {
+            it('reverts if permit deadline is expired', async () => {
                 const expiredDeadline = await NetworkService.getBlockTimestamp() - 100
                 const signature = await subscriptionSignature.signSubscriptionPermit(
                     await account0.getAddress(),
@@ -131,7 +131,7 @@ describe('SubscriptionManager', () => {
                 )
 
                 await expect(isSubscribed)
-                    .to.be.revertedWithCustomError(subscriptionManager, 'SubscriptionExpired')
+                    .to.be.revertedWithCustomError(subscriptionManager, 'PermitExpired')
             })
 
             it('reverts if signer recovered from signature is different than subscriptionSigner', async () => {
