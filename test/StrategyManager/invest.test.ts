@@ -179,19 +179,9 @@ describe('StrategyManager#invest', () => {
         amountToInvest: bigint,
         inputToken: ERC20Priced,
         investor: Signer,
-        {
-            investorSubscribed = true,
-            strategistSubscribed = true,
-            isNativeInvest = false,
-        }: {
-            investorSubscribed?: boolean
-            strategistSubscribed?: boolean
-            isNativeInvest?: boolean
-        } = {
-            investorSubscribed: true,
-            strategistSubscribed: true,
-            isNativeInvest: false,
-        },
+        investorSubscribed: boolean,
+        strategistSubscribed: boolean,
+        isNativeInvest?: boolean,
     ) {
         const deadlineInvestor = investorSubscribed ? deadline : 0
 
@@ -238,58 +228,38 @@ describe('StrategyManager#invest', () => {
         }
     }
 
-    async function getInvestParams(investor: Signer, {
-        amount = amountToInvest,
-        inputToken = stablecoinPriced,
-        _strategyId = strategyId,
+    async function getInvestParams(
+        investor: Signer,
         investorSubscribed = true,
         strategistSubscribed = true,
-    }: {
-        amount?: bigint,
-        inputToken?: ERC20Priced,
-        _strategyId?: bigint,
-        investorSubscribed?: boolean,
-        strategistSubscribed?: boolean,
-    } = {
-        amount: amountToInvest,
-        inputToken: stablecoinPriced,
-        _strategyId: strategyId,
-        investorSubscribed: true,
-        strategistSubscribed: true,
-    }): Promise<StrategyInvestor.InvestParamsStruct> {
+    ): Promise<StrategyInvestor.InvestParamsStruct> {
         return {
             ...await getBaseInvestParams(
-                _strategyId,
-                amount,
-                inputToken,
+                strategyId,
+                amountToInvest,
+                stablecoinPriced,
                 investor,
-                { investorSubscribed, strategistSubscribed },
+                investorSubscribed,
+                strategistSubscribed,
             ),
-            inputToken: inputToken.address,
-            inputAmount: amount,
+            inputToken: stablecoinPriced.address,
+            inputAmount: amountToInvest,
         }
     }
 
     async function getInvestNativeParams(
         investor: Signer,
-        {
-            amount = amountToInvest,
-            _strategyId = strategyId,
-            investorSubscribed = true,
-            strategistSubscribed = true,
-        }: Parameters<typeof getInvestParams>[1] = {
-            amount: amountToInvest,
-            _strategyId: strategyId,
-            investorSubscribed: true,
-            strategistSubscribed: true,
-        },
+        investorSubscribed = true,
+        strategistSubscribed = true,
     ): Promise<StrategyInvestor.InvestNativeParamsStruct> {
         return getBaseInvestParams(
-            _strategyId,
-            amount,
+            strategyId,
+            amountToInvest,
             wethPriced,
             investor,
-            { investorSubscribed, strategistSubscribed, isNativeInvest: true },
+            investorSubscribed,
+            strategistSubscribed,
+            true,
         )
     }
 
@@ -448,7 +418,7 @@ describe('StrategyManager#invest', () => {
 
         describe('when user is not subscribed', () => {
             it('create investment position in dca, vaults and liquidity', async () => {
-                const investParams = await getInvestParams(account2, { investorSubscribed: false })
+                const investParams = await getInvestParams(account2, false)
 
                 await _invest(account2, investParams)
 
@@ -592,7 +562,7 @@ describe('StrategyManager#invest', () => {
                 const receipt = await (
                     await _invest(
                         account1,
-                        await getInvestParams(account1, { strategistSubscribed: false }),
+                        await getInvestParams(account1, true, false),
                     )
                 ).wait()
 
@@ -617,7 +587,7 @@ describe('StrategyManager#invest', () => {
                 const receipt = await (
                     await _invest(
                         account2,
-                        await getInvestParams(account2, { investorSubscribed: false, strategistSubscribed: false }),
+                        await getInvestParams(account2, false, false),
                     )
                 ).wait()
 
@@ -808,7 +778,7 @@ describe('StrategyManager#invest', () => {
                 _invest(
                     account2,
                     {
-                        ...await getInvestParams(account2, { investorSubscribed: false }),
+                        ...await getInvestParams(account2, false),
                         vaultSwaps: [],
                     },
                 ),
@@ -821,7 +791,7 @@ describe('StrategyManager#invest', () => {
                 _invest(
                     account2,
                     {
-                        ...await getInvestParams(account2, { investorSubscribed: false }),
+                        ...await getInvestParams(account2, false),
                         dcaSwaps: [],
                     },
                 ),
@@ -834,7 +804,7 @@ describe('StrategyManager#invest', () => {
                 _invest(
                     account2,
                     {
-                        ...await getInvestParams(account2, { investorSubscribed: false }),
+                        ...await getInvestParams(account2, false),
                         liquidityZaps: [],
                     },
                 ),
@@ -847,7 +817,7 @@ describe('StrategyManager#invest', () => {
                 _invest(
                     account2,
                     {
-                        ...await getInvestParams(account2, { investorSubscribed: false }),
+                        ...await getInvestParams(account2, false),
                         strategyId: 99,
                     },
                 ),
