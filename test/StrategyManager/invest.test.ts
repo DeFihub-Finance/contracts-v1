@@ -149,7 +149,7 @@ describe('StrategyManager#invest', () => {
         return Slippage.deductSlippage(BigInt(parsedStableAmountWithDecimals), SLIPPAGE_BN)
     }
 
-    async function getSwapV3(
+    async function getEncodedSwapV3(
         amount: bigint,
         inputToken: ERC20Priced,
         outputToken: ERC20Priced,
@@ -207,7 +207,7 @@ describe('StrategyManager#invest', () => {
         ] = await Promise.all([
             strategyManager.getStrategyInvestments(strategyId),
             deductFees(stableAmount, strategyId, investorSubscribed, strategistSubscribed),
-            getSwapV3(amountToInvest, inputToken, stablecoinPriced, isNativeInvest),
+            getEncodedSwapV3(amountToInvest, inputToken, stablecoinPriced, isNativeInvest),
             subscriptionSignature
                 .signSubscriptionPermit(await investor.getAddress(), deadlineInvestor),
         ])
