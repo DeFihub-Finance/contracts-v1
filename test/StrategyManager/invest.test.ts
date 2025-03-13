@@ -158,11 +158,11 @@ describe('StrategyManager#invest', () => {
         if (inputToken.address === stablecoinPriced.address || amount === 0n)
             return '0x'
 
-        const encodeFunction = fromNative
+        const encodingFunction = fromNative
             ? SwapEncoder.encodeExactNativeInputV3
             : SwapEncoder.encodeExactInputV3
 
-        return encodeFunction(
+        return encodingFunction(
             universalRouter,
             amount,
             new PathUniswapV3(inputToken.address, [{ fee: 3000, token: outputToken.address }]),
