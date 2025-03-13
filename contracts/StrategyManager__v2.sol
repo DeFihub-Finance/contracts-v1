@@ -59,4 +59,8 @@ contract StrategyManager__v2 is StrategyManager {
 
         emit Referral(_referrer, msg.sender);
     }
+
+    function getReferrerRewards(address _referrer) external virtual view returns (uint) {
+        return ReferralStorage.getReferralStruct().referrerRewards[_referrer];
+    }
 }
