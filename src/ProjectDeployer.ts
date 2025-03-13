@@ -28,6 +28,7 @@ import {
     UniswapV3Factory,
     NonFungiblePositionManager,
     UniswapV2Factory,
+    TestWETH__factory,
 } from '@src/typechain'
 import { ZeroHash, ZeroAddress, Signer } from 'ethers'
 import { NetworkService } from '@src/NetworkService'
@@ -56,8 +57,8 @@ export class ProjectDeployer {
 
         const stablecoin = await new TestERC20__factory(deployer).deploy(18)
         // Originally USDC uses 6 decimals, that's why the name choice
+        const weth = await new TestWETH__factory(deployer).deploy()
         const usdc = await new TestERC20__factory(deployer).deploy(6)
-        const weth = await new TestERC20__factory(deployer).deploy(18)
         const wbtc = await new TestERC20__factory(deployer).deploy(18)
         const { factoryUniV2, routerUniV2 } = await this.deployUniV2(deployer, weth)
         const {
