@@ -15,6 +15,7 @@ contract StrategyManager__v2 is StrategyManager {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     event Referral(address referrer, address referred);
+    event ReferrerPercentageUpdated(uint32 percentage);
     event CollectedReferrerRewards(address referrer, uint amount);
 
     function initialize__V2(uint32 _referrerPercentage) external reinitializer(2) {
@@ -52,19 +53,17 @@ contract StrategyManager__v2 is StrategyManager {
         );
     }
 
-    function _setReferrer(address _referrer) private {
-        ReferralStorage.ReferralStruct storage referralStorage = ReferralStorage.getReferralStruct();
+    function setReferrerPercentage(uint32 _referrerPercentage) public virtual onlyOwner {
+        if (_referrerPercentage > 100)
+            revert PercentageTooHigh();
 
-        if (
-            _referrer == address(0) || // ignores zero address
-            _referrer == msg.sender || // referrer cannot be msg.sender
-            referralStorage.referrals[msg.sender] != address(0) // referrer cannot be replaced
-        )
-            return;
+        ReferralStorage.getReferralStruct().referrerPercentage = _referrerPercentage;
 
-        referralStorage.referrals[msg.sender] = _referrer;
+        emit ReferrerPercentageUpdated(_referrerPercentage);
+    }
 
-        emit Referral(_referrer, msg.sender);
+    function referrerPercentage() external virtual view returns (uint32) {
+        return ReferralStorage.getReferralStruct().referrerPercentage;
     }
 
     function getReferrerRewards(address _referrer) external virtual view returns (uint) {
@@ -80,5 +79,20 @@ contract StrategyManager__v2 is StrategyManager {
         stable.safeTransfer(msg.sender, referrerReward);
 
         emit CollectedReferrerRewards(msg.sender, referrerReward);
+    }
+
+    function _setReferrer(address _referrer) private {
+        ReferralStorage.ReferralStruct storage referralStorage = ReferralStorage.getReferralStruct();
+
+        if (
+            _referrer == address(0) || // ignores zero address
+            _referrer == msg.sender || // referrer cannot be msg.sender
+            referralStorage.referrals[msg.sender] != address(0) // referrer cannot be replaced
+        )
+            return;
+
+        referralStorage.referrals[msg.sender] = _referrer;
+
+        emit Referral(_referrer, msg.sender);
     }
 }
