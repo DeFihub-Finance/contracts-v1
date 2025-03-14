@@ -42,7 +42,7 @@ export async function zapFixture() {
         factoryUniV3,
         routerUniV3,
         positionManagerUniV3,
-    } = await new ProjectDeployer().deployProjectFixture()
+    } = await new ProjectDeployer().deployProjectAndUpgradeStrategyManagerFixture()
 
     const subscriptionSignerHelper = new SubscriptionSigner(
         subscriptionManager,

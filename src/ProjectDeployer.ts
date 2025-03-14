@@ -2,10 +2,12 @@ import { sendLocalDeploymentTransaction } from '@src/helpers'
 import { ethers } from 'hardhat'
 import {
     ProjectDeployer__factory,
+    ProjectDeployer as ProjectDeployerContract,
     DollarCostAverage,
     SubscriptionManager,
     DollarCostAverage__factory,
     SubscriptionManager__factory,
+    StrategyManager__factory,
     StrategyManager__v2__factory,
     VaultManager__factory,
     StrategyManager,
@@ -54,11 +56,7 @@ export class ProjectDeployer {
         const projectDeployerFactory = new ProjectDeployer__factory(deployer)
         const projectDeployer = await projectDeployerFactory.deploy()
 
-        const stablecoin = await new TestERC20__factory(deployer).deploy(18)
-        // Originally USDC uses 6 decimals, that's why the name choice
-        const usdc = await new TestERC20__factory(deployer).deploy(6)
-        const weth = await new TestERC20__factory(deployer).deploy(18)
-        const wbtc = await new TestERC20__factory(deployer).deploy(18)
+        const { stablecoin, usdc, weth, wbtc } = await this.deployTokens(deployer)
         const { factoryUniV2, routerUniV2 } = await this.deployUniV2(deployer, weth)
         const {
             factoryUniV3,
@@ -69,20 +67,14 @@ export class ProjectDeployer {
         const universalRouter = await this.deployUniversalRouter(deployer, weth, factoryUniV2, factoryUniV3, positionManagerUniV3)
 
         const subscriptionManagerDeployParams = this.getDeploymentInfo(SubscriptionManager__factory)
-        const strategyManagerDeployParams = this.getDeploymentInfo(StrategyManager__v2__factory)
-        const dcaDeployParams = this.getDeploymentInfo(DollarCostAverage__factory)
-        const vaultManagerDeployParams = this.getDeploymentInfo(VaultManager__factory)
-        const liquidityManagerDeployParams = this.getDeploymentInfo(LiquidityManager__factory)
-        const buyProductDeployParams = this.getDeploymentInfo(BuyProduct__factory)
+        const strategyManagerDeployParams = this.getDeploymentInfo(StrategyManager__factory)
 
         await projectDeployer.deployStrategyInvestor(StrategyInvestor__factory.bytecode, ZeroHash)
         await projectDeployer.deployStrategyPositionManager(StrategyPositionManager__factory.bytecode, ZeroHash)
         await projectDeployer.deploySubscriptionManager(subscriptionManagerDeployParams)
         await projectDeployer.deployStrategyManager(strategyManagerDeployParams)
-        await projectDeployer.deployDca(dcaDeployParams)
-        await projectDeployer.deployVaultManager(vaultManagerDeployParams)
-        await projectDeployer.deployLiquidityManager(liquidityManagerDeployParams)
-        await projectDeployer.deployBuyProduct(buyProductDeployParams)
+
+        await this.deployProducts(projectDeployer)
 
         // non-proxy contracts
         const [
@@ -195,7 +187,7 @@ export class ProjectDeployer {
         return {
             // Contracts
             strategyPositionManager: StrategyPositionManager__factory.connect(strategyPositionManager, owner),
-            strategyManager: StrategyManager__v2__factory.connect(strategyManager, owner),
+            strategyManager: StrategyManager__factory.connect(strategyManager, owner),
             subscriptionManager,
             dca: DollarCostAverage__factory.connect(dca, owner),
             vaultManager: VaultManager__factory.connect(vaultManager, owner),
@@ -241,6 +233,57 @@ export class ProjectDeployer {
                 .signSubscriptionPermit(await account0.getAddress(), deadline),
             expiredPermitAccount0: await subscriptionSignature
                 .signSubscriptionPermit(await account0.getAddress(), 0),
+        }
+    }
+
+    public async deployProjectAndUpgradeStrategyManagerFixture() {
+        const {
+            owner,
+            deployer,
+            strategyManager,
+            ...rest
+        } = await this.deployProjectFixture()
+
+        // Upgrade to V2
+        await strategyManager.upgradeTo(
+            await new StrategyManager__v2__factory(deployer).deploy(),
+        )
+
+        return {
+            ...rest,
+            // Override strategy manager to use V2 contract
+            strategyManager: StrategyManager__v2__factory.connect(
+                await strategyManager.getAddress(),
+                owner,
+            ),
+        }
+    }
+
+    private async deployProducts(projectDeployer: ProjectDeployerContract) {
+        const dcaDeployParams = this.getDeploymentInfo(DollarCostAverage__factory)
+        const buyProductDeployParams = this.getDeploymentInfo(BuyProduct__factory)
+        const vaultManagerDeployParams = this.getDeploymentInfo(VaultManager__factory)
+        const liquidityManagerDeployParams = this.getDeploymentInfo(LiquidityManager__factory)
+
+        await projectDeployer.deployDca(dcaDeployParams)
+        await projectDeployer.deployBuyProduct(buyProductDeployParams)
+        await projectDeployer.deployVaultManager(vaultManagerDeployParams)
+        await projectDeployer.deployLiquidityManager(liquidityManagerDeployParams)
+    }
+
+    private async deployTokens(deployer: Signer) {
+        const weth = await new TestERC20__factory(deployer).deploy(18)
+        const wbtc = await new TestERC20__factory(deployer).deploy(18)
+
+        // Originally USDC uses 6 decimals, that's why the name choice
+        const usdc = await new TestERC20__factory(deployer).deploy(6)
+        const stablecoin = await new TestERC20__factory(deployer).deploy(18)
+
+        return {
+            weth,
+            wbtc,
+            usdc,
+            stablecoin,
         }
     }
 

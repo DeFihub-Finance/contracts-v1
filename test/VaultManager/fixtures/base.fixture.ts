@@ -8,7 +8,7 @@ export const baseVaultManagerFixture = async () => {
         vaultManager,
         stablecoin,
         ...rest
-    } = await new ProjectDeployer().deployProjectFixture()
+    } = await new ProjectDeployer().deployProjectAndUpgradeStrategyManagerFixture()
 
     const vault = await deployVaultFixture(await stablecoin.getAddress())
 
