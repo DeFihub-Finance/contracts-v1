@@ -17,7 +17,9 @@ contract StrategyManager__v2 is StrategyManager {
     event Referral(address referrer, address referred);
     event CollectedReferrerRewards(address referrer, uint amount);
 
-    // TODO add reinitializer for referrerPercentage
+    function initialize__V2(uint32 _referrerPercentage) external reinitializer(2) {
+        ReferralStorage.getReferralStruct().referrerPercentage = _referrerPercentage;
+    }
 
     function investV2(StrategyInvestor.InvestParams calldata _params, address _referrer) external virtual {
         _setReferrer(_referrer);
