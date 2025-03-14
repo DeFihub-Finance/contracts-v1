@@ -14,11 +14,11 @@ import {
 import { expect } from 'chai'
 import { AddressLike, parseEther, Signer, ZeroHash } from 'ethers'
 import hre from 'hardhat'
-import { PathUniswapV3, TokenQuote } from '@defihub/shared'
+import { PathUniswapV3, TokenQuote, Fees } from '@defihub/shared'
 import { BigNumber } from '@ryze-blockchain/ethereum'
 import { Compare } from '@src/Compare'
 import { zapFixture } from './fixtures/zap.fixture'
-import { expectCustomError, Fees, SwapEncoder } from '@src/helpers'
+import { expectCustomError, SwapEncoder } from '@src/helpers'
 import {
     BTC_PRICE,
     BTC_PRICE_BN,

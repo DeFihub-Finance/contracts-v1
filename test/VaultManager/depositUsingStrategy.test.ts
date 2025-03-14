@@ -1,4 +1,5 @@
 import { expect } from 'chai'
+import { Fees } from '@defihub/shared'
 import { Signer, parseEther, ContractTransactionResponse } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import {
@@ -9,7 +10,6 @@ import {
     VaultManager,
 } from '@src/typechain'
 import { baseVaultManagerFixture } from './fixtures/base.fixture'
-import { Fees } from '@src/helpers/Fees'
 import { createStrategy } from '@src/helpers'
 
 // given a strategy contract
