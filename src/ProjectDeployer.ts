@@ -249,13 +249,18 @@ export class ProjectDeployer {
             await new StrategyManager__v2__factory(deployer).deploy(),
         )
 
+        const strategyManagerV2 = StrategyManager__v2__factory.connect(
+            await strategyManager.getAddress(),
+            owner,
+        )
+
+        // Initialize V2
+        await strategyManagerV2.initialize__V2(1) // Referrer percentage of 1%
+
         return {
             ...rest,
             // Override strategy manager to use V2 contract
-            strategyManager: StrategyManager__v2__factory.connect(
-                await strategyManager.getAddress(),
-                owner,
-            ),
+            strategyManager: strategyManagerV2,
         }
     }
 
