@@ -27,7 +27,7 @@ describe('Universal Router', () => {
 
     beforeEach(async () => {
         function fixture() {
-            return new ProjectDeployer().deployProjectFixture()
+            return new ProjectDeployer().deployProjectAndUpgradeStrategyManagerFixture()
         }
 
         ({

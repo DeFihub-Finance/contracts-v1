@@ -12,7 +12,7 @@ export const baseSubscriptionMangerFixture = async () => {
         subscriptionSigner,
         subscriptionMonthlyPrice,
         stablecoin,
-    } = await new ProjectDeployer().deployProjectFixture()
+    } = await new ProjectDeployer().deployProjectAndUpgradeStrategyManagerFixture()
 
     await stablecoin.mint(account0.address, ethers.parseEther('100'))
     await stablecoin.connect(account0).approve(subscriptionManager, subscriptionMonthlyPrice * 12n)

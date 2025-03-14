@@ -33,7 +33,7 @@ export const baseDcaFixture = async () => {
         factoryUniV3,
         positionManagerUniV3,
         ...rest
-    } = (await new ProjectDeployer().deployProjectFixture())
+    } = (await new ProjectDeployer().deployProjectAndUpgradeStrategyManagerFixture())
 
     await Promise.all([
         stablecoin.mint(account0, ONE_MILLION),

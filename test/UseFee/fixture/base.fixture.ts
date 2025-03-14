@@ -9,7 +9,7 @@ export const baseUseFeeFixture = async () => {
         subscriptionManager,
         subscriptionSigner,
         ...rest
-    } = await new ProjectDeployer().deployProjectFixture()
+    } = await new ProjectDeployer().deployProjectAndUpgradeStrategyManagerFixture()
 
     const useFee = await new TestFee__factory(deployer).deploy()
 
