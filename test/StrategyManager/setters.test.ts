@@ -10,6 +10,13 @@ import { baseStrategyManagerFixture } from './fixtures/base.fixture'
 //          => then sets strategies percentage to 99
 //          => then sets strategies percentage to 100
 //          => then emits StrategistPercentageUpdated
+// => setReferrerPercentage
+//      => when referrer percentage is greater than 100
+//          => then reverts with PercentageTooHigh
+//      => when referrer percentage is less than or equal to 100
+//          => then sets referrer percentage to 99
+//          => then sets referrer percentage to 100
+//          => then emits ReferrerPercentageUpdated
 // => setHotStrategistPercentage
 //      => when hot strategy percentage is greater than 100
 //          => then reverts with PercentageTooHigh
@@ -65,6 +72,44 @@ describe('StrategyManager#setters', () => {
 
                 await expect(tx)
                     .to.emit(strategyManager, 'StrategistPercentageUpdated')
+                    .withArgs(newPercentage)
+            })
+        })
+    })
+
+    describe('#setReferrerPercentage', () => {
+        describe('when referrer percentege is greater than 100', () => {
+            it('then reverts with PercentageTooHigh', async () => {
+                const newPercentage = 101n
+                const tx = strategyManager.setReferrerPercentage(newPercentage)
+
+                await expect(tx).to.revertedWithCustomError(strategyManager, 'PercentageTooHigh')
+            })
+        })
+
+        describe('when referrer percentege is less than or equal to 100', () => {
+            it('then set referrer percentage to 99', async () => {
+                const newPercentage = 99n
+
+                await strategyManager.setReferrerPercentage(newPercentage)
+
+                await expect(strategyManager.referrerPercentage()).to.become(newPercentage)
+            })
+
+            it('then sets referrer percentage to 100 ', async () => {
+                const newPercentage = 100n
+
+                await strategyManager.setReferrerPercentage(newPercentage)
+
+                await expect(strategyManager.referrerPercentage()).to.become(newPercentage)
+            })
+
+            it('then emits ReferrerPercentageUpdated', async () => {
+                const newPercentage = 10n
+                const tx = strategyManager.setReferrerPercentage(newPercentage)
+
+                await expect(tx)
+                    .to.emit(strategyManager, 'ReferrerPercentageUpdated')
                     .withArgs(newPercentage)
             })
         })
