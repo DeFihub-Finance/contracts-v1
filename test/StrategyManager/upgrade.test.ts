@@ -223,4 +223,31 @@ describe('StrategyManager#upgrade', () => {
             tolerance: ONE_PERCENT,
         })
     })
+
+    it.only('should be able to upgrade StrategyManager to V2 and collect strategist rewards', async () => {
+        await upgradeStrategyManager()
+
+        const strategyManagerV2 = StrategyManager__v2__factory.connect(
+            await strategyManager.getAddress(),
+            account0,
+        )
+
+        const stableBalanceBefore = await stablecoin.balanceOf(account0)
+
+        await strategyManager.collectStrategistRewards()
+        const stableBalanceDelta = await stablecoin.balanceOf(account0) - stableBalanceBefore
+
+        const { strategistFee } = await Fees.getStrategyFeeAmount(
+            AMOUNT_TO_INVEST,
+            strategyManagerV2,
+            strategyId,
+            true,
+            dca,
+            vaultManager,
+            liquidityManager,
+            buyProduct,
+        )
+
+        expect(stableBalanceDelta).to.equal(strategistFee)
+    })
 })
