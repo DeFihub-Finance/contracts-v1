@@ -234,6 +234,7 @@ export class ProjectDeployer {
                 .signSubscriptionPermit(await account0.getAddress(), 0),
         }
     }
+
     private async deployProducts(projectDeployer: ProjectDeployerContract) {
         const dcaDeployParams = this.getDeploymentInfo(DollarCostAverage__factory)
         const buyProductDeployParams = this.getDeploymentInfo(BuyProduct__factory)
