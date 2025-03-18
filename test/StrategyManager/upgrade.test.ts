@@ -9,6 +9,7 @@ import { createStrategy, SwapEncoder, UniswapV3 } from '@src/helpers'
 import { ETH_PRICE, ETH_PRICE_BN, ETH_QUOTE, ONE_PERCENT, USD_PRICE_BN, USD_QUOTE } from '@src/constants'
 import {
     StrategyManager,
+    StrategyManager__v2,
     StrategyManager__v2__factory,
     SubscriptionManager,
     TestERC20,
@@ -63,6 +64,24 @@ describe('StrategyManager#upgrade', () => {
             liquidityManager,
             buyProduct,
         )
+    }
+
+    async function checkBuyPosition(
+        positionId: number,
+        investedAmount: bigint,
+        strategyManager: StrategyManager__v2,
+    ) {
+        const { buyPositions } = await strategyManager.getPositionInvestments(account0, positionId)
+
+        Compare.almostEqualPercentage({
+            value: buyPositions[0].amount,
+            target: BigInt(
+                new BigNumber(investedAmount.toString())
+                    .div(ETH_PRICE_BN)
+                    .toFixed(0),
+            ),
+            tolerance: ONE_PERCENT,
+        })
     }
 
     beforeEach(async () => {
@@ -211,17 +230,7 @@ describe('StrategyManager#upgrade', () => {
             strategistPermit: permitAccount0,
         })
 
-        const { buyPositions } = await strategyManagerV2.getPositionInvestments(account0, 1)
-
-        Compare.almostEqualPercentage({
-            value: buyPositions[0].amount,
-            target: BigInt(
-                new BigNumber(amountMinusFees.toString())
-                    .div(ETH_PRICE_BN)
-                    .toFixed(0),
-            ),
-            tolerance: ONE_PERCENT,
-        })
+        await checkBuyPosition(1, amountMinusFees, strategyManagerV2)
     })
 
     it.only('should be able to upgrade StrategyManager to V2 and collect strategist rewards', async () => {
