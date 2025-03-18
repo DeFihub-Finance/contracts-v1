@@ -49,7 +49,7 @@ describe('StrategyManager#upgrade', () => {
     let strategyId: bigint
     let permitAccount0: SubscriptionManager.PermitStruct
 
-    async function upgradeStrategyManager<
+    async function setStrategyManagerImplementation<
         T extends typeof StrategyManager__factory | typeof StrategyManager__v2__factory
     >(contractFactory: T) {
         await strategyManager.upgradeTo(
@@ -121,7 +121,7 @@ describe('StrategyManager#upgrade', () => {
         } = await new ProjectDeployer().deployProjectFixture())
 
         // "Downgrade" to V1 manager
-        const strategyManagerV1 = await upgradeStrategyManager(StrategyManager__factory)
+        const strategyManagerV1 = await setStrategyManagerImplementation(StrategyManager__factory)
 
         /////////////////////////////////////////////////////
         // Create Strategy with one simple Buy Investment //
@@ -193,7 +193,7 @@ describe('StrategyManager#upgrade', () => {
     it('should be able to upgrade StrategyManager to V2 and maintain the same state', async () => {
         const positionBeforeUpgrade = await strategyManager.getPositionInvestments(account0, 0)
 
-        const strategyManagerV2 = await upgradeStrategyManager(StrategyManager__v2__factory)
+        const strategyManagerV2 = await setStrategyManagerImplementation(StrategyManager__v2__factory)
 
         const positionAfterUpgrade = await strategyManagerV2.getPositionInvestments(account0, 0)
 
@@ -203,7 +203,7 @@ describe('StrategyManager#upgrade', () => {
     })
 
     it('should be able to upgrade StrategyManager to V2 and invest without breaking the contract storage', async () => {
-        const strategyManagerV2 = await upgradeStrategyManager(StrategyManager__v2__factory)
+        const strategyManagerV2 = await setStrategyManagerImplementation(StrategyManager__v2__factory)
         const amountMinusFees = await deductFees(AMOUNT_TO_INVEST)
 
         // First investment to store referrer
@@ -267,7 +267,7 @@ describe('StrategyManager#upgrade', () => {
 
     it('should be able to upgrade StrategyManager to V2 and collect strategist rewards', async () => {
         const stableBalanceBefore = await stablecoin.balanceOf(account0)
-        const strategyManagerV2 = await upgradeStrategyManager(StrategyManager__v2__factory)
+        const strategyManagerV2 = await setStrategyManagerImplementation(StrategyManager__v2__factory)
 
         await strategyManagerV2.connect(account0).collectStrategistRewards()
         const stableBalanceDelta = await stablecoin.balanceOf(account0) - stableBalanceBefore
