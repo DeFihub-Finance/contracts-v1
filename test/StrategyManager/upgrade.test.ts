@@ -9,6 +9,7 @@ import { createStrategy, SwapEncoder, UniswapV3 } from '@src/helpers'
 import { ETH_PRICE, ETH_PRICE_BN, ETH_QUOTE, ONE_PERCENT, USD_PRICE_BN, USD_QUOTE } from '@src/constants'
 import {
     StrategyManager,
+    StrategyManager__factory,
     StrategyManager__v2,
     StrategyManager__v2__factory,
     SubscriptionManager,
@@ -24,6 +25,7 @@ describe('StrategyManager#upgrade', () => {
     const ONE_BILLION_ETH = parseEther('1000000000')
 
     // accounts
+    let owner: Signer
     let deployer: Signer
     let account0: Signer
 
@@ -47,10 +49,17 @@ describe('StrategyManager#upgrade', () => {
     let strategyId: bigint
     let permitAccount0: SubscriptionManager.PermitStruct
 
-    async function upgradeStrategyManager() {
-        return strategyManager.upgradeTo(
-            await new StrategyManager__v2__factory(deployer).deploy(),
+    async function upgradeStrategyManager<
+        T extends typeof StrategyManager__factory | typeof StrategyManager__v2__factory
+    >(contractFactory: T) {
+        await strategyManager.upgradeTo(
+            await new contractFactory(deployer).deploy(),
         )
+
+        return contractFactory.connect(
+            await strategyManager.getAddress(),
+            owner,
+        ) as T extends typeof StrategyManager__factory ? StrategyManager : StrategyManager__v2
     }
 
     function deductFees(amount: bigint) {
@@ -87,6 +96,7 @@ describe('StrategyManager#upgrade', () => {
     beforeEach(async () => {
         ({
             // accounts
+            owner,
             deployer,
             account0,
 
@@ -110,6 +120,9 @@ describe('StrategyManager#upgrade', () => {
             permitAccount0,
         } = await new ProjectDeployer().deployProjectFixture())
 
+        // "Downgrade" to V1 manager
+        const strategyManagerV1 = await upgradeStrategyManager(StrategyManager__factory)
+
         /////////////////////////////////////////////////////
         // Create Strategy with one simple Buy Investment //
         ///////////////////////////////////////////////////
@@ -123,7 +136,7 @@ describe('StrategyManager#upgrade', () => {
         strategyId = await createStrategy(
             account0,
             permitAccount0,
-            strategyManager,
+            strategyManagerV1,
             investments,
         )
 
@@ -146,9 +159,9 @@ describe('StrategyManager#upgrade', () => {
         // Invest into strategy //
         /////////////////////////
         await stablecoin.connect(account0).mint(account0, ONE_BILLION_ETH)
-        await stablecoin.connect(account0).approve(strategyManager, ONE_BILLION_ETH)
+        await stablecoin.connect(account0).approve(strategyManagerV1, ONE_BILLION_ETH)
 
-        await strategyManager
+        await strategyManagerV1
             .connect(account0)
             .invest({
                 strategyId,
@@ -180,12 +193,7 @@ describe('StrategyManager#upgrade', () => {
     it('should be able to upgrade StrategyManager to V2 and maintain the same state', async () => {
         const positionBeforeUpgrade = await strategyManager.getPositionInvestments(account0, 0)
 
-        await upgradeStrategyManager()
-
-        const strategyManagerV2 = StrategyManager__v2__factory.connect(
-            await strategyManager.getAddress(),
-            account0,
-        )
+        const strategyManagerV2 = await upgradeStrategyManager(StrategyManager__v2__factory)
 
         const positionAfterUpgrade = await strategyManagerV2.getPositionInvestments(account0, 0)
 
@@ -195,16 +203,10 @@ describe('StrategyManager#upgrade', () => {
     })
 
     it('should be able to upgrade StrategyManager to V2 and make a new investment', async () => {
-        await upgradeStrategyManager()
-
-        const strategyManagerV2 = StrategyManager__v2__factory.connect(
-            await strategyManager.getAddress(),
-            account0,
-        )
-
+        const strategyManagerV2 = await upgradeStrategyManager(StrategyManager__v2__factory)
         const amountMinusFees = await deductFees(AMOUNT_TO_INVEST)
 
-        await strategyManagerV2.invest({
+        await strategyManagerV2.connect(account0).invest({
             strategyId,
             inputToken: stablecoin,
             inputAmount: AMOUNT_TO_INVEST,
@@ -233,17 +235,11 @@ describe('StrategyManager#upgrade', () => {
         await checkBuyPosition(1, amountMinusFees, strategyManagerV2)
     })
 
-    it.only('should be able to upgrade StrategyManager to V2 and collect strategist rewards', async () => {
-        await upgradeStrategyManager()
-
-        const strategyManagerV2 = StrategyManager__v2__factory.connect(
-            await strategyManager.getAddress(),
-            account0,
-        )
-
+    it('should be able to upgrade StrategyManager to V2 and collect strategist rewards', async () => {
         const stableBalanceBefore = await stablecoin.balanceOf(account0)
+        const strategyManagerV2 = await upgradeStrategyManager(StrategyManager__v2__factory)
 
-        await strategyManager.collectStrategistRewards()
+        await strategyManagerV2.connect(account0).collectStrategistRewards()
         const stableBalanceDelta = await stablecoin.balanceOf(account0) - stableBalanceBefore
 
         const { strategistFee } = await Fees.getStrategyFeeAmount(
