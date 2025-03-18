@@ -202,60 +202,6 @@ describe('StrategyManager#upgrade', () => {
         expect(positionBeforeUpgrade).to.deep.equal(positionAfterUpgrade)
     })
 
-    it('should be able to upgrade StrategyManager to V2 and make a new investment', async () => {
-        const strategyManagerV2 = await upgradeStrategyManager(StrategyManager__v2__factory)
-        const amountMinusFees = await deductFees(AMOUNT_TO_INVEST)
-
-        await strategyManagerV2.connect(account0).invest({
-            strategyId,
-            inputToken: stablecoin,
-            inputAmount: AMOUNT_TO_INVEST,
-            inputTokenSwap: '0x',
-            dcaSwaps: [],
-            vaultSwaps: [],
-            liquidityZaps: [],
-            buySwaps: [
-                await SwapEncoder.encodeExactInputV3(
-                    universalRouter,
-                    amountMinusFees,
-                    await PathUniswapV3.fromAddressLike(
-                        stablecoin,
-                        [{ token: weth, fee: 3000 }],
-                    ),
-                    USD_QUOTE,
-                    ETH_QUOTE,
-                    new BigNumber(ONE_PERCENT),
-                    strategyManagerV2,
-                ),
-            ],
-            investorPermit: permitAccount0,
-            strategistPermit: permitAccount0,
-        })
-
-        await checkBuyPosition(1, amountMinusFees, strategyManagerV2)
-    })
-
-    it('should be able to upgrade StrategyManager to V2 and collect strategist rewards', async () => {
-        const stableBalanceBefore = await stablecoin.balanceOf(account0)
-        const strategyManagerV2 = await upgradeStrategyManager(StrategyManager__v2__factory)
-
-        await strategyManagerV2.connect(account0).collectStrategistRewards()
-        const stableBalanceDelta = await stablecoin.balanceOf(account0) - stableBalanceBefore
-
-        const { strategistFee } = await Fees.getStrategyFeeAmount(
-            AMOUNT_TO_INVEST,
-            strategyManagerV2,
-            strategyId,
-            true,
-            dca,
-            vaultManager,
-            liquidityManager,
-            buyProduct,
-        )
-
-        expect(stableBalanceDelta).to.equal(strategistFee)
-    })
-
     it('should be able to upgrade StrategyManager to V2 and invest without breaking the contract storage', async () => {
         const strategyManagerV2 = await upgradeStrategyManager(StrategyManager__v2__factory)
         const amountMinusFees = await deductFees(AMOUNT_TO_INVEST)
@@ -317,5 +263,26 @@ describe('StrategyManager#upgrade', () => {
         })
 
         await checkBuyPosition(2, amountMinusFees, strategyManagerV2)
+    })
+
+    it('should be able to upgrade StrategyManager to V2 and collect strategist rewards', async () => {
+        const stableBalanceBefore = await stablecoin.balanceOf(account0)
+        const strategyManagerV2 = await upgradeStrategyManager(StrategyManager__v2__factory)
+
+        await strategyManagerV2.connect(account0).collectStrategistRewards()
+        const stableBalanceDelta = await stablecoin.balanceOf(account0) - stableBalanceBefore
+
+        const { strategistFee } = await Fees.getStrategyFeeAmount(
+            AMOUNT_TO_INVEST,
+            strategyManagerV2,
+            strategyId,
+            true,
+            dca,
+            vaultManager,
+            liquidityManager,
+            buyProduct,
+        )
+
+        expect(stableBalanceDelta).to.equal(strategistFee)
     })
 })
