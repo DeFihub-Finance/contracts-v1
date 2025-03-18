@@ -255,4 +255,67 @@ describe('StrategyManager#upgrade', () => {
 
         expect(stableBalanceDelta).to.equal(strategistFee)
     })
+
+    it('should be able to upgrade StrategyManager to V2 and invest without breaking the contract storage', async () => {
+        const strategyManagerV2 = await upgradeStrategyManager(StrategyManager__v2__factory)
+        const amountMinusFees = await deductFees(AMOUNT_TO_INVEST)
+
+        // First investment to store referrer
+        await strategyManagerV2.connect(account0).investV2({
+            strategyId,
+            inputToken: stablecoin,
+            inputAmount: AMOUNT_TO_INVEST,
+            inputTokenSwap: '0x',
+            dcaSwaps: [],
+            vaultSwaps: [],
+            liquidityZaps: [],
+            buySwaps: [
+                await SwapEncoder.encodeExactInputV3(
+                    universalRouter,
+                    amountMinusFees,
+                    await PathUniswapV3.fromAddressLike(
+                        stablecoin,
+                        [{ token: weth, fee: 3000 }],
+                    ),
+                    USD_QUOTE,
+                    ETH_QUOTE,
+                    new BigNumber(ONE_PERCENT),
+                    strategyManagerV2,
+                ),
+            ],
+            investorPermit: permitAccount0,
+            strategistPermit: permitAccount0,
+        }, owner)
+
+        await checkBuyPosition(1, amountMinusFees, strategyManagerV2)
+
+        // Second investment to ensure we don't break the contract storage
+        await strategyManagerV2.connect(account0).invest({
+            strategyId,
+            inputToken: stablecoin,
+            inputAmount: AMOUNT_TO_INVEST,
+            inputTokenSwap: '0x',
+            dcaSwaps: [],
+            vaultSwaps: [],
+            liquidityZaps: [],
+            buySwaps: [
+                await SwapEncoder.encodeExactInputV3(
+                    universalRouter,
+                    amountMinusFees,
+                    await PathUniswapV3.fromAddressLike(
+                        stablecoin,
+                        [{ token: weth, fee: 3000 }],
+                    ),
+                    USD_QUOTE,
+                    ETH_QUOTE,
+                    new BigNumber(ONE_PERCENT),
+                    strategyManagerV2,
+                ),
+            ],
+            investorPermit: permitAccount0,
+            strategistPermit: permitAccount0,
+        })
+
+        await checkBuyPosition(2, amountMinusFees, strategyManagerV2)
+    })
 })
