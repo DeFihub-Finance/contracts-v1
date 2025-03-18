@@ -66,7 +66,7 @@ export class ProjectDeployer {
         const universalRouter = await this.deployUniversalRouter(deployer, weth, factoryUniV2, factoryUniV3, positionManagerUniV3)
 
         const subscriptionManagerDeployParams = this.getDeploymentInfo(SubscriptionManager__factory)
-        const strategyManagerDeployParams = this.getDeploymentInfo(StrategyManager__factory)
+        const strategyManagerDeployParams = this.getDeploymentInfo(StrategyManager__v2__factory)
 
         await projectDeployer.deployStrategyInvestor(StrategyInvestor__factory.bytecode, ZeroHash)
         await projectDeployer.deployStrategyPositionManager(StrategyPositionManager__factory.bytecode, ZeroHash)
