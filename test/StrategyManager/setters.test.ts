@@ -81,9 +81,9 @@ describe('StrategyManager#setters', () => {
         describe('when referrer percentege is greater than 100', () => {
             it('then reverts with PercentageTooHigh', async () => {
                 const newPercentage = 101n
-                const tx = strategyManager.setReferrerPercentage(newPercentage)
 
-                await expect(tx).to.revertedWithCustomError(strategyManager, 'PercentageTooHigh')
+                await expect(strategyManager.setReferrerPercentage(newPercentage))
+                    .to.revertedWithCustomError(strategyManager, 'PercentageTooHigh')
             })
         })
 
@@ -106,9 +106,8 @@ describe('StrategyManager#setters', () => {
 
             it('then emits ReferrerPercentageUpdated', async () => {
                 const newPercentage = 10n
-                const tx = strategyManager.setReferrerPercentage(newPercentage)
 
-                await expect(tx)
+                await expect(strategyManager.setReferrerPercentage(newPercentage))
                     .to.emit(strategyManager, 'ReferrerPercentageUpdated')
                     .withArgs(newPercentage)
             })
