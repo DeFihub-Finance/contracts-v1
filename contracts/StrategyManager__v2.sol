@@ -10,7 +10,6 @@ import {SubscriptionManager} from "./SubscriptionManager.sol";
 import {StrategyManager} from './StrategyManager.sol';
 import {ReferralStorage} from "./libraries/ReferralStorage.sol";
 
-// TODO test upgrade compatibility
 contract StrategyManager__v2 is StrategyManager {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
