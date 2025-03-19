@@ -17,7 +17,7 @@ contract StrategyManager__v2 is StrategyManager {
     event ReferrerPercentageUpdated(uint32 percentage);
     event CollectedReferrerRewards(address referrer, uint amount);
 
-    function initialize__V2(uint32 _referrerPercentage) external onlyOwner reinitializer(2) {
+    function initialize__v2(uint32 _referrerPercentage) external onlyOwner reinitializer(2) {
         ReferralStorage.getReferralStruct().referrerPercentage = _referrerPercentage;
     }
 
