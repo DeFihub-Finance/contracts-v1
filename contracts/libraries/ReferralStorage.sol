@@ -17,8 +17,5 @@ library ReferralStorage {
         assembly {
             referralStruct.slot := position
         }
-
-        // TODO check if removing return statement spends less gas
-        return referralStruct;
     }
 }
