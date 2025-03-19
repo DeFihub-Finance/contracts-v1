@@ -177,6 +177,11 @@ export class ProjectDeployer {
             buyProductManagerInit,
         )
 
+        // Set referrer percentage to 1%
+        await StrategyManager__v2__factory
+            .connect(strategyManager, owner)
+            .initialize__V2(1)
+
         const subscriptionSignature = new SubscriptionSignature(
             subscriptionManager,
             subscriptionSigner,
