@@ -403,7 +403,12 @@ contract StrategyInvestor is StrategyStorage {
 
             _strategistRewards[strategy.creator] += strategistFee;
 
-            emit Fee(msg.sender, strategy.creator, strategistFee, abi.encode(_params.strategyId));
+            emit Fee(
+                msg.sender,
+                strategy.creator,
+                strategistFee,
+                abi.encode(_params.strategyId, FEE_TO_STRATEGIST)
+            );
         }
 
         if (referrer != address(0)) {
@@ -411,14 +416,24 @@ contract StrategyInvestor is StrategyStorage {
 
             referralStorage.referrerRewards[referrer] += referrerFee;
 
-            emit Fee(msg.sender, referrer, referrerFee, abi.encode(_params.strategyId));
+            emit Fee(
+                msg.sender,
+                referrer,
+                referrerFee,
+                abi.encode(_params.strategyId, FEE_TO_REFERRER)
+            );
         }
 
         uint protocolFee = amountBaseFee + amountNonSubscriberFee - strategistFee - referrerFee;
 
         stable.safeTransfer(treasury, protocolFee);
 
-        emit Fee(msg.sender, treasury, protocolFee, abi.encode(_params.strategyId));
+        emit Fee(
+            msg.sender,
+            treasury,
+            protocolFee,
+            abi.encode(_params.strategyId, FEE_TO_PROTOCOL)
+        );
 
         // TODO update typescript fee calculation function to support new fee split
 
