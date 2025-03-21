@@ -7,8 +7,8 @@ export * from './prices.mock'
 export const ONE_PERCENT = new BigNumber(0.01)
 
 // TODO move to shared
-export enum FeeType {
-    PROTOCOL,
-    STRATEGIST,
-    REFERRER,
-}
+export const FeeType = {
+    PROTOCOL: 0n,
+    STRATEGIST: 1n,
+    REFERRER: 2n,
+} as const

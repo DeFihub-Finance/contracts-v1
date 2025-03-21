@@ -19,7 +19,7 @@ export function getEventLog(
 
 export function getFeeEventLog(
     receipt: ContractTransactionReceipt | null,
-    feeType: FeeType,
+    feeType: typeof FeeType[keyof typeof FeeType],
 ) {
     const contractInterface = StrategyInvestor__factory.createInterface()
 
@@ -34,7 +34,7 @@ export function getFeeEventLog(
                 ] = AbiCoder.defaultAbiCoder()
                     .decode(['uint', 'uint8'], parsedLog.args[3])
 
-                if (Number(feeTypeBI) === feeType)
+                if (feeTypeBI === feeType)
                     return parsedLog
             }
         }
