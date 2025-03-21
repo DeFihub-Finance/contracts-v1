@@ -59,4 +59,35 @@ export class SwapEncoder {
             )
             .encodedSwapData
     }
+
+    public static async encodeExactNativeInputV3(
+        router: UniversalRouter,
+        amount: bigint,
+        path: PathUniswapV3,
+        inputToken: TokenQuote,
+        outputToken: TokenQuote,
+        slippage: BigNumber,
+        recipient: AddressLike,
+    ) {
+        const routerAddress = await unwrapAddressLike(router)
+
+        return new RoutePlanner(routerAddress)
+            .addCommand(UniversalRouterCommand.WRAP_ETH, [routerAddress, amount])
+            .addCommand(
+                UniversalRouterCommand.V3_SWAP_EXACT_IN,
+                [
+                    await unwrapAddressLike(recipient),
+                    amount,
+                    Slippage.getMinOutput(
+                        amount,
+                        inputToken,
+                        outputToken,
+                        slippage,
+                    ),
+                    path.encodedPath(),
+                    false,
+                ],
+            )
+            .encodedSwapData
+    }
 }
