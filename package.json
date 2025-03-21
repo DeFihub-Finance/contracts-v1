@@ -30,7 +30,7 @@
         "typescript": "^5.2.2"
     },
     "dependencies": {
-        "@defihub/shared": "4.0.0-rc.1",
+        "@defihub/shared": "4.0.0-rc.4",
         "@nomicfoundation/hardhat-toolbox": "^5.0.0",
         "@openzeppelin/contracts": "4.9.6",
         "@openzeppelin/contracts-upgradeable": "4.9.6",
@@ -46,6 +46,7 @@
         "hardhat-gas-reporter": "^1.0.10",
         "hardhat-vanity": "1.1.0",
         "ofetch": "^1.3.4",
+        "sol2uml": "^2.5.21",
         "solidity-coverage": "^0.8.8",
         "solidity-docgen": "^0.6.0-beta.36"
     }

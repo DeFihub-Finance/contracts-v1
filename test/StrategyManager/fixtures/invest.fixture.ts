@@ -2,9 +2,8 @@ import { createStrategyFixture } from './create-strategy.fixture'
 import { parseEther } from 'ethers'
 import { NetworkService } from '@src/NetworkService'
 import { createStrategy, SwapEncoder } from '@src/helpers'
-import { PathUniswapV3, UniswapV3 } from '@defihub/shared'
+import { PathUniswapV3, UniswapV3, Fees } from '@defihub/shared'
 import { LiquidityHelpers } from '@src/helpers'
-import { Fees } from '@src/helpers/Fees'
 import { ETH_QUOTE, ONE_PERCENT, USD_QUOTE } from '@src/constants'
 
 export async function investFixture() {
