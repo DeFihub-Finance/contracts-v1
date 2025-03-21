@@ -1,4 +1,4 @@
-import { FeeType } from '@src/constants'
+import { FeeToType } from '@src/constants'
 import { StrategyInvestor__factory } from '@src/typechain'
 import { AbiCoder, ContractTransactionReceipt, Interface } from 'ethers'
 
@@ -19,7 +19,7 @@ export function getEventLog(
 
 export function getFeeEventLog(
     receipt: ContractTransactionReceipt | null,
-    feeType: typeof FeeType[keyof typeof FeeType],
+    feeTo: FeeToType,
 ) {
     const contractInterface = StrategyInvestor__factory.createInterface()
 
@@ -30,11 +30,11 @@ export function getFeeEventLog(
             if (parsedLog && parsedLog.name === 'Fee') {
                 const [
                     _,
-                    feeTypeBI,
+                    feeToBI,
                 ] = AbiCoder.defaultAbiCoder()
                     .decode(['uint', 'uint8'], parsedLog.args[3])
 
-                if (feeTypeBI === feeType)
+                if (feeToBI === feeTo)
                     return parsedLog
             }
         }

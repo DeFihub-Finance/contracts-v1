@@ -24,7 +24,7 @@ import { ERC20Priced, UniswapV3, unwrapAddressLike } from '@defihub/shared'
 import { Fees } from '@src/helpers/Fees'
 import { SubscriptionSignature } from '@src/SubscriptionSignature'
 import { Compare } from '@src/Compare'
-import { FeeType, ONE_PERCENT } from '@src/constants'
+import { FeeTo, ONE_PERCENT } from '@src/constants'
 
 // EFFECTS
 // => when user is subscribed
@@ -491,13 +491,13 @@ describe('StrategyManager#invest', () => {
 
                 const { protocolFee } = await getStrategyFeeAmount(amountToInvest, strategyId, true, false)
 
-                const feeEvent = getFeeEventLog(receipt, FeeType.PROTOCOL)
+                const feeEvent = getFeeEventLog(receipt, FeeTo.PROTOCOL)
 
                 expect(feeEvent?.args).to.deep.equal([
                     await unwrapAddressLike(account1),
                     await unwrapAddressLike(treasury),
                     protocolFee,
-                    AbiCoder.defaultAbiCoder().encode(['uint', 'uint8'], [strategyId, FeeType.PROTOCOL]),
+                    AbiCoder.defaultAbiCoder().encode(['uint', 'uint8'], [strategyId, FeeTo.PROTOCOL]),
                 ])
             })
 
@@ -516,13 +516,13 @@ describe('StrategyManager#invest', () => {
 
                 const { protocolFee } = await getStrategyFeeAmount(amountToInvest, strategyId, false, false)
 
-                const feeEvent = getFeeEventLog(receipt, FeeType.PROTOCOL)
+                const feeEvent = getFeeEventLog(receipt, FeeTo.PROTOCOL)
 
                 expect(feeEvent?.args).to.deep.equal([
                     await unwrapAddressLike(account2),
                     await unwrapAddressLike(treasury),
                     protocolFee,
-                    AbiCoder.defaultAbiCoder().encode(['uint', 'uint8'], [strategyId, FeeType.PROTOCOL]),
+                    AbiCoder.defaultAbiCoder().encode(['uint', 'uint8'], [strategyId, FeeTo.PROTOCOL]),
                 ])
             })
         })
