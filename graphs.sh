@@ -30,7 +30,7 @@ mv flattened_clean.sol flattened.sol
 # Step 3: For each contract name provided, run sol2uml storage command.
 for contract in "$@"; do
   echo "Generating UML chart for contract '$contract'"
-  sol2uml storage flattened.sol -c "$contract" -o ./uml/"$contract".svg
+  npx sol2uml storage flattened.sol -c "$contract" -o ./uml/"$contract".svg
   if [ $? -ne 0 ]; then
     echo "Error: sol2uml storage failed for contract '$contract'."
     exit 1

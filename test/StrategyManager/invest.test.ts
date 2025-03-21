@@ -4,7 +4,6 @@ import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import {
     DollarCostAverage,
     StrategyInvestor,
-    StrategyInvestor__factory,
     StrategyManager__v2,
     SubscriptionManager,
     TestERC20,
@@ -17,7 +16,7 @@ import {
 import { createStrategyFixture } from './fixtures/create-strategy.fixture'
 import {
     expectCustomError,
-    getEventLog,
+    getFeeEventLog,
     LiquidityHelpers,
     UniswapV3 as UniswapV3Helper,
 } from '@src/helpers'
@@ -25,7 +24,7 @@ import { ERC20Priced, UniswapV3, unwrapAddressLike } from '@defihub/shared'
 import { Fees } from '@src/helpers/Fees'
 import { SubscriptionSignature } from '@src/SubscriptionSignature'
 import { Compare } from '@src/Compare'
-import { ONE_PERCENT } from '@src/constants'
+import { FeeTo, ONE_PERCENT } from '@src/constants'
 
 // EFFECTS
 // => when user is subscribed
@@ -492,13 +491,13 @@ describe('StrategyManager#invest', () => {
 
                 const { protocolFee } = await getStrategyFeeAmount(amountToInvest, strategyId, true, false)
 
-                const feeEvent = getEventLog(receipt, 'Fee', StrategyInvestor__factory.createInterface())
+                const feeEvent = getFeeEventLog(receipt, FeeTo.PROTOCOL)
 
                 expect(feeEvent?.args).to.deep.equal([
                     await unwrapAddressLike(account1),
                     await unwrapAddressLike(treasury),
                     protocolFee,
-                    AbiCoder.defaultAbiCoder().encode(['uint'], [strategyId]),
+                    AbiCoder.defaultAbiCoder().encode(['uint', 'uint8'], [strategyId, FeeTo.PROTOCOL]),
                 ])
             })
 
@@ -517,13 +516,13 @@ describe('StrategyManager#invest', () => {
 
                 const { protocolFee } = await getStrategyFeeAmount(amountToInvest, strategyId, false, false)
 
-                const feeEvent = getEventLog(receipt, 'Fee', StrategyInvestor__factory.createInterface())
+                const feeEvent = getFeeEventLog(receipt, FeeTo.PROTOCOL)
 
                 expect(feeEvent?.args).to.deep.equal([
                     await unwrapAddressLike(account2),
                     await unwrapAddressLike(treasury),
                     protocolFee,
-                    AbiCoder.defaultAbiCoder().encode(['uint'], [strategyId]),
+                    AbiCoder.defaultAbiCoder().encode(['uint', 'uint8'], [strategyId, FeeTo.PROTOCOL]),
                 ])
             })
         })
