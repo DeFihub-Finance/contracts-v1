@@ -19,7 +19,7 @@ export function getEventLog(
 
 export function getFeeEventLog(
     receipt: ContractTransactionReceipt | null,
-    feeType?: FeeType,
+    feeType: FeeType,
 ) {
     const contractInterface = StrategyInvestor__factory.createInterface()
 
@@ -28,9 +28,6 @@ export function getFeeEventLog(
             const parsedLog = contractInterface.parseLog(log)
 
             if (parsedLog && parsedLog.name === 'Fee') {
-                if (feeType === undefined)
-                    return parsedLog
-
                 const [
                     _,
                     feeTypeBI,
@@ -39,8 +36,6 @@ export function getFeeEventLog(
 
                 if (Number(feeTypeBI) === feeType)
                     return parsedLog
-                else
-                    continue
             }
         }
     }
