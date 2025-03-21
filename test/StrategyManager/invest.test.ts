@@ -26,7 +26,6 @@ import { ERC20Priced, Fees, PathUniswapV3, Slippage, UniswapV3, unwrapAddressLik
 import { SubscriptionSignature } from '@src/SubscriptionSignature'
 import { Compare } from '@src/Compare'
 import { ONE_PERCENT } from '@src/constants'
-import { BigNumber } from '@ryze-blockchain/ethereum'
 
 // EFFECTS
 // => when user is subscribed
@@ -139,15 +138,6 @@ describe('StrategyManager#invest', () => {
         )
     }
 
-    function parseToStableAmount(amount: bigint, token: ERC20Priced) {
-        const parsedStableAmountWithDecimals = new BigNumber(amount.toString())
-            .shiftedBy(stablecoinPriced.decimals - token.decimals)
-            .times(token.price)
-            .toFixed(0)
-
-        return Slippage.deductSlippage(BigInt(parsedStableAmountWithDecimals), SLIPPAGE_BN)
-    }
-
     async function getEncodedSwapV3(
         amount: bigint,
         inputToken: ERC20Priced,
@@ -186,7 +176,7 @@ describe('StrategyManager#invest', () => {
 
         const stableAmount = inputToken.address === stablecoinPriced.address
             ? amountToInvest
-            : parseToStableAmount(amountToInvest, inputToken)
+            : Slippage.getMinOutput(amountToInvest, inputToken, stablecoinPriced, SLIPPAGE_BN)
 
         const [
             { dcaInvestments, vaultInvestments, liquidityInvestments },
@@ -639,7 +629,12 @@ describe('StrategyManager#invest', () => {
 
         it('invest using native ETH', async () => {
             const investParams = await getInvestNativeParams(account1)
-            const amountToInvestInStable = parseToStableAmount(amountToInvest, wethPriced)
+            const amountToInvestInStable = Slippage.getMinOutput(
+                amountToInvest,
+                wethPriced,
+                stablecoinPriced,
+                SLIPPAGE_BN,
+            )
 
             await _investNative(account1, investParams)
 
