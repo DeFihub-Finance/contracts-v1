@@ -34,7 +34,7 @@ describe('StrategyManager#upgrade', () => {
     let stablecoin: TestERC20
 
     // hub contracts
-    let strategyManager: StrategyManager
+    let strategyManager: StrategyManager__v2
     let dca: UseFee
     let buyProduct: UseFee
     let vaultManager: UseFee
@@ -68,6 +68,8 @@ describe('StrategyManager#upgrade', () => {
             strategyManager,
             strategyId,
             true,
+            true,
+            false,
             dca,
             vaultManager,
             liquidityManager,
@@ -277,6 +279,8 @@ describe('StrategyManager#upgrade', () => {
             strategyManagerV2,
             strategyId,
             true,
+            true,
+            false,
             dca,
             vaultManager,
             liquidityManager,
