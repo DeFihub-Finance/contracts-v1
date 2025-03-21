@@ -435,8 +435,6 @@ contract StrategyInvestor is StrategyStorage {
             abi.encode(_params.strategyId, FEE_TO_PROTOCOL)
         );
 
-        // TODO update typescript fee calculation function to support new fee split
-
         return _params.stableAmount - amountBaseFee - amountNonSubscriberFee;
     }
 
