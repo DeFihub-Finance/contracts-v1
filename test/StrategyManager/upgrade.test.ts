@@ -68,8 +68,6 @@ describe('StrategyManager#upgrade', () => {
             strategyManager,
             strategyId,
             true,
-            true,
-            false,
             dca,
             vaultManager,
             liquidityManager,
