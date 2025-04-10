@@ -1,14 +1,24 @@
 import { createArrayOfIndexes, ERC20PricedJson, ERC20JsonAddressMap, exchangesMeta } from '@defihub/shared'
 import { DollarCostAverage__factory, Quoter__factory } from '@src/typechain'
 import { API, findAddressOrFail, getChainId, getSigner, proposeTransactions } from '@src/helpers'
-import { BatchLimiter, BigNumber, ChainIds, ChainMap } from '@ryze-blockchain/ethereum'
-import { PreparedTransactionRequest } from 'ethers'
+import { BatchLimiter, BigNumber, ChainId, ChainIds, ChainMap, notEmpty } from '@ryze-blockchain/ethereum'
+import { PreparedTransactionRequest, Signer } from 'ethers'
 
 type Pool = Awaited<ReturnType<typeof getPools>>[number]
-type PoolWithSlippage = Pool & { inputAmount: bigint, slippage: BigNumber }
+type PoolWithSwapData = Pool & {
+    inputAmount: bigint
+    outputAmount: bigint
+    slippage: BigNumber
+}
+type Update = {
+    pid: bigint
+    router: string
+    path: string
+}
 type TokenMap = ERC20JsonAddressMap<ERC20PricedJson>
 
-const limiter = new BatchLimiter(5, 1_000)
+const limiter = new BatchLimiter(10, 1_000)
+const INPUT_AMOUNT_USD = new BigNumber(1_000) // $1.000
 const MAX_SLIPPAGE = 0.01 // 1%
 
 const routerToQuoter: ChainMap<Record<string, string>> = {
@@ -29,38 +39,34 @@ const routerToQuoter: ChainMap<Record<string, string>> = {
     },
 }
 
+let chainId: ChainId
+let signer: Signer
+let tokens: TokenMap
+
 async function updatePools() {
-    const chainId = await getChainId()
-    const currentPools = await getPools()
-    const tokens = await getTokens(currentPools)
-    const poolsWithSlippage = await addSlippageToPools(currentPools, tokens)
-    const poolsWithHighSlippage = poolsWithSlippage.filter(pool => pool.slippage.gte(MAX_SLIPPAGE))
+    chainId = await getChainId()
+    signer = await getSigner()
 
-    console.log(
-        'High slippage pools',
-        poolsWithHighSlippage.length,
-        poolsWithHighSlippage.map(pool => getPoolName(pool, tokens)),
-    )
+    const originalPools = await getPools()
 
-    const poolsWithUpdatedPaths = await getPoolsWithUpdatedPaths(poolsWithHighSlippage, tokens)
+    tokens = await getTokens(originalPools)
+
+    const updates = await getPoolUpdates(originalPools)
     const dcaContract = await getDcaContract()
 
     const transactions: PreparedTransactionRequest[] = await Promise.all(
-        poolsWithUpdatedPaths
-            .filter(pool => pool.slippage.lt(MAX_SLIPPAGE))
-            .map(pool => dcaContract.setPoolRouterAndPath.populateTransaction(
-                pool.pid,
-                pool.router,
-                pool.path,
-            )),
+        updates.map(pool => dcaContract.setPoolRouterAndPath.populateTransaction(
+            pool.pid,
+            pool.router,
+            pool.path,
+        )),
     )
 
     await proposeTransactions(chainId, transactions)
 }
 
 async function getPools() {
-    const signer = await getSigner()
-    const dcaContract = DollarCostAverage__factory.connect(await findAddressOrFail('DollarCostAverage'), signer)
+    const dcaContract = await getDcaContract()
     const allPoolIds = createArrayOfIndexes(await dcaContract.getPoolsLength())
 
     return Promise.all(allPoolIds.map(async pid => {
@@ -82,108 +88,33 @@ async function getPools() {
     }))
 }
 
-async function addSlippageToPools(
-    pools: Pool[],
-    tokens: TokenMap,
-): Promise<PoolWithSlippage[]> {
-    const inputAmountUSD = new BigNumber(1000)
+async function getPoolUpdates(pools: Pool[]): Promise<Update[]> {
+    const updates = await Promise.all(pools.map(async pool => {
+        const quotes = await getQuotes(pool)
 
-    return Promise.all(pools.map(async pool => {
-        const inputTokenData = tokens[pool.inputToken]
+        // new pool had no changes
+        if (!quotes)
+            return
 
-        if (!inputTokenData)
-            throw new Error(`Token not found: ${ pool.inputToken }`)
+        const { original, updated } = quotes
+        const originalOutputUSD = tokenAmountToUSD(original.outputAmount, pool.outputToken)
+        const updatedOutputUSD = tokenAmountToUSD(updated.outputAmount, pool.outputToken)
 
-        const inputAmount = BigInt(
-            inputAmountUSD
-                .div(inputTokenData.price)
-                .shiftedBy(inputTokenData.decimals)
-                .toFixed(0),
-        )
-
-        try {
-            await limiter.consumeLimit()
-            const amountOut = await getQuote(pool.router, pool.path, inputAmount)
-
-            return {
-                ...pool,
-                inputAmount,
-                slippage: calculateSlippage(
-                    inputAmount,
-                    amountOut,
-                    pool.inputToken,
-                    pool.outputToken,
-                    tokens,
-                ),
-            }
-        }
-        catch (e) {
-            const error = e as Error
-            const knownMessages = [
-                'execution reverted: SPL',
-                'execution reverted: Unexpected error',
-            ]
-
-            if (knownMessages.includes(error.message)) {
-                return {
-                    ...pool,
-                    inputAmount,
-                    slippage: BigNumber(1),
-                }
-            }
-
-            throw error
-        }
-    }))
-}
-
-async function getPoolsWithUpdatedPaths(pools: PoolWithSlippage[], tokens: TokenMap) {
-    const chainId = await getChainId()
-
-    return Promise.all(pools.map(async pool => {
-        const newSwap = await API.getSwapPath(
-            chainId,
-            pool.inputToken,
-            pool.outputToken,
-            pool.inputAmount,
-        )
-
-        if (!newSwap)
-            throw new Error(`No path found for ${ pool.pid } (${ pool.inputToken } => ${ pool.outputToken })`)
-
-        const newRouter = exchangesMeta[chainId]
-            ?.find(exchange => exchange.protocol === newSwap.protocol)
-            ?.router
-
-        if (!newRouter)
-            throw new Error(`Router not found for ${ newSwap.protocol }`)
-
-        const amountOut = await getQuote(newRouter, await newSwap.path.encodedPath(), pool.inputAmount)
-        const slippage = calculateSlippage(
-            pool.inputAmount,
-            amountOut,
-            pool.inputToken,
-            pool.outputToken,
-            tokens,
-        )
+        // update only if $0.01 difference or higher
+        if (originalOutputUSD.plus(0.01).gte(updatedOutputUSD))
+            return
 
         return {
-            ...pool,
-            slippage,
-            router: newRouter,
-            path: await newSwap.path.encodedPath(),
+            pid: pool.pid,
+            router: updated.router,
+            path: updated.path,
         }
-
-        // console.log({
-        //     pool: getPoolName(pool, tokens),
-        //     newSlippage: slippage.toFixed(8),
-        //     oldSlippage: pool.slippage.toFixed(8),
-        // })
     }))
+
+    return updates.filter(notEmpty)
 }
 
 async function getTokens(pools: Pool[]) {
-    const chainId = await getChainId()
     const tokenAddresses = new Set(
         pools
             .map(({ inputToken, outputToken }) => [inputToken, outputToken])
@@ -195,26 +126,124 @@ async function getTokens(pools: Pool[]) {
     return API.getTokens([...tokenAddresses].map(address => ({ chainId, address })))
 }
 
-async function getQuote(router: string, path: string, inputAmount: bigint) {
-    const [
+async function getQuotes(pool: Pool): Promise<{ original: PoolWithSwapData, updated: PoolWithSwapData } | undefined> {
+    const inputTokenData = tokens[pool.inputToken]
+
+    if (!inputTokenData)
+        throw new Error(`Token not found: ${ pool.inputToken }`)
+
+    const inputAmount = BigInt(
+        INPUT_AMOUNT_USD
+            .div(inputTokenData.price)
+            .shiftedBy(inputTokenData.decimals)
+            .toFixed(0),
+    )
+
+    const newSwap = await API.getSwapPath(
         chainId,
-        signer,
+        pool.inputToken,
+        pool.outputToken,
+        inputAmount,
+    )
+
+    if (!newSwap)
+        throw new Error(`No path found for ${ pool.pid } (${ pool.inputToken } => ${ pool.outputToken })`)
+
+    const newRouter = exchangesMeta[chainId]
+        ?.find(exchange => exchange.protocol === newSwap.protocol)
+        ?.router
+
+    if (!newRouter)
+        throw new Error(`Router not found for ${ newSwap.protocol }`)
+
+    const newPath = (await newSwap.path.encodedPath()).toLowerCase()
+
+    const isSamePath = pool.router === newRouter && pool.path === newPath
+
+    const [
+        originalOutputAmount,
+        newOutputAmount,
     ] = await Promise.all([
-        getChainId(),
-        getSigner(),
+        getQuote(pool.router, pool.path, inputAmount),
+        isSamePath ? null : getQuote(newRouter, newPath, inputAmount),
     ])
+
+    const originalSlippage = calculateSlippage(
+        inputAmount,
+        originalOutputAmount,
+        pool.inputToken,
+        pool.outputToken,
+    )
+
+    if (originalSlippage.gte(MAX_SLIPPAGE))
+        console.warn(`High slippage ${ getPoolName(pool) }: ${ originalSlippage.times(100).toFixed(2) }%`)
+
+    // no need to update if pools are the same
+    if (!newOutputAmount)
+        return
+
+    return {
+        original: {
+            ...pool,
+            inputAmount,
+            outputAmount: originalOutputAmount,
+            slippage: originalSlippage,
+        },
+        updated: {
+            ...pool,
+            inputAmount,
+            outputAmount: newOutputAmount,
+            slippage: calculateSlippage(
+                inputAmount,
+                newOutputAmount,
+                pool.inputToken,
+                pool.outputToken,
+            ),
+        },
+    }
+}
+
+async function getQuote(router: string, path: string, inputAmount: bigint) {
     const quoterAddress = routerToQuoter[chainId]?.[router]
 
     if (!quoterAddress)
         throw new Error(`Quoter not found ${ router }`)
 
     const quoter = Quoter__factory.connect(quoterAddress, signer)
-    const [amountOut] = await quoter.quoteExactInput.staticCallResult(
-        path,
-        inputAmount,
-    )
 
-    return amountOut
+    try {
+        await limiter.consumeLimit()
+        const [amountOut] = await quoter.quoteExactInput.staticCallResult(
+            path,
+            inputAmount,
+        )
+
+        return amountOut
+    }
+    catch (e) {
+        const error = e as Error
+        const knownMessages = [
+            'execution reverted: SPL',
+            'execution reverted: Unexpected error',
+        ]
+
+        if (knownMessages.includes(error.message))
+            return 0n
+
+        throw error
+    }
+}
+
+function tokenAmountToUSD(amount: bigint, address: string) {
+    const tokenData = tokens[address]
+
+    // should be unreachable
+    if (!tokenData)
+        throw new Error(`Token not found: ${ address }`)
+
+    return new BigNumber(amount.toString())
+        .times(tokenData.price)
+        .shiftedBy(-tokenData.decimals)
 }
 
 function calculateSlippage(
@@ -222,28 +251,14 @@ function calculateSlippage(
     amountOut: bigint,
     tokenIn: string,
     tokenOut: string,
-    tokenMap: TokenMap,
 ) {
-    const inputTokenData = tokenMap[tokenIn]
-    const outputTokenData = tokenMap[tokenOut]
-
-    if (!inputTokenData)
-        throw new Error(`Token not found: ${ tokenIn }`)
-
-    if (!outputTokenData)
-        throw new Error(`Token not found: ${ tokenOut }`)
-
-    const amountInUSD = new BigNumber(amountIn.toString())
-        .times(inputTokenData.price)
-        .shiftedBy(-inputTokenData.decimals)
-    const amountOutUSD = new BigNumber(amountOut.toString())
-        .times(outputTokenData.price)
-        .shiftedBy(-outputTokenData.decimals)
+    const amountInUSD = tokenAmountToUSD(amountIn, tokenIn)
+    const amountOutUSD = tokenAmountToUSD(amountOut, tokenOut)
 
     return new BigNumber(1).minus(amountOutUSD.div(amountInUSD))
 }
 
-function getPoolName(pool: Pool, tokens: TokenMap) {
+function getPoolName(pool: Pool) {
     const inputToken = tokens[pool.inputToken]
     const outputToken = tokens[pool.outputToken]
 
@@ -257,7 +272,7 @@ function getPoolName(pool: Pool, tokens: TokenMap) {
 async function getDcaContract() {
     return DollarCostAverage__factory.connect(
         await findAddressOrFail('DollarCostAverage'),
-        await getSigner(),
+        signer,
     )
 }
 
