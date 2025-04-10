@@ -3,12 +3,12 @@ import { DollarCostAverage__factory, Quoter__factory } from '@src/typechain'
 import { API, findAddressOrFail, getChainId, getSigner, proposeTransactions } from '@src/helpers'
 import { BatchLimiter, BigNumber, ChainId, notEmpty } from '@ryze-blockchain/ethereum'
 import { PreparedTransactionRequest, Signer } from 'ethers'
+import { green, grey, red, yellow } from 'chalk'
 
 type Pool = Awaited<ReturnType<typeof getPools>>[number]
 type PoolWithSwapData = Pool & {
     inputAmount: bigint
     outputAmount: bigint
-    slippage: BigNumber
 }
 type Update = {
     pid: bigint
@@ -24,6 +24,7 @@ const MAX_SLIPPAGE = 0.01 // 1%
 let chainId: ChainId
 let signer: Signer
 let tokens: TokenMap
+const updateLogs: string[] = []
 
 async function updatePools() {
     chainId = await getChainId()
@@ -34,6 +35,10 @@ async function updatePools() {
     tokens = await getTokens(originalPools)
 
     const updates = await getPoolUpdates(originalPools)
+
+    for (const log of updateLogs)
+        console.info(log)
+
     const dcaContract = await getDcaContract()
 
     const transactions: PreparedTransactionRequest[] = await Promise.all(
@@ -86,6 +91,21 @@ async function getPoolUpdates(pools: Pool[]): Promise<Update[]> {
         if (originalOutputUSD.plus(0.01).gte(updatedOutputUSD))
             return
 
+        const originalSlippage = red(
+            calculateSlippage(originalOutputUSD)
+                .times(100)
+                .toFixed(2) + '%',
+        )
+        const updatedSlippage = green(
+            calculateSlippage(updatedOutputUSD)
+                .times(100)
+                .toFixed(2) + '%',
+        )
+
+        updateLogs.push(
+            `${ grey('Updating') } ${ getPoolName(pool) } ${ originalSlippage } ${ grey('=>') } ${ updatedSlippage }`,
+        )
+
         return {
             pid: pool.pid,
             router: updated.router,
@@ -102,8 +122,6 @@ async function getTokens(pools: Pool[]) {
             .map(({ inputToken, outputToken }) => [inputToken, outputToken])
             .flat(),
     )
-
-    console.log(pools.length, [...tokenAddresses].length)
 
     return API.getTokens([...tokenAddresses].map(address => ({ chainId, address })))
 }
@@ -151,14 +169,14 @@ async function getQuotes(pool: Pool): Promise<{ original: PoolWithSwapData, upda
     ])
 
     const originalSlippage = calculateSlippage(
-        inputAmount,
-        originalOutputAmount,
-        pool.inputToken,
-        pool.outputToken,
+        tokenAmountToUSD(
+            originalOutputAmount,
+            pool.outputToken,
+        ),
     )
 
     if (originalSlippage.gte(MAX_SLIPPAGE))
-        console.warn(`High slippage ${ getPoolName(pool) }: ${ originalSlippage.times(100).toFixed(2) }%`)
+        console.warn(yellow(`High slippage ${ getPoolName(pool) }: ${ originalSlippage.times(100).toFixed(2) }%`))
 
     // no need to update if pools are the same
     if (!newOutputAmount)
@@ -169,18 +187,11 @@ async function getQuotes(pool: Pool): Promise<{ original: PoolWithSwapData, upda
             ...pool,
             inputAmount,
             outputAmount: originalOutputAmount,
-            slippage: originalSlippage,
         },
         updated: {
             ...pool,
             inputAmount,
             outputAmount: newOutputAmount,
-            slippage: calculateSlippage(
-                inputAmount,
-                newOutputAmount,
-                pool.inputToken,
-                pool.outputToken,
-            ),
         },
     }
 }
@@ -234,16 +245,8 @@ function tokenAmountToUSD(amount: bigint, address: string) {
         .shiftedBy(-tokenData.decimals)
 }
 
-function calculateSlippage(
-    amountIn: bigint,
-    amountOut: bigint,
-    tokenIn: string,
-    tokenOut: string,
-) {
-    const amountInUSD = tokenAmountToUSD(amountIn, tokenIn)
-    const amountOutUSD = tokenAmountToUSD(amountOut, tokenOut)
-
-    return new BigNumber(1).minus(amountOutUSD.div(amountInUSD))
+function calculateSlippage(amountOutUSD: BigNumber) {
+    return new BigNumber(1).minus(amountOutUSD.div(INPUT_AMOUNT_USD))
 }
 
 function getPoolName(pool: Pool) {
