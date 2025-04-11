@@ -190,6 +190,8 @@ async function getQuotes(pool: Pool): Promise<{ original: PoolWithSwapData, upda
         },
         updated: {
             ...pool,
+            router: newRouter,
+            path: newPath,
             inputAmount,
             outputAmount: newOutputAmount,
         },
