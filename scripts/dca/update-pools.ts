@@ -15,7 +15,7 @@ type TokenMap = ERC20JsonAddressMap<ERC20PricedJson>
 
 const limiter = new BatchLimiter(10, 1_000)
 const INPUT_AMOUNT_USD = new BigNumber(1_000) // $1.000
-const MAX_SLIPPAGE = 0.01 // 1%
+const MAX_PRICE_IMPACT = 0.01 // 1%
 
 let chainId: ChainId
 let signer: Signer
@@ -87,19 +87,19 @@ async function getPoolUpdates(pools: Pool[]): Promise<Update[]> {
         if (originalOutputUSD.plus(0.01).gte(updatedOutputUSD))
             return
 
-        const originalSlippage = red(
-            calculateSlippage(originalOutputUSD)
+        const originalImpact = red(
+            calculatePriceImpact(originalOutputUSD)
                 .times(100)
                 .toFixed(2) + '%',
         )
-        const updatedSlippage = green(
-            calculateSlippage(updatedOutputUSD)
+        const updatedImpact = green(
+            calculatePriceImpact(updatedOutputUSD)
                 .times(100)
                 .toFixed(2) + '%',
         )
 
         updateLogs.push(
-            `${ grey('Updating') } ${ getPoolName(pool) } ${ originalSlippage } ${ grey('=>') } ${ updatedSlippage }`,
+            `${ grey('Updating') } ${ getPoolName(pool) } ${ originalImpact } ${ grey('=>') } ${ updatedImpact }`,
         )
 
         return {
@@ -139,44 +139,44 @@ async function getQuotes(pool: Pool): Promise<{
             .toFixed(0),
     )
 
-    const newSwap = await API.getSwapPath(
+    const updatedSwap = await API.getSwapPath(
         chainId,
         pool.inputToken,
         pool.outputToken,
         inputAmount,
     )
 
-    if (!newSwap)
+    if (!updatedSwap)
         throw new Error(`No path found for ${ pool.pid } (${ pool.inputToken } => ${ pool.outputToken })`)
 
-    const newRouter = exchangesMeta[chainId]
-        ?.find(exchange => exchange.protocol === newSwap.protocol)
+    const updatedRouter = exchangesMeta[chainId]
+        ?.find(exchange => exchange.protocol === updatedSwap.protocol)
         ?.router
 
-    if (!newRouter)
-        throw new Error(`Router not found for ${ newSwap.protocol }`)
+    if (!updatedRouter)
+        throw new Error(`Router not found for ${ updatedSwap.protocol }`)
 
-    const newPath = (await newSwap.path.encodedPath()).toLowerCase()
+    const updatedPath = (await updatedSwap.path.encodedPath()).toLowerCase()
 
-    const isSamePath = pool.router === newRouter && pool.path === newPath
+    const isSamePath = pool.router === updatedRouter && pool.path === updatedPath
 
     const [
         originalOutputAmount,
         updatedOutputAmount,
     ] = await Promise.all([
         getQuote(pool.router, pool.path, inputAmount),
-        isSamePath ? null : getQuote(newRouter, newPath, inputAmount),
+        isSamePath ? null : getQuote(updatedRouter, updatedPath, inputAmount),
     ])
 
-    const originalSlippage = calculateSlippage(
+    const originalImpact = calculatePriceImpact(
         tokenAmountToUSD(
             originalOutputAmount,
             pool.outputToken,
         ),
     )
 
-    if (originalSlippage.gte(MAX_SLIPPAGE))
-        console.warn(yellow(`High slippage ${ getPoolName(pool) }: ${ originalSlippage.times(100).toFixed(2) }%`))
+    if (originalImpact.gte(MAX_PRICE_IMPACT))
+        console.warn(yellow(`High price impact ${ getPoolName(pool) }: ${ originalImpact.times(100).toFixed(2) }%`))
 
     // no need to update if pools are the same
     if (!updatedOutputAmount)
@@ -187,8 +187,8 @@ async function getQuotes(pool: Pool): Promise<{
         updatedOutputAmount,
         updatedPool: {
             ...pool,
-            router: newRouter,
-            path: newPath,
+            router: updatedRouter,
+            path: updatedPath,
         },
     }
 }
@@ -242,7 +242,7 @@ function tokenAmountToUSD(amount: bigint, address: string) {
         .shiftedBy(-tokenData.decimals)
 }
 
-function calculateSlippage(amountOutUSD: BigNumber) {
+function calculatePriceImpact(amountOutUSD: BigNumber) {
     return new BigNumber(1).minus(amountOutUSD.div(INPUT_AMOUNT_USD))
 }
 
