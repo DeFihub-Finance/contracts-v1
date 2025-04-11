@@ -6,10 +6,6 @@ import { PreparedTransactionRequest, Signer } from 'ethers'
 import { green, grey, red, yellow } from 'chalk'
 
 type Pool = Awaited<ReturnType<typeof getPools>>[number]
-type PoolWithSwapData = Pool & {
-    inputAmount: bigint
-    outputAmount: bigint
-}
 type Update = {
     pid: bigint
     router: string
@@ -83,9 +79,9 @@ async function getPoolUpdates(pools: Pool[]): Promise<Update[]> {
         if (!quotes)
             return
 
-        const { original, updated } = quotes
-        const originalOutputUSD = tokenAmountToUSD(original.outputAmount, pool.outputToken)
-        const updatedOutputUSD = tokenAmountToUSD(updated.outputAmount, pool.outputToken)
+        const { originalOutputAmount, updatedOutputAmount, updatedPool } = quotes
+        const originalOutputUSD = tokenAmountToUSD(originalOutputAmount, pool.outputToken)
+        const updatedOutputUSD = tokenAmountToUSD(updatedOutputAmount, pool.outputToken)
 
         // update only if $0.01 difference or higher
         if (originalOutputUSD.plus(0.01).gte(updatedOutputUSD))
@@ -108,8 +104,8 @@ async function getPoolUpdates(pools: Pool[]): Promise<Update[]> {
 
         return {
             pid: pool.pid,
-            router: updated.router,
-            path: updated.path,
+            router: updatedPool.router,
+            path: updatedPool.path,
         }
     }))
 
@@ -126,7 +122,11 @@ async function getTokens(pools: Pool[]) {
     return API.getTokens([...tokenAddresses].map(address => ({ chainId, address })))
 }
 
-async function getQuotes(pool: Pool): Promise<{ original: PoolWithSwapData, updated: PoolWithSwapData } | undefined> {
+async function getQuotes(pool: Pool): Promise<{
+    originalOutputAmount: bigint
+    updatedOutputAmount: bigint
+    updatedPool: Pool
+} | undefined> {
     const inputTokenData = tokens[pool.inputToken]
 
     if (!inputTokenData)
@@ -162,7 +162,7 @@ async function getQuotes(pool: Pool): Promise<{ original: PoolWithSwapData, upda
 
     const [
         originalOutputAmount,
-        newOutputAmount,
+        updatedOutputAmount,
     ] = await Promise.all([
         getQuote(pool.router, pool.path, inputAmount),
         isSamePath ? null : getQuote(newRouter, newPath, inputAmount),
@@ -179,21 +179,16 @@ async function getQuotes(pool: Pool): Promise<{ original: PoolWithSwapData, upda
         console.warn(yellow(`High slippage ${ getPoolName(pool) }: ${ originalSlippage.times(100).toFixed(2) }%`))
 
     // no need to update if pools are the same
-    if (!newOutputAmount)
+    if (!updatedOutputAmount)
         return
 
     return {
-        original: {
-            ...pool,
-            inputAmount,
-            outputAmount: originalOutputAmount,
-        },
-        updated: {
+        originalOutputAmount,
+        updatedOutputAmount,
+        updatedPool: {
             ...pool,
             router: newRouter,
             path: newPath,
-            inputAmount,
-            outputAmount: newOutputAmount,
         },
     }
 }
