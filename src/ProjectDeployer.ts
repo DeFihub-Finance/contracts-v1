@@ -261,7 +261,7 @@ export class ProjectDeployer {
     }
 
     private async deployTokens(deployer: Signer) {
-        const weth = await new TestWETH__factory(deployer).deploy(18)
+        const weth = await new TestWETH__factory(deployer).deploy()
         const wbtc = await new TestERC20__factory(deployer).deploy(18)
 
         // Originally USDC uses 6 decimals, that's why the name choice
