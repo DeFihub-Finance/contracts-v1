@@ -29,6 +29,7 @@ import {
     UniswapV3Factory,
     NonFungiblePositionManager,
     UniswapV2Factory,
+    TestWETH__factory,
 } from '@src/typechain'
 import { ZeroHash, ZeroAddress, Signer } from 'ethers'
 import { NetworkService } from '@src/NetworkService'
@@ -260,7 +261,7 @@ export class ProjectDeployer {
     }
 
     private async deployTokens(deployer: Signer) {
-        const weth = await new TestERC20__factory(deployer).deploy(18)
+        const weth = await new TestWETH__factory(deployer).deploy(18)
         const wbtc = await new TestERC20__factory(deployer).deploy(18)
 
         // Originally USDC uses 6 decimals, that's why the name choice

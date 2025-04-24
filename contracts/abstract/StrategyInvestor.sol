@@ -390,7 +390,6 @@ contract StrategyInvestor is StrategyStorage {
             ]
         );
 
-        // TODO check if matches expected fee
         uint strategistFee;
         uint referrerFee;
 
