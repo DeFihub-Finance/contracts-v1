@@ -44,9 +44,9 @@ describe('StrategyManager#referral', () => {
     const mintAmount = amountToInvest * 2n
 
     // accounts
-    let account0: Signer
-    let account1: Signer
-    let account2: Signer
+    let investor: Signer
+    let referrer0: Signer
+    let referrer1: Signer
     let treasury: Signer
 
     // tokens
@@ -61,10 +61,8 @@ describe('StrategyManager#referral', () => {
 
     // global data
     let strategyId: bigint
-    let permitAccount0: SubscriptionManager.PermitStruct
+    let investorPermit: SubscriptionManager.PermitStruct
     let treasuryBalanceBefore: bigint
-    let strategistRewardsBefore: bigint
-    let referrerRewardsBefore: bigint
     let receipt: ContractTransactionReceipt | null
 
     function getStrategyFeeAmount(
@@ -86,7 +84,7 @@ describe('StrategyManager#referral', () => {
     }
 
     function invest() {
-        return strategyManager.connect(account0).invest({
+        return strategyManager.connect(investor).invest({
             strategyId,
             inputToken: stablecoin,
             inputAmount: amountToInvest,
@@ -95,13 +93,13 @@ describe('StrategyManager#referral', () => {
             vaultSwaps: [],
             liquidityZaps: [],
             buySwaps: [],
-            investorPermit: permitAccount0,
-            strategistPermit: permitAccount0,
+            investorPermit,
+            strategistPermit: investorPermit,
         })
     }
 
     function investV2(referrer: AddressLike) {
-        return strategyManager.connect(account0).investV2({
+        return strategyManager.connect(investor).investV2({
             strategyId,
             inputToken: stablecoin,
             inputAmount: amountToInvest,
@@ -110,17 +108,17 @@ describe('StrategyManager#referral', () => {
             vaultSwaps: [],
             liquidityZaps: [],
             buySwaps: [],
-            investorPermit: permitAccount0,
-            strategistPermit: permitAccount0,
+            investorPermit,
+            strategistPermit: investorPermit,
         }, referrer)
     }
 
     beforeEach(async () => {
         ({
             // accounts
-            account0,
-            account1,
-            account2,
+            account0: investor,
+            account1: referrer0,
+            account2: referrer1,
             treasury,
 
             // tokens
@@ -134,16 +132,16 @@ describe('StrategyManager#referral', () => {
             liquidityManager,
 
             // global data
-            permitAccount0,
+            permitAccount0: investorPermit,
         } = await baseStrategyManagerFixture())
 
-        await stablecoin.mint(account0, mintAmount),
-        await stablecoin.connect(account0).approve(strategyManager, mintAmount),
+        await stablecoin.mint(investor, mintAmount),
+        await stablecoin.connect(investor).approve(strategyManager, mintAmount),
 
         // Create simple DCA strategy
         strategyId = await createStrategy(
-            account0,
-            permitAccount0,
+            investor,
+            investorPermit,
             strategyManager,
             {
                 dcaInvestments: [{ poolId: 0, swaps: 10, percentage: 100 }],
@@ -154,32 +152,27 @@ describe('StrategyManager#referral', () => {
         )
 
         treasuryBalanceBefore = await stablecoin.balanceOf(treasury)
-        strategistRewardsBefore = await strategyManager.getStrategistRewards(account0)
     })
 
     describe('when investV2 method is called', () => {
-        beforeEach(async () => {
-            referrerRewardsBefore = await strategyManager.getReferrerRewards(account1)
-
-            receipt = await (await investV2(account1)).wait()
-        })
+        beforeEach(async () => receipt = await (await investV2(referrer0)).wait())
 
         describe('if sender does not have a referrer', () => {
             it('emits Referral event', async () => {
                 const referralEvent = getEventLog(receipt, 'Referral', strategyManager.interface)
 
                 expect(referralEvent?.args).to.deep.equal([
-                    await account1.getAddress(),
-                    await account0.getAddress(),
+                    await referrer0.getAddress(),
+                    await investor.getAddress(),
                 ])
             })
 
             it('send fees to referrer', async () => {
                 const { referrerFee } = await getStrategyFeeAmount(amountToInvest)
-                const referrerRewardsDelta = await strategyManager.getReferrerRewards(account1) - referrerRewardsBefore
+                const referrerRewards = await strategyManager.getReferrerRewards(referrer0)
 
-                expect(referrerRewardsDelta).to.be.greaterThan(0n)
-                expect(referrerRewardsDelta).to.be.equal(referrerFee)
+                expect(referrerRewards).to.be.greaterThan(0n)
+                expect(referrerRewards).to.be.equal(referrerFee)
             })
 
             it('emits Fee event with referrer', async () => {
@@ -187,8 +180,8 @@ describe('StrategyManager#referral', () => {
                 const { referrerFee } = await getStrategyFeeAmount(amountToInvest)
 
                 expect(referrerFeeEvent?.args).to.deep.equal([
-                    await account0.getAddress(),
-                    await account1.getAddress(),
+                    await investor.getAddress(),
+                    await referrer0.getAddress(),
                     referrerFee,
                     AbiCoder.defaultAbiCoder().encode(['uint', 'uint8'], [strategyId, FeeTo.REFERRER]),
                 ])
@@ -196,11 +189,16 @@ describe('StrategyManager#referral', () => {
         })
 
         describe('if sender already has a referrer', () => {
+            // referrer already has rewards because this is the second time investing
+            let referrerRewardsDelta: bigint
+
             beforeEach(async () => {
-                referrerRewardsBefore = await strategyManager.getReferrerRewards(account1)
+                const referrerRewardsBefore = await strategyManager.getReferrerRewards(referrer0)
 
                 // Second investment using another referrer
-                receipt = await (await investV2(account2)).wait()
+                receipt = await (await investV2(referrer1)).wait()
+
+                referrerRewardsDelta = await strategyManager.getReferrerRewards(referrer0) - referrerRewardsBefore
             })
 
             it('not emits Referral event', async () => {
@@ -211,11 +209,10 @@ describe('StrategyManager#referral', () => {
 
             it('send fees to first referrer used', async () => {
                 const { referrerFee } = await getStrategyFeeAmount(amountToInvest)
-                const referrerRewardsDelta = await strategyManager.getReferrerRewards(account1) - referrerRewardsBefore
 
                 expect(referrerRewardsDelta).to.be.greaterThan(0n)
                 expect(referrerRewardsDelta).to.be.equal(referrerFee)
-                expect(await strategyManager.getReferrerRewards(account2)).to.be.equal(0n)
+                expect(await strategyManager.getReferrerRewards(referrer1)).to.be.equal(0n)
             })
 
             it('emits Fee event with first referrer used', async () => {
@@ -223,8 +220,8 @@ describe('StrategyManager#referral', () => {
                 const { referrerFee } = await getStrategyFeeAmount(amountToInvest)
 
                 expect(referrerFeeEvent?.args).to.deep.equal([
-                    await account0.getAddress(),
-                    await account1.getAddress(),
+                    await investor.getAddress(),
+                    await referrer0.getAddress(),
                     referrerFee,
                     AbiCoder.defaultAbiCoder().encode(['uint', 'uint8'], [strategyId, FeeTo.REFERRER]),
                 ])
@@ -234,11 +231,7 @@ describe('StrategyManager#referral', () => {
 
     describe('when invest method is called', () => {
         describe('if sender does not have a referrer', () => {
-            beforeEach(async () => {
-                referrerRewardsBefore = await strategyManager.getReferrerRewards(account1)
-
-                receipt = await (await invest()).wait()
-            })
+            beforeEach(async () => receipt = await (await invest()).wait())
 
             it('send fees to treasury and strategist', async () => {
                 const {
@@ -247,15 +240,15 @@ describe('StrategyManager#referral', () => {
                     strategistFee,
                 } = await getStrategyFeeAmount(amountToInvest, false)
 
+                const referrerRewards = await strategyManager.getReferrerRewards(referrer0)
+                const strategistRewards = await strategyManager.getStrategistRewards(investor)
                 const treasuryBalanceDelta = await stablecoin.balanceOf(treasury) - treasuryBalanceBefore
-                const referrerRewardsDelta = await strategyManager.getReferrerRewards(account1) - referrerRewardsBefore
-                const strategistRewardsDelta = await strategyManager.getStrategistRewards(account0) - strategistRewardsBefore
 
                 expect(treasuryBalanceDelta).to.be.equal(protocolFee)
-                expect(strategistRewardsDelta).to.be.equal(strategistFee)
+                expect(strategistRewards).to.be.equal(strategistFee)
 
-                expect(referrerRewardsDelta).to.be.equal(0n)
-                expect(referrerRewardsDelta).to.be.equal(referrerFee)
+                expect(referrerRewards).to.be.equal(0n)
+                expect(referrerRewards).to.be.equal(referrerFee)
             })
 
             it('not emits Fee event with referrer', async () => {
@@ -266,18 +259,21 @@ describe('StrategyManager#referral', () => {
         })
 
         describe('if sender already has a referrer', () => {
+            let referrerRewardsDelta: bigint
+
             beforeEach(async () => {
                 // Call investV2 first to set a referrer
-                await investV2(account1)
+                await investV2(referrer0)
 
-                referrerRewardsBefore = await strategyManager.getReferrerRewards(account1)
+                const referrerRewardsBefore = await strategyManager.getReferrerRewards(referrer0)
 
                 receipt = await (await invest()).wait()
+
+                referrerRewardsDelta = await strategyManager.getReferrerRewards(referrer0) - referrerRewardsBefore
             })
 
             it('send fees to referrer', async () => {
                 const { referrerFee } = await getStrategyFeeAmount(amountToInvest)
-                const referrerRewardsDelta = await strategyManager.getReferrerRewards(account1) - referrerRewardsBefore
 
                 expect(referrerRewardsDelta).to.be.greaterThan(0n)
                 expect(referrerRewardsDelta).to.be.equal(referrerFee)
@@ -288,8 +284,8 @@ describe('StrategyManager#referral', () => {
                 const { referrerFee } = await getStrategyFeeAmount(amountToInvest)
 
                 expect(referrerFeeEvent?.args).to.deep.equal([
-                    await account0.getAddress(),
-                    await account1.getAddress(),
+                    await investor.getAddress(),
+                    await referrer0.getAddress(),
                     referrerFee,
                     AbiCoder.defaultAbiCoder().encode(['uint', 'uint8'], [strategyId, FeeTo.REFERRER]),
                 ])
@@ -298,11 +294,7 @@ describe('StrategyManager#referral', () => {
     })
 
     describe('when investV2 method is called using an invalid referrer', () => {
-        beforeEach(async () => {
-            referrerRewardsBefore = await strategyManager.getReferrerRewards(account1)
-
-            receipt = await (await investV2(ZeroAddress)).wait()
-        })
+        beforeEach(async () => receipt = await (await investV2(ZeroAddress)).wait())
 
         it('not emits Referral event', async () => {
             const referralEvent = getEventLog(receipt, 'Referral', strategyManager.interface)
@@ -323,60 +315,60 @@ describe('StrategyManager#referral', () => {
                 strategistFee,
             } = await getStrategyFeeAmount(amountToInvest, false)
 
+            const referrerRewards = await strategyManager.getReferrerRewards(ZeroAddress)
+            const strategistRewards = await strategyManager.getStrategistRewards(investor)
             const treasuryBalanceDelta = await stablecoin.balanceOf(treasury) - treasuryBalanceBefore
-            const referrerRewardsDelta = await strategyManager.getReferrerRewards(ZeroAddress) - referrerRewardsBefore
-            const strategistRewardsDelta = await strategyManager.getStrategistRewards(account0) - strategistRewardsBefore
 
             expect(treasuryBalanceDelta).to.be.equal(protocolFee)
-            expect(strategistRewardsDelta).to.be.equal(strategistFee)
+            expect(strategistRewards).to.be.equal(strategistFee)
 
-            expect(referrerRewardsDelta).to.be.equal(0n)
-            expect(referrerRewardsDelta).to.be.equal(referrerFee)
+            expect(referrerRewards).to.be.equal(0n)
+            expect(referrerRewards).to.be.equal(referrerFee)
         })
     })
 
     describe('when collectReferrerRewards method is called', () => {
-        beforeEach(() => investV2(account1))
+        beforeEach(() => investV2(referrer0))
 
         describe('if referrer has rewards to collect', () => {
             it('then the referrer\'s balance increases proportionally to the rewards collected', async () => {
-                const balanceBefore = await stablecoin.balanceOf(account1)
-                const toCollect = await strategyManager.getReferrerRewards(account1)
+                const balanceBefore = await stablecoin.balanceOf(referrer0)
+                const toCollect = await strategyManager.getReferrerRewards(referrer0)
 
-                await strategyManager.connect(account1).collectReferrerRewards()
+                await strategyManager.connect(referrer0).collectReferrerRewards()
 
-                const balanceDelta = await stablecoin.balanceOf(account1) - balanceBefore
+                const balanceDelta = await stablecoin.balanceOf(referrer0) - balanceBefore
 
                 expect(toCollect).to.be.greaterThan(0n)
                 expect(balanceDelta).to.equal(toCollect)
             })
 
             it('then the referrer\'s rewards is set to zero', async () => {
-                await strategyManager.connect(account1).collectReferrerRewards()
-                expect(await strategyManager.getReferrerRewards(account1)).to.equal(0n)
+                await strategyManager.connect(referrer0).collectReferrerRewards()
+                expect(await strategyManager.getReferrerRewards(referrer0)).to.equal(0n)
             })
 
             it('then emits a CollectedReferrerRewards event', async () => {
-                const toCollect = await strategyManager.getReferrerRewards(account1)
+                const toCollect = await strategyManager.getReferrerRewards(referrer0)
 
-                await expect(strategyManager.connect(account1).collectReferrerRewards())
+                await expect(strategyManager.connect(referrer0).collectReferrerRewards())
                     .to.emit(strategyManager, 'CollectedReferrerRewards')
-                    .withArgs(account1, toCollect)
+                    .withArgs(referrer0, toCollect)
             })
         })
 
         describe('if referrer has no rewards to collect', () => {
             it('then the referrer\'s balance remains unchanged', async () => {
-                const balanceBefore = await stablecoin.balanceOf(account0)
+                const balanceBefore = await stablecoin.balanceOf(investor)
 
-                await strategyManager.connect(account0).collectReferrerRewards()
-                expect(await stablecoin.balanceOf(account0)).to.equal(balanceBefore)
+                await strategyManager.connect(investor).collectReferrerRewards()
+                expect(await stablecoin.balanceOf(investor)).to.equal(balanceBefore)
             })
 
             it('then emits a CollectedStrategistRewards event', async () => {
-                await expect(strategyManager.connect(account0).collectReferrerRewards())
+                await expect(strategyManager.connect(investor).collectReferrerRewards())
                     .to.emit(strategyManager, 'CollectedReferrerRewards')
-                    .withArgs(account0, 0n)
+                    .withArgs(investor, 0n)
             })
         })
     })
