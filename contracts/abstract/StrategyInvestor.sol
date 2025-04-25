@@ -8,6 +8,7 @@ import {HubRouter} from "../libraries/HubRouter.sol";
 import {VaultManager} from '../VaultManager.sol';
 import {LiquidityManager} from "../LiquidityManager.sol";
 import {StrategyStorage} from "./StrategyStorage.sol";
+import {ReferralStorage} from "../libraries/ReferralStorage.sol";
 import {SubscriptionManager} from "../SubscriptionManager.sol";
 import {UseFee} from "./UseFee.sol";
 
@@ -372,6 +373,8 @@ contract StrategyInvestor is StrategyStorage {
         CollectFeesParams memory _params
     ) internal virtual returns (uint remainingAmount) {
         Strategy storage strategy = _strategies[_params.strategyId];
+        ReferralStorage.ReferralStruct storage referralStorage = ReferralStorage.getReferralStruct();
+        address referrer = referralStorage.referrals[msg.sender];
 
         bool strategistSubscribed = subscriptionManager.isSubscribed(strategy.creator, _params.strategistPermit);
         bool userSubscribed = subscriptionManager.isSubscribed(msg.sender, _params.investorPermit);
@@ -380,14 +383,15 @@ contract StrategyInvestor is StrategyStorage {
             _params.stableAmount,
             userSubscribed,
             [
-                WeightedProduct(dca, strategy.percentages[PRODUCT_DCA]),
-                WeightedProduct(vaultManager, strategy.percentages[PRODUCT_VAULTS]),
-                WeightedProduct(liquidityManager, strategy.percentages[PRODUCT_LIQUIDITY]),
-                WeightedProduct(buyProduct, strategy.percentages[PRODUCT_BUY])
+            WeightedProduct(dca, strategy.percentages[PRODUCT_DCA]),
+            WeightedProduct(vaultManager, strategy.percentages[PRODUCT_VAULTS]),
+            WeightedProduct(liquidityManager, strategy.percentages[PRODUCT_LIQUIDITY]),
+            WeightedProduct(buyProduct, strategy.percentages[PRODUCT_BUY])
             ]
         );
 
         uint strategistFee;
+        uint referrerFee;
 
         if (strategistSubscribed) {
             uint32 currentStrategistPercentage = _hottestStrategiesMapping[_params.strategyId]
@@ -398,14 +402,37 @@ contract StrategyInvestor is StrategyStorage {
 
             _strategistRewards[strategy.creator] += strategistFee;
 
-            emit Fee(msg.sender, strategy.creator, strategistFee, abi.encode(_params.strategyId));
+            emit Fee(
+                msg.sender,
+                strategy.creator,
+                strategistFee,
+                abi.encode(_params.strategyId, FEE_TO_STRATEGIST)
+            );
         }
 
-        uint protocolFee = amountBaseFee + amountNonSubscriberFee - strategistFee;
+        if (referrer != address(0)) {
+            referrerFee = (amountBaseFee - strategistFee) * referralStorage.referrerPercentage / 100;
+
+            referralStorage.referrerRewards[referrer] += referrerFee;
+
+            emit Fee(
+                msg.sender,
+                referrer,
+                referrerFee,
+                abi.encode(_params.strategyId, FEE_TO_REFERRER)
+            );
+        }
+
+        uint protocolFee = amountBaseFee + amountNonSubscriberFee - strategistFee - referrerFee;
 
         stable.safeTransfer(treasury, protocolFee);
 
-        emit Fee(msg.sender, treasury, protocolFee, abi.encode(_params.strategyId));
+        emit Fee(
+            msg.sender,
+            treasury,
+            protocolFee,
+            abi.encode(_params.strategyId, FEE_TO_PROTOCOL)
+        );
 
         return _params.stableAmount - amountBaseFee - amountNonSubscriberFee;
     }
