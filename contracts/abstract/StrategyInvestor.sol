@@ -383,10 +383,10 @@ contract StrategyInvestor is StrategyStorage {
             _params.stableAmount,
             userSubscribed,
             [
-                WeightedProduct(dca, strategy.percentages[PRODUCT_DCA]),
-                WeightedProduct(vaultManager, strategy.percentages[PRODUCT_VAULTS]),
-                WeightedProduct(liquidityManager, strategy.percentages[PRODUCT_LIQUIDITY]),
-                WeightedProduct(buyProduct, strategy.percentages[PRODUCT_BUY])
+            WeightedProduct(dca, strategy.percentages[PRODUCT_DCA]),
+            WeightedProduct(vaultManager, strategy.percentages[PRODUCT_VAULTS]),
+            WeightedProduct(liquidityManager, strategy.percentages[PRODUCT_LIQUIDITY]),
+            WeightedProduct(buyProduct, strategy.percentages[PRODUCT_BUY])
             ]
         );
 
@@ -411,7 +411,7 @@ contract StrategyInvestor is StrategyStorage {
         }
 
         if (referrer != address(0)) {
-            referrerFee = amountBaseFee * referralStorage.referrerPercentage / 100;
+            referrerFee = (amountBaseFee - strategistFee) * referralStorage.referrerPercentage / 100;
 
             referralStorage.referrerRewards[referrer] += referrerFee;
 
