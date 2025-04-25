@@ -103,14 +103,12 @@ describe('StrategyManager#invest', () => {
         amount: bigint,
         _strategyId: bigint = strategyId,
         subscribedUser = true,
-        subscribedStrategist = true,
     ) {
         return Fees.deductStrategyFee(
             amount,
             strategyManager,
             _strategyId,
             subscribedUser,
-            subscribedStrategist,
             dca,
             vaultManager,
             liquidityManager,
@@ -130,6 +128,7 @@ describe('StrategyManager#invest', () => {
             _strategyId,
             subscribedUser,
             subscribedStrategist,
+            false,
             dca,
             vaultManager,
             liquidityManager,
@@ -184,7 +183,7 @@ describe('StrategyManager#invest', () => {
             investorPermit,
         ] = await Promise.all([
             strategyManager.getStrategyInvestments(strategyId),
-            deductFees(stableAmount, strategyId, investorSubscribed, strategistSubscribed),
+            deductFees(stableAmount, strategyId, investorSubscribed),
             getEncodedSwapV3(amountToInvest, inputToken, stablecoinPriced, isNativeInvest),
             subscriptionSignature
                 .signSubscriptionPermit(await investor.getAddress(), deadlineInvestor),
