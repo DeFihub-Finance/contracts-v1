@@ -21,10 +21,10 @@ import {
     SwapEncoder,
     UniswapV3 as UniswapV3Helper,
 } from '@src/helpers'
-import { ERC20Priced, Fees, PathUniswapV3, Slippage, UniswapV3, unwrapAddressLike } from '@defihub/shared'
+import { ERC20Priced, Fees, FeeTo, PathUniswapV3, Slippage, UniswapV3, unwrapAddressLike } from '@defihub/shared'
 import { SubscriptionSignature } from '@src/SubscriptionSignature'
 import { Compare } from '@src/Compare'
-import { FeeTo, ONE_PERCENT } from '@src/constants'
+import { ONE_PERCENT } from '@src/constants'
 
 // EFFECTS
 // => when user is subscribed

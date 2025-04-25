@@ -1,10 +1,9 @@
 import { expect } from 'chai'
-import { Fees } from '@defihub/shared'
+import { Fees, FeeTo } from '@defihub/shared'
 import { AbiCoder, AddressLike, ContractTransactionReceipt, parseEther, Signer, ZeroAddress } from 'ethers'
 import { createStrategy, getEventLog, getFeeEventLog } from '@src/helpers'
 import { StrategyManager__v2, SubscriptionManager, TestERC20, UseFee } from '@src/typechain'
 import { baseStrategyManagerFixture } from './fixtures/base.fixture'
-import { FeeTo } from '@src/constants'
 
 /*
 -> when investV2 method is called
