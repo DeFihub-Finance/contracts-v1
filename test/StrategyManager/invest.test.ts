@@ -1,5 +1,5 @@
 import { expect } from 'chai'
-import { AbiCoder, parseEther, Signer } from 'ethers'
+import { AbiCoder, parseEther, Signer, ZeroAddress } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import {
     DollarCostAverage,
@@ -266,7 +266,11 @@ describe('StrategyManager#invest', () => {
     ) {
         return strategyManager
             .connect(investor)
-            .investNative(investParams || await getInvestNativeParams(investor), { value })
+            .investNativeV2(
+                investParams || await getInvestNativeParams(investor),
+                ZeroAddress,
+                { value },
+            )
     }
 
     beforeEach(async () => {
