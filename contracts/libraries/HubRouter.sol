@@ -50,7 +50,7 @@ library HubRouter {
 
     /**
      * @notice Performs a zap operation using the specified protocol call data.
-     * @param _encodedSwapData - Encoded version of `SwapData`. Must include UNWRAP_WETH command.
+     * @param _encodedSwapData - Encoded version of `SwapData`. Must include WRAP_ETH command.
      * @param _outputToken The ERC20 token to be bought.
      * @return outputAmount - The amount of output tokens bought. If no zap is needed, returns the input token amount.
      */

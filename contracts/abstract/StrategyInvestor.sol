@@ -383,14 +383,13 @@ contract StrategyInvestor is StrategyStorage {
             _params.stableAmount,
             userSubscribed,
             [
-                WeightedProduct(dca, strategy.percentages[PRODUCT_DCA]),
-                WeightedProduct(vaultManager, strategy.percentages[PRODUCT_VAULTS]),
-                WeightedProduct(liquidityManager, strategy.percentages[PRODUCT_LIQUIDITY]),
-                WeightedProduct(buyProduct, strategy.percentages[PRODUCT_BUY])
+            WeightedProduct(dca, strategy.percentages[PRODUCT_DCA]),
+            WeightedProduct(vaultManager, strategy.percentages[PRODUCT_VAULTS]),
+            WeightedProduct(liquidityManager, strategy.percentages[PRODUCT_LIQUIDITY]),
+            WeightedProduct(buyProduct, strategy.percentages[PRODUCT_BUY])
             ]
         );
 
-        // TODO check if matches expected fee
         uint strategistFee;
         uint referrerFee;
 
