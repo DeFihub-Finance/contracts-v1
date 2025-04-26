@@ -78,7 +78,7 @@ describe('StrategyManager#setters', () => {
     })
 
     describe('#setReferrerPercentage', () => {
-        describe('when referrer percentege is greater than 100', () => {
+        describe('when referrer percentage is greater than 100', () => {
             it('then reverts with PercentageTooHigh', async () => {
                 const newPercentage = 101n
 
