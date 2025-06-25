@@ -80,10 +80,18 @@ contract StrategyStorage is UseTreasury {
         uint amount;
     }
 
+    /* ----- CONSTANTS ----- */
+
+    // PRODUCTS
     uint8 public constant PRODUCT_DCA = 0;
     uint8 public constant PRODUCT_VAULTS = 1;
     uint8 public constant PRODUCT_LIQUIDITY = 2;
     uint8 public constant PRODUCT_BUY = 3;
+
+    // FEES
+    uint8 public constant FEE_TO_PROTOCOL = 0;
+    uint8 public constant FEE_TO_STRATEGIST = 1;
+    uint8 public constant FEE_TO_REFERRER = 2;
 
     Strategy[] internal _strategies;
     mapping(uint => bool) internal _hottestStrategiesMapping;
