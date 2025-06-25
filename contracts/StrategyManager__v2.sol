@@ -50,11 +50,21 @@ contract StrategyManager__v2 is StrategyManager {
         );
     }
 
-    function closePositionIgnoringSlippage(uint _positionId) external virtual {
+    function closePositionIgnoringSlippage(uint _positionId) public virtual {
         _makeDelegateCall(
             strategyPositionManager,
             abi.encodeWithSelector(StrategyPositionManager.closePosition.selector, _positionId, '')
         );
+    }
+
+    // @notice if too many positions are open, this can run out of gas
+    function closeAllPositionsIgnoringSlippage() external virtual {
+        Position[] memory positions = _positions[msg.sender];
+
+        for (uint positionId = 0; positionId < positions.length; ++positionId) {
+            if (!positions[positionId].closed)
+                closePositionIgnoringSlippage(positionId);
+        }
     }
 
     function setReferrerPercentage(uint32 _referrerPercentage) public virtual onlyOwner {
