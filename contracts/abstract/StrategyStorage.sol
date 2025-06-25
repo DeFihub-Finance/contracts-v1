@@ -69,6 +69,7 @@ contract StrategyStorage is UseTreasury {
         uint amount;
     }
 
+    // todo: on future iterations add token0 and token1 to save gas on collect/close
     struct LiquidityPosition {
         INonfungiblePositionManager positionManager;
         uint tokenId;
