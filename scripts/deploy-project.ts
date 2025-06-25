@@ -5,14 +5,10 @@ import {
     StrategyManager,
     SubscriptionManager,
     VaultManager,
-    ZapManager,
-    ZapManager__factory,
     LiquidityManager,
     BuyProduct,
     StrategyPositionManager__factory,
-    StrategyInvestor__factory,
-    ZapperUniswapV2__factory,
-    SwapperUniswapV3__factory,
+    StrategyInvestor__factory, StrategyManager__v2__factory,
 } from '@src/typechain'
 import {
     vanityDeployer,
@@ -28,24 +24,12 @@ import {
 } from '@src/helpers'
 import { exchangesMeta, getMainStablecoinOrFail, getSafeOrFail } from '@defihub/shared'
 import { upgrade } from '@src/helpers/upgrade'
-import { parseUnits } from 'ethers'
-
-interface ExchangeInitializer {
-    protocol: string
-    swapRouter: string
-}
-
-const ExchangeTypes = {
-    UniswapV2: 'UniswapV2',
-    UniswapV3: 'UniswapV3',
-} as const
+import { parseUnits, ZeroAddress } from 'ethers'
 
 const TREASURY_ADDR = '0xb7f74ba999134fbb75285173856a808732d8c888' // only use ledger or multisig
 const SUBSCRIPTION_SIGNER_ADDR = '0x78dbb65d53566d27b5117532bd9aec6ae95e8db9'
 const DCA_SWAPPER_ADDR = '0xa9ce4e7429931418d15cb2d8561372e62247b4cb'
 const COMMAND_BUILDER_OPTIONS = { skip: '1' }
-
-const exchangesUniswapV2: ExchangeInitializer[] = []
 
 async function deployProject() {
     const deployer = await getSigner()
@@ -87,14 +71,9 @@ async function deployProject() {
 
     // Helpers
     const subscriptionDeploymentInfo = await getDeploymentInfo(saltBuilder, 'SubscriptionManager')
-    const zapManagerInfo = await getDeploymentInfo(saltBuilder, 'ZapManager')
 
     await sendTransaction(
         await projectDeployer.deploySubscriptionManager.populateTransaction(subscriptionDeploymentInfo),
-        deployer,
-    )
-    await sendTransaction(
-        await projectDeployer.deployZapManager.populateTransaction(zapManagerInfo),
         deployer,
     )
 
@@ -134,7 +113,6 @@ async function deployProject() {
         liquidityManager,
         buyProduct,
         subscriptionManager,
-        zapManager,
     ] = (await Promise.all([
         projectDeployer.strategyManager(),
         projectDeployer.strategyInvestor(),
@@ -144,7 +122,6 @@ async function deployProject() {
         projectDeployer.liquidityManager(),
         projectDeployer.buyProduct(),
         projectDeployer.subscriptionManager(),
-        projectDeployer.zapManager(),
     ]))
 
     const subscriptionManagerInitParams: SubscriptionManager.InitializeParamsStruct = {
@@ -166,7 +143,7 @@ async function deployProject() {
         vaultManager: vaultManager.proxy,
         liquidityManager: liquidityManager.proxy,
         buyProduct: buyProduct.proxy,
-        zapManager: zapManager.proxy,
+        zapManager: ZeroAddress,
         strategistPercentage: 30n,
         hotStrategistPercentage: 50n,
         maxHottestStrategies: 10n,
@@ -196,7 +173,7 @@ async function deployProject() {
         treasury: TREASURY_ADDR,
         subscriptionManager: subscriptionManager.proxy,
         strategyManager: strategyManager.proxy,
-        zapManager: zapManager.proxy,
+        zapManager: ZeroAddress,
         baseFeeBP: 30n,
         nonSubscriberFeeBP: 30n,
     }
@@ -209,23 +186,6 @@ async function deployProject() {
         nonSubscriberFeeBP: 30n,
     }
 
-    const zapManagerInitParams: ZapManager.InitializeParamsStruct = {
-        owner: safe,
-        zappersUniswapV2: exchangesUniswapV2.map(exchange => ({
-            name: exchange.protocol,
-            constructorParams: {
-                treasury: TREASURY_ADDR,
-                swapRouter: exchange.swapRouter,
-            },
-        })),
-        swappersUniswapV3: exchangesUniswapV3.map(exchange => ({
-            name: exchange.protocol,
-            constructorParams: {
-                swapRouter: exchange.router,
-            },
-        })),
-    }
-
     await sendTransaction(
         await projectDeployer.initializeProject.populateTransaction(
             subscriptionManagerInitParams,
@@ -234,28 +194,14 @@ async function deployProject() {
             vaultManagerInitParams,
             liquidityManagerInitParams,
             buyProductInitParams,
-            zapManagerInitParams,
         ),
         deployer,
-    )
-
-    const zapManagerContract = ZapManager__factory.connect(zapManager.proxy, deployer)
-    const zapProtocolImplementations = await Promise.all(
-        [
-            ...exchangesUniswapV2.map(({ protocol }) => ({ protocol, type: ExchangeTypes.UniswapV2 })),
-            ...exchangesUniswapV3.map(({ protocol }) => ({ protocol, type: ExchangeTypes.UniswapV3 })),
-        ].map(async exchange => ({
-            protocol: exchange.protocol,
-            type: exchange.type,
-            address: await zapManagerContract.protocolImplementations(exchange.protocol),
-        })),
     )
 
     await saveAddress('StrategyInvestor', strategyInvestor)
     await saveAddress('StrategyPositionManager', strategyPositionManager)
     await saveAddress('StrategyManager', strategyManager.proxy)
     await saveAddress('SubscriptionManager', subscriptionManager.proxy)
-    await saveAddress('ZapManager', zapManager.proxy)
     await saveAddress('DollarCostAverage', dca.proxy)
     await saveAddress('VaultManager', vaultManager.proxy)
     await saveAddress('LiquidityManager', liquidityManager.proxy)
@@ -268,7 +214,6 @@ async function deployProject() {
         vaultManager,
         liquidityManager,
         buyProduct,
-        zapManager,
     ]
 
     const implementations = [
@@ -276,28 +221,6 @@ async function deployProject() {
         strategyInvestor,
         strategyPositionManager,
     ]
-
-    for (const zapProtocolImplementation of zapProtocolImplementations) {
-        await saveAddress(`ZapProtocol:${ zapProtocolImplementation.protocol }`, zapProtocolImplementation.address)
-
-        await verify(
-            zapProtocolImplementation.address,
-            [
-                zapProtocolImplementation.type === ExchangeTypes.UniswapV2
-                    ? {
-                        treasury: TREASURY_ADDR,
-                        swapRouter: await ZapperUniswapV2__factory
-                            .connect(zapProtocolImplementation.address, deployer)
-                            .swapRouter(),
-                    }
-                    : {
-                        swapRouter: await SwapperUniswapV3__factory
-                            .connect(zapProtocolImplementation.address, deployer)
-                            .swapRouter(),
-                    },
-            ],
-        )
-    }
 
     for (const address of implementations)
         await verify(address)
@@ -310,6 +233,20 @@ async function deployProject() {
     }
 
     await upgrade(await findAddressOrFail('DollarCostAverage'), 'DollarCostAverage__NoDeadline')
+    await upgrade(
+        await findAddressOrFail('StrategyManager'),
+        'StrategyManager__v2',
+        StrategyManager__v2__factory
+            .createInterface()
+            .encodeFunctionData(
+                'initialize__v2',
+                [
+                    strategyInvestor,
+                    strategyPositionManager,
+                    10n,
+                ],
+            ),
+    )
 }
 
 deployProject()
