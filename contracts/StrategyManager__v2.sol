@@ -8,6 +8,7 @@ import {StrategyInvestor} from "./abstract/StrategyInvestor.sol";
 import {StrategyPositionManager} from "./abstract/StrategyPositionManager.sol";
 import {StrategyManager} from './StrategyManager.sol';
 import {ReferralStorage} from "./libraries/ReferralStorage.sol";
+import {LiquidityStorage} from "./libraries/LiquidityStorage.sol";
 
 contract StrategyManager__v2 is StrategyManager {
     using SafeERC20Upgradeable for IERC20Upgradeable;
@@ -15,15 +16,20 @@ contract StrategyManager__v2 is StrategyManager {
     event Referral(address referrer, address referred);
     event ReferrerPercentageUpdated(uint32 percentage);
     event CollectedReferrerRewards(address referrer, uint amount);
+    event CollectedStrategistRewards(address strategist, address token, uint amount);
 
     function initialize__v2(
         address _strategyInvestor,
         address _strategyPositionManager,
-        uint32 _referrerPercentage
+        uint32 _referrerPercentage,
+        uint32 _liquidityBaseRewardFeeBp,
+        uint32 _liquidityBaseStrategistPercentageBp
     ) external onlyOwner reinitializer(2) {
         strategyInvestor = _strategyInvestor;
         strategyPositionManager = _strategyPositionManager;
         ReferralStorage.getReferralStruct().referrerPercentage = _referrerPercentage;
+        LiquidityStorage.getLiquidityStruct().baseRewardFeeBp = _liquidityBaseRewardFeeBp;
+        LiquidityStorage.getLiquidityStruct().baseStrategistPercentageBp = _liquidityBaseStrategistPercentageBp;
     }
 
     function investV2(StrategyInvestor.InvestParams calldata _params, address _referrer) external virtual {
@@ -93,6 +99,40 @@ contract StrategyManager__v2 is StrategyManager {
         stable.safeTransfer(msg.sender, referrerReward);
 
         emit CollectedReferrerRewards(msg.sender, referrerReward);
+    }
+
+    /// @notice deprecated, use collectStrategistRewards(address _token) instead
+    function collectStrategistRewards() public override virtual {
+        collectStrategistRewards(address(stable));
+    }
+
+    function collectStrategistRewards(address _token) public virtual {
+        uint amount = getStrategistRewards(msg.sender, _token);
+
+        if (amount == 0)
+            return;
+
+        LiquidityStorage.getLiquidityStruct().rewardBalances[msg.sender][_token] = 0;
+
+        if (_token == address(stable))
+            _strategistRewards[msg.sender] = 0;
+
+        IERC20Upgradeable(_token).safeTransfer(msg.sender, amount);
+
+        emit CollectedStrategistRewards(msg.sender, _token, amount);
+    }
+
+    function collectManyStrategistRewards(address[] memory _tokens) external virtual {
+        for (uint i = 0; i < _tokens.length; ++i)
+            collectStrategistRewards(_tokens[i]);
+    }
+
+    function getStrategistRewards(address _strategist, address _token) public virtual view returns (uint) {
+        uint liquidityRewards = LiquidityStorage.getLiquidityStruct().rewardBalances[_strategist][_token];
+
+        return _token == address(stable)
+            ? _strategistRewards[_strategist] + liquidityRewards
+            : liquidityRewards;
     }
 
     function _setReferrer(address _referrer) private {
