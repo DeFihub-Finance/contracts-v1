@@ -12,6 +12,11 @@ async function upgradeToV2() {
         StrategyPositionManager__factory.bytecode,
     )
 
+    console.log({
+        strategyInvestor,
+        strategyPositionManager,
+    })
+
     await upgrade(
         await findAddressOrFail('StrategyManager'),
         'StrategyManager__v2',

@@ -240,7 +240,7 @@ describe('StrategyManager#referral', () => {
                 } = await getStrategyFeeAmount(amountToInvest, false)
 
                 const referrerRewards = await strategyManager.getReferrerRewards(referrer0)
-                const strategistRewards = await strategyManager.getStrategistRewards(investor)
+                const strategistRewards = await strategyManager.getStrategistRewards(investor, stablecoin)
                 const treasuryBalanceDelta = await stablecoin.balanceOf(treasury) - treasuryBalanceBefore
 
                 expect(treasuryBalanceDelta).to.be.equal(protocolFee)
@@ -315,7 +315,7 @@ describe('StrategyManager#referral', () => {
             } = await getStrategyFeeAmount(amountToInvest, false)
 
             const referrerRewards = await strategyManager.getReferrerRewards(ZeroAddress)
-            const strategistRewards = await strategyManager.getStrategistRewards(investor)
+            const strategistRewards = await strategyManager.getStrategistRewards(investor, stablecoin)
             const treasuryBalanceDelta = await stablecoin.balanceOf(treasury) - treasuryBalanceBefore
 
             expect(treasuryBalanceDelta).to.be.equal(protocolFee)

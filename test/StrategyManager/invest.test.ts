@@ -507,7 +507,7 @@ describe('StrategyManager#invest', () => {
         describe('when strategist is subscribed', async () => {
             it('increase strategist rewards and send fees to treasury if strategy is hot', async () => {
                 const treasuryBalanceBefore = await stablecoin.balanceOf(treasury)
-                const strategistRewardsBefore = await strategyManager.getStrategistRewards(account0)
+                const strategistRewardsBefore = await strategyManager.getStrategistRewards(account0, stablecoin)
 
                 await strategyManager.setHottestStrategies([0])
                 await _invest(account1)
@@ -515,7 +515,7 @@ describe('StrategyManager#invest', () => {
                 const { strategistFee, protocolFee } = await getStrategyFeeAmount(amountToInvest)
 
                 const treasuryBalanceDelta = (await stablecoin.balanceOf(treasury)) - treasuryBalanceBefore
-                const strategistRewardsDelta = (await strategyManager.getStrategistRewards(account0)) - strategistRewardsBefore
+                const strategistRewardsDelta = (await strategyManager.getStrategistRewards(account0, stablecoin)) - strategistRewardsBefore
 
                 expect(treasuryBalanceDelta).to.be.equal(protocolFee)
                 expect(strategistRewardsDelta).to.be.equal(strategistFee)
@@ -523,32 +523,32 @@ describe('StrategyManager#invest', () => {
 
             it('increase strategist rewards and send fees to treasury if strategy is not hot', async () => {
                 const treasuryBalanceBefore = await stablecoin.balanceOf(treasury)
-                const strategistRewardsBefore = await strategyManager.getStrategistRewards(account0)
+                const strategistRewardsBefore = await strategyManager.getStrategistRewards(account0, stablecoin)
 
                 await _invest(account1)
 
                 const { strategistFee, protocolFee } = await getStrategyFeeAmount(amountToInvest)
 
                 const treasuryBalanceDelta = (await stablecoin.balanceOf(treasury)) - treasuryBalanceBefore
-                const strategistRewardsDelta = (await strategyManager.getStrategistRewards(account0)) - strategistRewardsBefore
+                const strategistRewardsDelta = (await strategyManager.getStrategistRewards(account0, stablecoin)) - strategistRewardsBefore
 
                 expect(treasuryBalanceDelta).to.be.equal(protocolFee)
                 expect(strategistRewardsDelta).to.be.equal(strategistFee)
             })
 
             it('increase strategist rewards by same amount whether the investor is subscribed or not', async () => {
-                const strategistRewardsBefore = await strategyManager.getStrategistRewards(account0)
+                const strategistRewardsBefore = await strategyManager.getStrategistRewards(account0, stablecoin)
 
                 await _invest(account1)
 
-                const strategistRewardsDelta1 = (await strategyManager.getStrategistRewards(account0)) - strategistRewardsBefore
+                const strategistRewardsDelta1 = (await strategyManager.getStrategistRewards(account0, stablecoin)) - strategistRewardsBefore
 
                 await _invest(
                     account2,
                     await getInvestParams(account2, false),
                 )
 
-                const strategistRewardsDelta2 = (await strategyManager.getStrategistRewards(account0)) - strategistRewardsDelta1
+                const strategistRewardsDelta2 = (await strategyManager.getStrategistRewards(account0, stablecoin)) - strategistRewardsDelta1
 
                 const [
                     { strategistFee: strategistFees1 },
@@ -575,7 +575,7 @@ describe('StrategyManager#invest', () => {
             beforeEach(async () => {
                 strategist = await strategyManager.getStrategyCreator(strategyId)
                 initialStrategistRewards = await strategyManager
-                    .getStrategistRewards(strategist)
+                    .getStrategistRewards(strategist, stablecoin)
             })
 
             it('subscribed user sends strategist rewards to treasury', async () => {
@@ -587,7 +587,7 @@ describe('StrategyManager#invest', () => {
                 ).wait()
 
                 const finalStrategistRewards = await strategyManager
-                    .getStrategistRewards(strategist)
+                    .getStrategistRewards(strategist, stablecoin)
 
                 expect(finalStrategistRewards).to.be.equal(initialStrategistRewards)
 
@@ -612,7 +612,7 @@ describe('StrategyManager#invest', () => {
                 ).wait()
 
                 const finalStrategistRewards = await strategyManager
-                    .getStrategistRewards(strategist)
+                    .getStrategistRewards(strategist, stablecoin)
 
                 expect(finalStrategistRewards).to.be.equal(initialStrategistRewards)
 

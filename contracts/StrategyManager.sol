@@ -55,6 +55,7 @@ contract StrategyManager is StrategyStorage, HubOwnable, ICall {
     address public strategyPositionManager;
 
     event StrategyCreated(address strategist, uint strategyId, bytes32 metadataHash);
+    // @deprecated replaced on strategy manager v2, kept for indexing purposes only
     event CollectedStrategistRewards(address strategist, uint amount);
     event StrategistPercentageUpdated(uint32 discountPercentage);
     event HotStrategistPercentageUpdated(uint32 discountPercentage);
@@ -186,22 +187,9 @@ contract StrategyManager is StrategyStorage, HubOwnable, ICall {
         );
     }
 
-    function collectStrategistRewards() public virtual {
-        uint strategistReward = _strategistRewards[msg.sender];
-
-        _strategistRewards[msg.sender] = 0;
-        stable.safeTransfer(msg.sender, strategistReward);
-
-        emit CollectedStrategistRewards(msg.sender, strategistReward);
-    }
-
     /**
      * ----- Getters -----
      */
-
-    function getStrategistRewards(address _strategist) external virtual view returns (uint) {
-        return _strategistRewards[_strategist];
-    }
 
     function getPositionsLength(address _investor) external virtual view returns (uint) {
         return _positions[_investor].length;

@@ -38,9 +38,9 @@ describe('StrategyManager#collectStrategistRewards', () => {
         describe('when the strategist collects the rewards', () => {
             it('then the strategist\'s balance increases proportionally to the rewards collected', async () => {
                 const balanceBefore = await strategistBalance()
-                const toCollect = await strategyManager.getStrategistRewards(account0)
+                const toCollect = await strategyManager.getStrategistRewards(account0, stablecoin)
 
-                await strategyManager.connect(account0).collectStrategistRewards()
+                await strategyManager.connect(account0).collectStrategistRewards(stablecoin)
                 const balanceDelta = (await strategistBalance()) - balanceBefore
 
                 // ensures the test is set up properly
@@ -49,25 +49,25 @@ describe('StrategyManager#collectStrategistRewards', () => {
             })
 
             it('then the strategist\'s rewards is set to zero', async () => {
-                await strategyManager.connect(account0).collectStrategistRewards()
-                expect(await strategyManager.getStrategistRewards(account0)).to.equal(0n)
+                await strategyManager.connect(account0).collectStrategistRewards(stablecoin)
+                expect(await strategyManager.getStrategistRewards(account0, stablecoin)).to.equal(0n)
             })
 
             it('then emits a CollectedStrategistRewards event', async () => {
-                const toCollect = await strategyManager.getStrategistRewards(account0)
+                const toCollect = await strategyManager.getStrategistRewards(account0, stablecoin)
 
-                await expect(strategyManager.connect(account0).collectStrategistRewards())
-                    .to.emit(strategyManager, 'CollectedStrategistRewards')
-                    .withArgs(account0, toCollect)
+                await expect(strategyManager.connect(account0).collectStrategistRewards(stablecoin))
+                    .to.emit(strategyManager, 'CollectedStrategistRewards(address,address,uint256)')
+                    .withArgs(account0, stablecoin, toCollect)
             })
 
             it('calculates rewards properly', async () => {
-                expect(await strategyManager.getStrategistRewards(account0))
+                expect(await strategyManager.getStrategistRewards(account0, stablecoin))
                     .to.equal(await stablecoin.balanceOf(strategyManager))
 
-                await strategyManager.connect(account0).collectStrategistRewards()
+                await strategyManager.connect(account0).collectStrategistRewards(stablecoin)
 
-                expect(await strategyManager.getStrategistRewards(account0))
+                expect(await strategyManager.getStrategistRewards(account0, stablecoin))
                     .to.equal(0)
 
                 expect(await stablecoin.balanceOf(strategyManager))
@@ -82,14 +82,13 @@ describe('StrategyManager#collectStrategistRewards', () => {
             it('then the strategist\'s balance remains unchanged', async () => {
                 const balanceBefore = await strategistBalance()
 
-                await strategyManager.connect(account1).collectStrategistRewards()
+                await strategyManager.connect(account1).collectStrategistRewards(stablecoin)
                 expect(await strategistBalance()).to.equal(balanceBefore)
             })
 
-            it('then emits a CollectedStrategistRewards event', async () => {
-                await expect(strategyManager.connect(account1).collectStrategistRewards())
-                    .to.emit(strategyManager, 'CollectedStrategistRewards')
-                    .withArgs(await account1.getAddress(), 0n)
+            it('then won\'t emit a CollectedStrategistRewards event', async () => {
+                await expect(strategyManager.connect(account1).collectStrategistRewards(stablecoin))
+                    .to.not.emit(strategyManager, 'CollectedStrategistRewards(address,address,uint256)')
             })
         })
     })

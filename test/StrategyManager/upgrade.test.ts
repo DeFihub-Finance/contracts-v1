@@ -269,7 +269,7 @@ describe('StrategyManager#upgrade', () => {
         const stableBalanceBefore = await stablecoin.balanceOf(account0)
         const strategyManagerV2 = await setStrategyManagerImplementation(StrategyManager__v2__factory)
 
-        await strategyManagerV2.connect(account0).collectStrategistRewards()
+        await strategyManagerV2.connect(account0).collectStrategistRewards(stablecoin)
         const stableBalanceDelta = await stablecoin.balanceOf(account0) - stableBalanceBefore
 
         const { strategistFee } = await Fees.getStrategyFeeAmount(

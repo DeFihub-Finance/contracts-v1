@@ -18,18 +18,22 @@ contract StrategyManager__v2 is StrategyManager {
     event CollectedReferrerRewards(address referrer, uint amount);
     event CollectedStrategistRewards(address strategist, address token, uint amount);
 
+    struct InitializeParamsV2 {
+        address strategyInvestor;
+        address strategyPositionManager;
+        uint32 referrerPercentage;
+        uint32 liquidityBaseRewardFeeBp;
+        uint32 liquidityBaseStrategistPercentageBp;
+    }
+
     function initialize__v2(
-        address _strategyInvestor,
-        address _strategyPositionManager,
-        uint32 _referrerPercentage,
-        uint32 _liquidityBaseRewardFeeBp,
-        uint32 _liquidityBaseStrategistPercentageBp
+        InitializeParamsV2 memory _params
     ) external onlyOwner reinitializer(2) {
-        strategyInvestor = _strategyInvestor;
-        strategyPositionManager = _strategyPositionManager;
-        ReferralStorage.getReferralStruct().referrerPercentage = _referrerPercentage;
-        LiquidityStorage.getLiquidityStruct().baseRewardFeeBp = _liquidityBaseRewardFeeBp;
-        LiquidityStorage.getLiquidityStruct().baseStrategistPercentageBp = _liquidityBaseStrategistPercentageBp;
+        strategyInvestor = _params.strategyInvestor;
+        strategyPositionManager = _params.strategyPositionManager;
+        ReferralStorage.getReferralStruct().referrerPercentage = _params.referrerPercentage;
+        LiquidityStorage.getLiquidityStruct().baseRewardFeeBp = _params.liquidityBaseRewardFeeBp;
+        LiquidityStorage.getLiquidityStruct().baseStrategistPercentageBp = _params.liquidityBaseStrategistPercentageBp;
     }
 
     function investV2(StrategyInvestor.InvestParams calldata _params, address _referrer) external virtual {
@@ -56,6 +60,7 @@ contract StrategyManager__v2 is StrategyManager {
         );
     }
 
+    /// @notice Emergency‑style close: withdraw a single position without enforcing any slippage tolerance.
     function closePositionIgnoringSlippage(uint _positionId) public virtual {
         _makeDelegateCall(
             strategyPositionManager,
@@ -63,7 +68,8 @@ contract StrategyManager__v2 is StrategyManager {
         );
     }
 
-    // @notice if too many positions are open, this can run out of gas
+    /// @notice Emergency‑style batch close: withdraw all open positions without slippage checks.
+    /// @dev Handy fallback for clearing out every position in one go, but looping over too many can hit the gas limit.
     function closeAllPositionsIgnoringSlippage() external virtual {
         Position[] memory positions = _positions[msg.sender];
 
@@ -99,11 +105,6 @@ contract StrategyManager__v2 is StrategyManager {
         stable.safeTransfer(msg.sender, referrerReward);
 
         emit CollectedReferrerRewards(msg.sender, referrerReward);
-    }
-
-    /// @notice deprecated, use collectStrategistRewards(address _token) instead
-    function collectStrategistRewards() public override virtual {
-        collectStrategistRewards(address(stable));
     }
 
     function collectStrategistRewards(address _token) public virtual {

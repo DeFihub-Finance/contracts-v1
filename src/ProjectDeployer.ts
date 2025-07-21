@@ -181,13 +181,13 @@ export class ProjectDeployer {
         // Set referrer percentage to 1%
         await StrategyManager__v2__factory
             .connect(strategyManager, owner)
-            .initialize__v2(
+            .initialize__v2({
                 strategyInvestor,
                 strategyPositionManager,
-                1n, // 1%
-                500n, // 5%
-                1000n, // 10% of the 5% fee
-            )
+                referrerPercentage: 1n, // 1%
+                liquidityBaseRewardFeeBp: 500n, // 5%
+                liquidityBaseStrategistPercentageBp: 1000n, // 10% of the 5% fee
+            })
 
         const subscriptionSignature = new SubscriptionSignature(
             subscriptionManager,

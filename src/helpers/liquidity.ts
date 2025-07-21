@@ -1,7 +1,7 @@
 import { ethers } from 'hardhat'
-import { AddressLike } from 'ethers'
+import { AddressLike, ZeroAddress } from 'ethers'
 import { BigNumber } from '@ryze-blockchain/ethereum'
-import { ERC20Priced, PathUniswapV3, Slippage, UniswapV3 } from '@defihub/shared'
+import { ERC20Priced, MAX_UINT_128, PathUniswapV3, Slippage, UniswapV3 } from '@defihub/shared'
 import { StrategyStorage } from '@src/typechain/artifacts/contracts/StrategyManager'
 import { NonFungiblePositionManager, UniswapV3Factory, UniversalRouter, UseFee } from '@src/typechain'
 import { UniswapV3 as UniswapV3Helper } from './UniswapV3'
@@ -100,6 +100,32 @@ export class LiquidityHelpers {
         }
     }
 
+    // TODO update on shared (UniswapV3.getPositionFees)
+    public static async getPositionFees(
+        tokenId: bigint,
+        positionManager: NonFungiblePositionManager,
+        from: AddressLike,
+    // todo returning as array is probably unnecessary
+    ): Promise<[bigint, bigint] & {amount0: bigint, amount1: bigint}> {
+        const { amount0, amount1 } = await positionManager.collect.staticCall({
+            tokenId,
+            recipient: ZeroAddress,
+            amount0Max: MAX_UINT_128,
+            amount1Max: MAX_UINT_128,
+        }, { from })
+
+        const amountMinusFees0 = amount0 - (amount0 * 500n / 1000000n)
+        const amountMinusFees1 = amount1 - (amount1 * 500n / 1000000n)
+
+        const tuple: [bigint, bigint] = [amountMinusFees0, amountMinusFees1]
+
+        // TODO get fee from strategy
+        return Object.assign(tuple, {
+            amount0: amountMinusFees0,
+            amount1: amountMinusFees1,
+        })
+    }
+
     public static async getLiquidityPositionInfo(
         tokenId: bigint,
         positionManager: NonFungiblePositionManager,
@@ -118,7 +144,7 @@ export class LiquidityHelpers {
             fees,
         ] = await Promise.all([
             positionManager.positions(tokenId),
-            UniswapV3.getPositionFees(
+            this.getPositionFees(
                 tokenId,
                 positionManager.connect(ethers.provider),
                 from,
