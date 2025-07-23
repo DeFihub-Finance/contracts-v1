@@ -7,6 +7,7 @@ import {StrategyStorage} from "./StrategyStorage.sol";
 import {DollarCostAverage} from "../DollarCostAverage.sol";
 import {IBeefyVaultV7} from '../interfaces/IBeefyVaultV7.sol';
 import {INonfungiblePositionManager} from '../interfaces/INonfungiblePositionManager.sol';
+import {PairHelpers} from "../helpers/PairHelpers.sol";
 
 contract StrategyPositionManager is StrategyStorage {
     using SafeERC20Upgradeable for IERC20Upgradeable;
@@ -36,7 +37,10 @@ contract StrategyPositionManager is StrategyStorage {
             _positionId,
             _closePositionsDca(_dcaPositionsPerPosition[msg.sender][_positionId]),
             _closePositionsVault(_vaultPositionsPerPosition[msg.sender][_positionId]),
-            _closePositionsLiquidity(_liquidityPositionsPerPosition[msg.sender][_positionId], _liquidityMinOutputs),
+            _closePositionsLiquidity(
+                _liquidityPositionsPerPosition[msg.sender][_positionId],
+                _liquidityMinOutputs
+            ),
             _collectPositionsBuy(_buyPositionsPerPosition[msg.sender][_positionId])
         );
     }
@@ -109,11 +113,15 @@ contract StrategyPositionManager is StrategyStorage {
     ) private returns (uint[][] memory) {
         uint[][] memory withdrawnAmounts = new uint[][](_positions.length);
 
-        for (uint i; i < _positions.length; ++i) {
-            LiquidityPosition memory position = _positions[i];
-            LiquidityMinOutputs memory minOutput = _minOutputs.length > i
-                ? _minOutputs[i]
+        for (uint index; index < _positions.length; ++index) {
+            LiquidityPosition memory position = _positions[index];
+            LiquidityMinOutputs memory minOutput = _minOutputs.length > index
+                ? _minOutputs[index]
                 : LiquidityMinOutputs(0, 0);
+            PairHelpers.Pair memory pair = PairHelpers.fromLiquidityToken(
+                position.positionManager,
+                position.tokenId
+            );
 
             position.positionManager.decreaseLiquidity(
                 INonfungiblePositionManager.DecreaseLiquidityParams({
@@ -125,19 +133,12 @@ contract StrategyPositionManager is StrategyStorage {
                 })
             );
 
-            (uint amount0, uint amount1) = position.positionManager.collect(
-                INonfungiblePositionManager.CollectParams({
-                    tokenId: position.tokenId,
-                    recipient: msg.sender,
-                    amount0Max: type(uint128).max,
-                    amount1Max: type(uint128).max
-                })
-            );
+            (uint amount0, uint amount1) = _claimLiquidityPositionTokens(position, pair);
 
-            withdrawnAmounts[i] = new uint[](2);
+            withdrawnAmounts[index] = new uint[](2);
 
-            withdrawnAmounts[i][0] = amount0;
-            withdrawnAmounts[i][1] = amount1;
+            withdrawnAmounts[index][0] = amount0;
+            withdrawnAmounts[index][1] = amount1;
         }
 
         return withdrawnAmounts;
@@ -194,22 +195,19 @@ contract StrategyPositionManager is StrategyStorage {
     ) private returns (uint[][] memory) {
         uint[][] memory withdrawnAmounts = new uint[][](_positions.length);
 
-        for (uint i; i < _positions.length; ++i) {
-            LiquidityPosition memory position = _positions[i];
-
-            (uint amount0, uint amount1) = position.positionManager.collect(
-                INonfungiblePositionManager.CollectParams({
-                    tokenId: position.tokenId,
-                    recipient: msg.sender,
-                    amount0Max: type(uint128).max,
-                    amount1Max: type(uint128).max
-                })
+        for (uint index; index < _positions.length; ++index) {
+            LiquidityPosition memory position = _positions[index];
+            PairHelpers.Pair memory pair = PairHelpers.fromLiquidityToken(
+                position.positionManager,
+                position.tokenId
             );
 
-            withdrawnAmounts[i] = new uint[](2);
+            (uint amount0, uint amount1) = _claimLiquidityPositionTokens(position, pair);
 
-            withdrawnAmounts[i][0] = amount0;
-            withdrawnAmounts[i][1] = amount1;
+            withdrawnAmounts[index] = new uint[](2);
+
+            withdrawnAmounts[index][0] = amount0;
+            withdrawnAmounts[index][1] = amount1;
         }
 
         return withdrawnAmounts;
@@ -227,5 +225,27 @@ contract StrategyPositionManager is StrategyStorage {
         }
 
         return withdrawnAmounts;
+    }
+
+    function _claimLiquidityPositionTokens(
+        LiquidityPosition memory _position,
+        PairHelpers.Pair memory _pair
+    ) private returns (uint amount0, uint amount1) {
+        address recipient = msg.sender;
+        (uint initialBalance0, uint initialBalance1) = PairHelpers.getBalances(_pair, recipient);
+
+        _position.positionManager.collect(
+            INonfungiblePositionManager.CollectParams({
+                tokenId: _position.tokenId,
+                recipient: recipient,
+                amount0Max: type(uint128).max,
+                amount1Max: type(uint128).max
+            })
+        );
+
+        (uint finalBalance0, uint finalBalance1) = PairHelpers.getBalances(_pair, recipient);
+
+        amount0 = finalBalance0 - initialBalance0;
+        amount1 = finalBalance1 - initialBalance1;
     }
 }
