@@ -18,9 +18,11 @@ contract StrategyManager__v2 is StrategyManager {
 
     function initialize__v2(
         address _strategyInvestor,
+        address _strategyPositionManager,
         uint32 _referrerPercentage
     ) external onlyOwner reinitializer(2) {
         strategyInvestor = _strategyInvestor;
+        strategyPositionManager = _strategyPositionManager;
         ReferralStorage.getReferralStruct().referrerPercentage = _referrerPercentage;
     }
 
