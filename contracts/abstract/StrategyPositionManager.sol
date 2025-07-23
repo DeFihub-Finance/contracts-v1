@@ -133,7 +133,7 @@ contract StrategyPositionManager is StrategyStorage {
                 })
             );
 
-            (uint amount0, uint amount1) = _claimUniswapLiquidityTokens(position, pair);
+            (uint amount0, uint amount1) = _claimLiquidityPositionTokens(position, pair);
 
             withdrawnAmounts[index] = new uint[](2);
 
@@ -202,7 +202,7 @@ contract StrategyPositionManager is StrategyStorage {
                 position.tokenId
             );
 
-            (uint amount0, uint amount1) = _claimUniswapLiquidityTokens(position, pair);
+            (uint amount0, uint amount1) = _claimLiquidityPositionTokens(position, pair);
 
             withdrawnAmounts[index] = new uint[](2);
 
@@ -227,7 +227,7 @@ contract StrategyPositionManager is StrategyStorage {
         return withdrawnAmounts;
     }
 
-    function _claimUniswapLiquidityTokens(
+    function _claimLiquidityPositionTokens(
         LiquidityPosition memory _position,
         PairHelpers.Pair memory _pair
     ) private returns (uint amount0, uint amount1) {
