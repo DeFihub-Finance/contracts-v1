@@ -30,21 +30,25 @@ async function deployImplementation(newImplementationName: string) {
     return expectedImplementationAddress
 }
 
-async function proposeUpgrade(proxyAddress: string, newImplementationAddress: string) {
+async function proposeUpgrade(proxyAddress: string, newImplementationAddress: string, calldata?: string) {
     const chainId = await getChainId()
     const deployer = await getSigner()
-
-    await proposeTransactions(chainId, [
-        await UUPSUpgradeable__factory
-            .connect(proxyAddress, deployer)
+    const proxyContract = UUPSUpgradeable__factory.connect(proxyAddress, deployer)
+    const transactionData = calldata
+        ? await proxyContract
+            .upgradeToAndCall
+            .populateTransaction(newImplementationAddress, calldata)
+        : await proxyContract
             .upgradeTo
-            .populateTransaction(newImplementationAddress),
-    ])
+            .populateTransaction(newImplementationAddress)
+
+    await proposeTransactions(chainId, [transactionData])
 }
 
-export async function upgrade(proxyAddress: string, newImplementationName: string) {
+export async function upgrade(proxyAddress: string, newImplementationName: string, calldata?: string) {
     return proposeUpgrade(
         proxyAddress,
         await deployImplementation(newImplementationName),
+        calldata,
     )
 }

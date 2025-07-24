@@ -234,6 +234,20 @@ async function deployProject() {
     }
 
     await upgrade(await findAddressOrFail('DollarCostAverage'), 'DollarCostAverage__NoDeadline')
+    await upgrade(
+        await findAddressOrFail('StrategyManager'),
+        'StrategyManager__v2',
+        StrategyManager__v2__factory
+            .createInterface()
+            .encodeFunctionData(
+                'initialize__v2',
+                [
+                    strategyInvestor,
+                    strategyPositionManager,
+                    10n,
+                ],
+            ),
+    )
 }
 
 deployProject()
