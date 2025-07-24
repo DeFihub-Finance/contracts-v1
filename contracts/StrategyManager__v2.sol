@@ -98,6 +98,12 @@ contract StrategyManager__v2 is StrategyManager {
     function _setReferrer(address _referrer) private {
         ReferralStorage.ReferralStruct storage referralStorage = ReferralStorage.getReferralStruct();
 
+        // return if user is not a new investor
+        if (referralStorage.investedBefore[msg.sender])
+            return;
+
+        referralStorage.investedBefore[msg.sender] = true;
+
         if (
             _referrer == address(0) || // ignores zero address
             _referrer == msg.sender || // referrer cannot be msg.sender
