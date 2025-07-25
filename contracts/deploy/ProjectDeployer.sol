@@ -41,59 +41,51 @@ contract ProjectDeployer is GenericDeployer {
         strategyPositionManager = deploy(_code, _salt);
     }
 
-    function deployStrategyManager(
-        ProxyDeploymentInfo calldata _strategyManagerDeploymentInfo
-    ) external onlyOwner {
-        strategyManager = deployProxy(_strategyManagerDeploymentInfo);
-    }
-
     function deploySubscriptionManager(
-        ProxyDeploymentInfo calldata _subscriptionManagerDeploymentInfo
+        ProxyDeploymentInfo calldata _subscriptionManagerDeploymentInfo,
+        SubscriptionManager.InitializeParams memory _subscriptionManagerParams
     ) external onlyOwner {
         subscriptionManager = deployProxy(_subscriptionManagerDeploymentInfo);
+        SubscriptionManager(subscriptionManager.proxy).initialize(_subscriptionManagerParams);
+    }
+
+    function deployStrategyManager(
+        ProxyDeploymentInfo calldata _strategyManagerDeploymentInfo,
+        StrategyManager.InitializeParams memory _strategyManagerParam
+    ) external onlyOwner {
+        strategyManager = deployProxy(_strategyManagerDeploymentInfo);
+        StrategyManager(strategyManager.proxy).initialize(_strategyManagerParam);
     }
 
     function deployDca(
-        ProxyDeploymentInfo calldata _dcaDeploymentInfo
+        ProxyDeploymentInfo calldata _dcaDeploymentInfo,
+        DollarCostAverage.InitializeParams memory _dcaParams
     ) external onlyOwner {
         dca = deployProxy(_dcaDeploymentInfo);
+        DollarCostAverage(dca.proxy).initialize(_dcaParams);
     }
 
     function deployVaultManager(
-        ProxyDeploymentInfo calldata _vaultManagerDeploymentInfo
+        ProxyDeploymentInfo calldata _vaultManagerDeploymentInfo,
+        VaultManager.InitializeParams memory _vaultManagerParams
     ) external onlyOwner {
         vaultManager = deployProxy(_vaultManagerDeploymentInfo);
+        VaultManager(vaultManager.proxy).initialize(_vaultManagerParams);
     }
 
     function deployLiquidityManager(
-        ProxyDeploymentInfo calldata _liquidityManagerDeploymentInfo
+        ProxyDeploymentInfo calldata _liquidityManagerDeploymentInfo,
+        LiquidityManager.InitializeParams memory _liquidityManagerParams
     ) external onlyOwner {
         liquidityManager = deployProxy(_liquidityManagerDeploymentInfo);
+        LiquidityManager(liquidityManager.proxy).initialize(_liquidityManagerParams);
     }
 
     function deployBuyProduct(
-        ProxyDeploymentInfo calldata _buyProductDeploymentInfo
-    ) external onlyOwner {
-        buyProduct = deployProxy(_buyProductDeploymentInfo);
-    }
-
-    function initializeProject(
-        SubscriptionManager.InitializeParams memory _subscriptionManagerParams,
-        StrategyManager.InitializeParams memory _strategyManagerParam,
-        DollarCostAverage.InitializeParams memory _dcaParams,
-        VaultManager.InitializeParams memory _vaultManagerParams,
-        LiquidityManager.InitializeParams memory _liquidityManagerParams,
+        ProxyDeploymentInfo calldata _buyProductDeploymentInfo,
         BuyProduct.InitializeParams memory _buyProductParams
     ) external onlyOwner {
-        StrategyManager(strategyManager.proxy).initialize(_strategyManagerParam);
-
-        // Products
-        DollarCostAverage(dca.proxy).initialize(_dcaParams);
-        VaultManager(vaultManager.proxy).initialize(_vaultManagerParams);
-        LiquidityManager(liquidityManager.proxy).initialize(_liquidityManagerParams);
+        buyProduct = deployProxy(_buyProductDeploymentInfo);
         BuyProduct(buyProduct.proxy).initialize(_buyProductParams);
-
-        // Helpers
-        SubscriptionManager(subscriptionManager.proxy).initialize(_subscriptionManagerParams);
     }
 }
