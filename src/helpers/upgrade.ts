@@ -1,11 +1,10 @@
 import hre from 'hardhat'
-import { CommandBuilder, Salt } from 'hardhat-vanity'
 import { UUPSUpgradeable__factory } from '@src/typechain'
 import {
     getImplementationSalt,
     getProjectDeployer,
+    getSaltBuilder,
     getSigner,
-    vanityDeployer,
 } from '@src/helpers/deployment-helpers'
 import { sendTransaction } from '@src/helpers/transaction'
 import { getChainId } from '@src/helpers/chain-id'
@@ -15,11 +14,7 @@ import { proposeTransactions } from '@src/helpers/safe'
 async function deployImplementation(newImplementationName: string) {
     const deployer = await getSigner()
     const projectDeployer = await getProjectDeployer(deployer)
-    const saltBuilder = new Salt(
-        vanityDeployer.matcher,
-        new CommandBuilder(),
-        await projectDeployer.getAddress(),
-    )
+    const saltBuilder = await getSaltBuilder(projectDeployer)
     const salt = await getImplementationSalt(saltBuilder, newImplementationName)
     const bytecode = (await hre.ethers.getContractFactory(newImplementationName)).bytecode
     const expectedImplementationAddress = await projectDeployer.getDeployAddress(bytecode, salt)

@@ -1,4 +1,4 @@
-import { CommandBuilder, Salt } from 'hardhat-vanity'
+import { Salt } from 'hardhat-vanity'
 import {
     TestERC20__factory,
     DollarCostAverage,
@@ -13,7 +13,6 @@ import {
     ProjectDeployer,
 } from '@src/typechain'
 import {
-    vanityDeployer,
     getDeploymentInfo,
     getProjectDeployer,
     saveAddress,
@@ -23,6 +22,7 @@ import {
     getChainId,
     findAddressOrFail,
     getSigner,
+    getSaltBuilder,
 } from '@src/helpers'
 import { getMainStablecoinOrFail, getSafeOrFail } from '@defihub/shared'
 import { upgrade } from '@src/helpers/upgrade'
@@ -31,7 +31,6 @@ import { parseUnits, ZeroAddress } from 'ethers'
 const TREASURY_ADDR = '0xb7f74ba999134fbb75285173856a808732d8c888' // only use ledger or multisig
 const SUBSCRIPTION_SIGNER_ADDR = '0x78dbb65d53566d27b5117532bd9aec6ae95e8db9'
 const DCA_SWAPPER_ADDR = '0xa9ce4e7429931418d15cb2d8561372e62247b4cb'
-const COMMAND_BUILDER_OPTIONS = { skip: '1' }
 
 async function deployProject() {
     const deployer = await getSigner()
@@ -40,11 +39,7 @@ async function deployProject() {
     const stable = TestERC20__factory.connect(getMainStablecoinOrFail(chainId), deployer)
 
     const projectDeployer = await getProjectDeployer(deployer)
-    const saltBuilder = new Salt(
-        vanityDeployer.matcher,
-        new CommandBuilder(COMMAND_BUILDER_OPTIONS),
-        await projectDeployer.getAddress(),
-    )
+    const saltBuilder = await getSaltBuilder(projectDeployer)
 
     const {
         strategyDeploymentInfo,
@@ -254,7 +249,10 @@ async function deployProject() {
         )
     }
 
-    await upgrade(await findAddressOrFail('DollarCostAverage'), 'DollarCostAverage__NoDeadline')
+    await upgrade(
+        await findAddressOrFail('DollarCostAverage'),
+        'DollarCostAverage__NoDeadline',
+    )
     await upgrade(
         await findAddressOrFail('StrategyManager'),
         'StrategyManager__v2',
