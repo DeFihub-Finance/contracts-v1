@@ -1,11 +1,14 @@
 import hre from 'hardhat'
-import { sleep } from '@ryze-blockchain/ethereum'
+import { BatchLimiter, sleep } from '@ryze-blockchain/ethereum'
 
 const pendingTransactionMessages = [
     'has no bytecode',
     'does not have bytecode',
     'transaction indexing still in progress',
+    'Max calls per sec rate limit reached',
 ]
+
+const limiter = new BatchLimiter(1, 3_000)
 
 export async function verify<T>(
     address: string,
@@ -13,6 +16,8 @@ export async function verify<T>(
     contractName?: string,
 ) {
     try {
+        await limiter.consumeLimit()
+
         await hre.run('verify:verify', {
             address,
             constructorArguments,

@@ -31,7 +31,7 @@ import {
     UniswapV2Factory,
     TestWETH__factory,
 } from '@src/typechain'
-import { ZeroHash, ZeroAddress, Signer } from 'ethers'
+import { ZeroHash, ZeroAddress, Signer, parseEther } from 'ethers'
 import { NetworkService } from '@src/NetworkService'
 import { SubscriptionSignature } from '@src/SubscriptionSignature'
 import { POOL_INIT_CODE_HASH } from '@uniswap/v3-sdk'
@@ -40,7 +40,7 @@ export class ProjectDeployer {
     private hashCount = 0
 
     public async deployProjectFixture() {
-        const [
+        const {
             deployer,
             owner,
             swapper,
@@ -50,9 +50,9 @@ export class ProjectDeployer {
             account0,
             account1,
             account2,
-        ] = await ethers.getSigners()
+        } = await this.getAccounts()
 
-        const subscriptionMonthlyPrice = ethers.parseEther('4.69')
+        const subscriptionMonthlyPrice = parseEther('4.69')
         const projectDeployerFactory = new ProjectDeployer__factory(deployer)
         const projectDeployer = await projectDeployerFactory.deploy()
 
@@ -74,7 +74,7 @@ export class ProjectDeployer {
             positionManagerUniV3,
         )
 
-        await this.deployProducts(projectDeployer)
+        await this.deployProducts(projectDeployer, stablecoin, subscriptionMonthlyPrice)
 
         // non-proxy contracts
         const [
@@ -107,6 +107,84 @@ export class ProjectDeployer {
             owner,
         )
 
+        // Set referrer percentage to 1%
+        await StrategyManager__v2__factory
+            .connect(strategyManager, owner)
+            .initialize__v2(strategyInvestor, strategyPositionManager, 1)
+
+        const subscriptionSignature = new SubscriptionSignature(
+            subscriptionManager,
+            subscriptionSigner,
+        )
+        const deadline = await NetworkService.getBlockTimestamp() + 10_000
+
+        return {
+            // Contracts
+            strategyPositionManager: StrategyPositionManager__factory.connect(strategyPositionManager, owner),
+            strategyManager: StrategyManager__v2__factory.connect(strategyManager, owner),
+            subscriptionManager,
+            dca: DollarCostAverage__factory.connect(dca, owner),
+            vaultManager: VaultManager__factory.connect(vaultManager, owner),
+            buyProduct: BuyProduct__factory.connect(buyProduct, owner),
+            liquidityManager: LiquidityManager__factory.connect(liquidityManager, owner),
+
+            // EOA with contract roles
+            deployer,
+            owner,
+            swapper,
+            treasury,
+            subscriptionSigner,
+
+            // Test EOA
+            account0,
+            account1,
+            account2,
+
+            // Constants
+            subscriptionMonthlyPrice,
+
+            // Test contracts
+            stablecoin,
+            usdc,
+            weth,
+            wbtc,
+            factoryUniV2,
+            routerUniV2,
+            factoryUniV3,
+            routerUniV3,
+            positionManagerUniV3,
+            quoterUniV3,
+            universalRouter,
+
+            subscriptionSignature,
+            deadline,
+            /** strategist Permit */
+            permitAccount0: await subscriptionSignature
+                .signSubscriptionPermit(await account0.getAddress(), deadline),
+            expiredPermitAccount0: await subscriptionSignature
+                .signSubscriptionPermit(await account0.getAddress(), 0),
+        }
+    }
+
+    private async deployProducts(
+        projectDeployer: ProjectDeployerContract,
+        stablecoin: TestERC20,
+        subscriptionMonthlyPrice: bigint,
+    ) {
+        const dcaDeployParams = this.getDeploymentInfo(DollarCostAverage__factory)
+        const buyProductDeployParams = this.getDeploymentInfo(BuyProduct__factory)
+        const vaultManagerDeployParams = this.getDeploymentInfo(VaultManager__factory)
+        const liquidityManagerDeployParams = this.getDeploymentInfo(LiquidityManager__factory)
+        const strategyManagerDeployParams = this.getDeploymentInfo(StrategyManager__v2__factory)
+        const subscriptionManagerDeployParams = this.getDeploymentInfo(SubscriptionManager__factory)
+
+        const {
+            owner,
+            swapper,
+            treasury,
+            subscriptionSigner,
+        } = await this.getAccounts()
+
         const subscriptionManagerInitParams: SubscriptionManager.InitializeParamsStruct = {
             owner: owner.address,
             treasury: treasury.address,
@@ -114,6 +192,30 @@ export class ProjectDeployer {
             token: stablecoin,
             pricePerMonth: subscriptionMonthlyPrice,
         }
+
+        const [
+            strategyInvestor,
+            strategyPositionManager,
+        ] = await Promise.all([
+            projectDeployer.getDeployAddress(StrategyInvestor__factory.bytecode, ZeroHash),
+            projectDeployer.getDeployAddress(StrategyPositionManager__factory.bytecode, ZeroHash),
+        ])
+
+        const [
+            subscriptionManager,
+            strategyManager,
+            dca,
+            vaultManager,
+            liquidityManager,
+            buyProduct,
+        ] = (await Promise.all([
+            projectDeployer.getDeployProxyAddress(subscriptionManagerDeployParams),
+            projectDeployer.getDeployProxyAddress(strategyManagerDeployParams),
+            projectDeployer.getDeployProxyAddress(dcaDeployParams),
+            projectDeployer.getDeployProxyAddress(vaultManagerDeployParams),
+            projectDeployer.getDeployProxyAddress(liquidityManagerDeployParams),
+            projectDeployer.getDeployProxyAddress(buyProductDeployParams),
+        ])).map(({ proxy }) => proxy)
 
         const strategyManagerInitParams: StrategyManager.InitializeParamsStruct = {
             owner,
@@ -161,7 +263,7 @@ export class ProjectDeployer {
             nonSubscriberFeeBP: 30n,
         }
 
-        const buyProductManagerInit: BuyProduct.InitializeParamsStruct = {
+        const buyInitParams: BuyProduct.InitializeParamsStruct = {
             owner: owner.address,
             treasury: treasury.address,
             subscriptionManager,
@@ -169,95 +271,15 @@ export class ProjectDeployer {
             nonSubscriberFeeBP: 30n,
         }
 
-        await projectDeployer.initializeProject(
-            subscriptionManagerInitParams,
-            strategyManagerInitParams,
-            dcaInitParams,
-            vaultManagerInit,
-            liquidityManagerInit,
-            buyProductManagerInit,
-        )
-
-        // Set referrer percentage to 1%
-        await StrategyManager__v2__factory
-            .connect(strategyManager, owner)
-            .initialize__v2(strategyInvestor, strategyPositionManager, 1)
-
-        const subscriptionSignature = new SubscriptionSignature(
-            subscriptionManager,
-            subscriptionSigner,
-        )
-        const deadline = await NetworkService.getBlockTimestamp() + 10_000
-
-        return {
-            // Contracts
-            strategyPositionManager: StrategyPositionManager__factory.connect(strategyPositionManager, owner),
-            strategyManager: StrategyManager__v2__factory.connect(strategyManager, owner),
-            subscriptionManager,
-            dca: DollarCostAverage__factory.connect(dca, owner),
-            vaultManager: VaultManager__factory.connect(vaultManager, owner),
-            buyProduct: BuyProduct__factory.connect(buyProduct, owner),
-            liquidityManager: LiquidityManager__factory.connect(liquidityManager, owner),
-
-            // EOA with contract roles
-            deployer,
-            owner,
-            swapper,
-            treasury,
-            subscriptionSigner,
-
-            // Test EOA
-            account0,
-            account1,
-            account2,
-
-            // Constants
-            subscriptionMonthlyPrice,
-            subscriptionManagerInitParams,
-            strategyManagerInitParams,
-            dcaInitParams,
-            vaultManagerInit,
-
-            // Test contracts
-            stablecoin,
-            usdc,
-            weth,
-            wbtc,
-            factoryUniV2,
-            routerUniV2,
-            factoryUniV3,
-            routerUniV3,
-            positionManagerUniV3,
-            quoterUniV3,
-            universalRouter,
-
-            subscriptionSignature,
-            deadline,
-            /** strategist Permit */
-            permitAccount0: await subscriptionSignature
-                .signSubscriptionPermit(await account0.getAddress(), deadline),
-            expiredPermitAccount0: await subscriptionSignature
-                .signSubscriptionPermit(await account0.getAddress(), 0),
-        }
-    }
-
-    private async deployProducts(projectDeployer: ProjectDeployerContract) {
-        const dcaDeployParams = this.getDeploymentInfo(DollarCostAverage__factory)
-        const buyProductDeployParams = this.getDeploymentInfo(BuyProduct__factory)
-        const vaultManagerDeployParams = this.getDeploymentInfo(VaultManager__factory)
-        const liquidityManagerDeployParams = this.getDeploymentInfo(LiquidityManager__factory)
-        const strategyManagerDeployParams = this.getDeploymentInfo(StrategyManager__v2__factory)
-        const subscriptionManagerDeployParams = this.getDeploymentInfo(SubscriptionManager__factory)
-
-        await projectDeployer.deployDca(dcaDeployParams)
-        await projectDeployer.deployBuyProduct(buyProductDeployParams)
-        await projectDeployer.deployVaultManager(vaultManagerDeployParams)
-        await projectDeployer.deployLiquidityManager(liquidityManagerDeployParams)
+        await projectDeployer.deployDca(dcaDeployParams, dcaInitParams)
+        await projectDeployer.deployBuyProduct(buyProductDeployParams, buyInitParams)
+        await projectDeployer.deployVaultManager(vaultManagerDeployParams, vaultManagerInit)
+        await projectDeployer.deployLiquidityManager(liquidityManagerDeployParams, liquidityManagerInit)
 
         await projectDeployer.deployStrategyInvestor(StrategyInvestor__factory.bytecode, ZeroHash)
         await projectDeployer.deployStrategyPositionManager(StrategyPositionManager__factory.bytecode, ZeroHash)
-        await projectDeployer.deploySubscriptionManager(subscriptionManagerDeployParams)
-        await projectDeployer.deployStrategyManager(strategyManagerDeployParams)
+        await projectDeployer.deploySubscriptionManager(subscriptionManagerDeployParams, subscriptionManagerInitParams)
+        await projectDeployer.deployStrategyManager(strategyManagerDeployParams, strategyManagerInitParams)
     }
 
     private async deployTokens(deployer: Signer) {
@@ -367,5 +389,30 @@ export class ProjectDeployer {
         this.hashCount++
 
         return ZeroHash.replace('0x0', `0x${ this.hashCount }`).substring(0, 66)
+    }
+
+    private async getAccounts() {
+        const [
+            deployer,
+            owner,
+            swapper,
+            treasury,
+            subscriptionSigner,
+
+            account0,
+            account1,
+            account2,
+        ] = await ethers.getSigners()
+
+        return {
+            deployer,
+            owner,
+            swapper,
+            treasury,
+            subscriptionSigner,
+            account0,
+            account1,
+            account2,
+        }
     }
 }

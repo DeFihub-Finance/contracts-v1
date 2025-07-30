@@ -1,7 +1,7 @@
 import { Signer } from 'ethers'
 import hre from 'hardhat'
 import { CommandBuilder, Salt, Storage, StorageType, VanityDeployer } from 'hardhat-vanity'
-import { GenericDeployer__factory, ProjectDeployer__factory } from '@src/typechain'
+import { GenericDeployer__factory, ProjectDeployer, ProjectDeployer__factory } from '@src/typechain'
 import { sendDeploymentTransaction, sendTransaction } from './transaction'
 import { verify } from '@src/helpers/verify'
 
@@ -9,6 +9,14 @@ export const vanityDeployer = new VanityDeployer({
     startsWith: process.env.STARTS_WITH,
     endsWith: process.env.ENDS_WITH,
 })
+
+export async function getSaltBuilder(projectDeployer: ProjectDeployer) {
+    return new Salt(
+        vanityDeployer.matcher,
+        new CommandBuilder({ skip: process.env.SKIP_GPU }),
+        await projectDeployer.getAddress(),
+    )
+}
 
 export async function getSigner() {
     return (await hre.ethers.getSigners())[0]
