@@ -1,4 +1,4 @@
-import { createArrayOfIndexes, ERC20PricedJson, ERC20JsonAddressMap, exchangesMeta } from '@defihub/shared'
+import { createArrayOfIndexes, ERC20PricedJson, ERC20JsonAddressMap, exchangeDeploymentsByChain } from '@defihub/shared'
 import { DollarCostAverage__factory, Quoter__factory } from '@src/typechain'
 import { API, findAddressOrFail, getChainId, getSigner, proposeTransactions } from '@src/helpers'
 import { BatchLimiter, BigNumber, ChainId, notEmpty } from '@ryze-blockchain/ethereum'
@@ -149,14 +149,17 @@ async function getQuotes(pool: Pool): Promise<{
     if (!updatedSwap)
         throw new Error(`No path found for ${ pool.pid } (${ pool.inputToken } => ${ pool.outputToken })`)
 
-    const updatedRouter = exchangesMeta[chainId]
-        ?.find(exchange => exchange.protocol === updatedSwap.protocol)
-        ?.router
+    // TODO: API gives us `universalRouter`, but DCA still uses `swapRouter02`.
+    // We map it using `exchangeDeploymentsByChain` for now.
+    // Once DCA supports `universalRouter`, we can just use `updatedSwap.router` directly.
+    const updatedRouter = exchangeDeploymentsByChain[chainId]
+        ?.find(exchange => exchange.universalRouter === updatedSwap.router)
+        ?.swapRouter02
 
     if (!updatedRouter)
-        throw new Error(`Router not found for ${ updatedSwap.protocol }`)
+        throw new Error(`Router not found for ${ updatedSwap.router }`)
 
-    const updatedPath = (await updatedSwap.path.encodedPath()).toLowerCase()
+    const updatedPath = updatedSwap.path.encodedPath().toLowerCase()
 
     const isSamePath = pool.router === updatedRouter && pool.path === updatedPath
 
@@ -194,8 +197,9 @@ async function getQuotes(pool: Pool): Promise<{
 }
 
 function routerToQuoter(router: string) {
-    const quoter = exchangesMeta[chainId]
-        ?.find(exchange => exchange.router === router)
+    // TODO this also needs to be updated once DCA supports `universalRouter`
+    const quoter = exchangeDeploymentsByChain[chainId]
+        ?.find(exchange => exchange.swapRouter02 === router)
         ?.quoter
 
     if (!quoter)
