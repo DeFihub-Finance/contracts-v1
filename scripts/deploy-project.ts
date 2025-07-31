@@ -1,21 +1,18 @@
-import { CommandBuilder, Salt } from 'hardhat-vanity'
+import { Salt } from 'hardhat-vanity'
 import {
     TestERC20__factory,
     DollarCostAverage,
     StrategyManager,
     SubscriptionManager,
     VaultManager,
-    ZapManager,
-    ZapManager__factory,
     LiquidityManager,
     BuyProduct,
     StrategyPositionManager__factory,
     StrategyInvestor__factory,
-    ZapperUniswapV2__factory,
-    SwapperUniswapV3__factory,
+    StrategyManager__v2__factory,
+    ProjectDeployer,
 } from '@src/typechain'
 import {
-    vanityDeployer,
     getDeploymentInfo,
     getProjectDeployer,
     saveAddress,
@@ -25,127 +22,58 @@ import {
     getChainId,
     findAddressOrFail,
     getSigner,
+    getSaltBuilder,
 } from '@src/helpers'
-import { exchangesMeta, getMainStablecoinOrFail, getSafeOrFail } from '@defihub/shared'
+import { getMainStablecoinOrFail, getSafeOrFail } from '@defihub/shared'
 import { upgrade } from '@src/helpers/upgrade'
-import { parseUnits } from 'ethers'
-
-interface ExchangeInitializer {
-    protocol: string
-    swapRouter: string
-}
-
-const ExchangeTypes = {
-    UniswapV2: 'UniswapV2',
-    UniswapV3: 'UniswapV3',
-} as const
+import { parseUnits, ZeroAddress } from 'ethers'
 
 const TREASURY_ADDR = '0xb7f74ba999134fbb75285173856a808732d8c888' // only use ledger or multisig
 const SUBSCRIPTION_SIGNER_ADDR = '0x78dbb65d53566d27b5117532bd9aec6ae95e8db9'
 const DCA_SWAPPER_ADDR = '0xa9ce4e7429931418d15cb2d8561372e62247b4cb'
-const COMMAND_BUILDER_OPTIONS = { skip: '1' }
-
-const exchangesUniswapV2: ExchangeInitializer[] = []
 
 async function deployProject() {
     const deployer = await getSigner()
     const chainId = await getChainId()
     const safe = getSafeOrFail(chainId)
     const stable = TestERC20__factory.connect(getMainStablecoinOrFail(chainId), deployer)
-    const exchangesUniswapV3 = exchangesMeta[await getChainId()]
-
-    if (!exchangesUniswapV3?.length)
-        throw new Error('Exchanges not found')
 
     const projectDeployer = await getProjectDeployer(deployer)
-    const saltBuilder = new Salt(
-        vanityDeployer.matcher,
-        new CommandBuilder(COMMAND_BUILDER_OPTIONS),
-        await projectDeployer.getAddress(),
-    )
+    const saltBuilder = await getSaltBuilder(projectDeployer)
 
-    // Strategy
-    const strategyDeploymentInfo = await getDeploymentInfo(saltBuilder, 'StrategyManager')
-    const strategyInvestorSalt = await getImplementationSalt(saltBuilder, 'StrategyInvestor')
-    const strategyPositionManagerSalt = await getImplementationSalt(saltBuilder, 'StrategyPositionManager')
+    const {
+        strategyDeploymentInfo,
+        strategyInvestorSalt,
+        strategyPositionManagerSalt,
+        dcaDeploymentInfo,
+        vaultDeploymentInfo,
+        liquidityDeploymentInfo,
+        buyProductDeploymentInfo,
+        subscriptionDeploymentInfo,
+    } = await getDeploymentInfos(saltBuilder)
 
-    await sendTransaction(
-        await projectDeployer.deployStrategyManager
-            .populateTransaction(strategyDeploymentInfo),
-        deployer,
-    )
-    await sendTransaction(
-        await projectDeployer.deployStrategyInvestor
-            .populateTransaction(StrategyInvestor__factory.bytecode, strategyInvestorSalt),
-        deployer,
-    )
-    await sendTransaction(
-        await projectDeployer.deployStrategyPositionManager
-            .populateTransaction(StrategyPositionManager__factory.bytecode, strategyPositionManagerSalt),
-        deployer,
-    )
-
-    // Helpers
-    const subscriptionDeploymentInfo = await getDeploymentInfo(saltBuilder, 'SubscriptionManager')
-    const zapManagerInfo = await getDeploymentInfo(saltBuilder, 'ZapManager')
-
-    await sendTransaction(
-        await projectDeployer.deploySubscriptionManager.populateTransaction(subscriptionDeploymentInfo),
-        deployer,
-    )
-    await sendTransaction(
-        await projectDeployer.deployZapManager.populateTransaction(zapManagerInfo),
-        deployer,
-    )
-
-    // Products
-    const dcaDeploymentInfo = await getDeploymentInfo(saltBuilder, 'DollarCostAverage')
-    const vaultDeploymentInfo = await getDeploymentInfo(saltBuilder, 'VaultManager')
-    const liquidityDeploymentInfo = await getDeploymentInfo(saltBuilder, 'LiquidityManager')
-    const buyProductDeploymentInfo = await getDeploymentInfo(saltBuilder, 'BuyProduct')
-
-    await sendTransaction(
-        await projectDeployer.deployDca
-            .populateTransaction(dcaDeploymentInfo),
-        deployer,
-    )
-    await sendTransaction(
-        await projectDeployer.deployVaultManager
-            .populateTransaction(vaultDeploymentInfo),
-        deployer,
-    )
-    await sendTransaction(
-        await projectDeployer.deployLiquidityManager
-            .populateTransaction(liquidityDeploymentInfo),
-        deployer,
-    )
-    await sendTransaction(
-        await projectDeployer.deployBuyProduct
-            .populateTransaction(buyProductDeploymentInfo),
-        deployer,
-    )
-
-    const [
-        strategyManager,
+    const {
         strategyInvestor,
         strategyPositionManager,
+        strategyManager,
         dca,
         vaultManager,
         liquidityManager,
         buyProduct,
         subscriptionManager,
-        zapManager,
-    ] = (await Promise.all([
-        projectDeployer.strategyManager(),
-        projectDeployer.strategyInvestor(),
-        projectDeployer.strategyPositionManager(),
-        projectDeployer.dca(),
-        projectDeployer.vaultManager(),
-        projectDeployer.liquidityManager(),
-        projectDeployer.buyProduct(),
-        projectDeployer.subscriptionManager(),
-        projectDeployer.zapManager(),
-    ]))
+    } = await predictDeploymentAddresses(
+        projectDeployer,
+        {
+            strategyDeploymentInfo,
+            strategyInvestorSalt,
+            strategyPositionManagerSalt,
+            dcaDeploymentInfo,
+            vaultDeploymentInfo,
+            liquidityDeploymentInfo,
+            buyProductDeploymentInfo,
+            subscriptionDeploymentInfo,
+        },
+    )
 
     const subscriptionManagerInitParams: SubscriptionManager.InitializeParamsStruct = {
         owner: safe,
@@ -166,7 +94,7 @@ async function deployProject() {
         vaultManager: vaultManager.proxy,
         liquidityManager: liquidityManager.proxy,
         buyProduct: buyProduct.proxy,
-        zapManager: zapManager.proxy,
+        zapManager: ZeroAddress,
         strategistPercentage: 30n,
         hotStrategistPercentage: 50n,
         maxHottestStrategies: 10n,
@@ -196,7 +124,7 @@ async function deployProject() {
         treasury: TREASURY_ADDR,
         subscriptionManager: subscriptionManager.proxy,
         strategyManager: strategyManager.proxy,
-        zapManager: zapManager.proxy,
+        zapManager: ZeroAddress,
         baseFeeBP: 30n,
         nonSubscriberFeeBP: 30n,
     }
@@ -209,53 +137,88 @@ async function deployProject() {
         nonSubscriberFeeBP: 30n,
     }
 
-    const zapManagerInitParams: ZapManager.InitializeParamsStruct = {
-        owner: safe,
-        zappersUniswapV2: exchangesUniswapV2.map(exchange => ({
-            name: exchange.protocol,
-            constructorParams: {
-                treasury: TREASURY_ADDR,
-                swapRouter: exchange.swapRouter,
-            },
-        })),
-        swappersUniswapV3: exchangesUniswapV3.map(exchange => ({
-            name: exchange.protocol,
-            constructorParams: {
-                swapRouter: exchange.router,
-            },
-        })),
-    }
-
+    // Strategy
     await sendTransaction(
-        await projectDeployer.initializeProject.populateTransaction(
-            subscriptionManagerInitParams,
-            strategyManagerInitParams,
-            dcaInitParams,
-            vaultManagerInitParams,
-            liquidityManagerInitParams,
-            buyProductInitParams,
-            zapManagerInitParams,
-        ),
+        await projectDeployer.deployStrategyManager
+            .populateTransaction(strategyDeploymentInfo, strategyManagerInitParams),
+        deployer,
+    )
+    await sendTransaction(
+        await projectDeployer.deployStrategyInvestor
+            .populateTransaction(StrategyInvestor__factory.bytecode, strategyInvestorSalt),
+        deployer,
+    )
+    await sendTransaction(
+        await projectDeployer.deployStrategyPositionManager
+            .populateTransaction(StrategyPositionManager__factory.bytecode, strategyPositionManagerSalt),
         deployer,
     )
 
-    const zapManagerContract = ZapManager__factory.connect(zapManager.proxy, deployer)
-    const zapProtocolImplementations = await Promise.all(
-        [
-            ...exchangesUniswapV2.map(({ protocol }) => ({ protocol, type: ExchangeTypes.UniswapV2 })),
-            ...exchangesUniswapV3.map(({ protocol }) => ({ protocol, type: ExchangeTypes.UniswapV3 })),
-        ].map(async exchange => ({
-            protocol: exchange.protocol,
-            type: exchange.type,
-            address: await zapManagerContract.protocolImplementations(exchange.protocol),
-        })),
+    // Helpers
+    await sendTransaction(
+        await projectDeployer.deploySubscriptionManager
+            .populateTransaction(subscriptionDeploymentInfo, subscriptionManagerInitParams),
+        deployer,
     )
+
+    // Products
+    await sendTransaction(
+        await projectDeployer.deployDca
+            .populateTransaction(dcaDeploymentInfo, dcaInitParams),
+        deployer,
+    )
+    await sendTransaction(
+        await projectDeployer.deployVaultManager
+            .populateTransaction(vaultDeploymentInfo, vaultManagerInitParams),
+        deployer,
+    )
+    await sendTransaction(
+        await projectDeployer.deployLiquidityManager
+            .populateTransaction(liquidityDeploymentInfo, liquidityManagerInitParams),
+        deployer,
+    )
+    await sendTransaction(
+        await projectDeployer.deployBuyProduct
+            .populateTransaction(buyProductDeploymentInfo, buyProductInitParams),
+        deployer,
+    )
+
+    const [
+        _strategyManager,
+        _strategyInvestor,
+        _strategyPositionManager,
+        _dca,
+        _vaultManager,
+        _liquidityManager,
+        _buyProduct,
+        _subscriptionManager,
+    ] = (await Promise.all([
+        projectDeployer.strategyManager(),
+        projectDeployer.strategyInvestor(),
+        projectDeployer.strategyPositionManager(),
+        projectDeployer.dca(),
+        projectDeployer.vaultManager(),
+        projectDeployer.liquidityManager(),
+        projectDeployer.buyProduct(),
+        projectDeployer.subscriptionManager(),
+    ]))
+
+    if (
+        _strategyInvestor !== strategyInvestor ||
+        _strategyPositionManager !== strategyPositionManager ||
+        _strategyManager.proxy !== strategyManager.proxy ||
+        _dca.proxy !== dca.proxy ||
+        _vaultManager.proxy !== vaultManager.proxy ||
+        _liquidityManager.proxy !== liquidityManager.proxy ||
+        _buyProduct.proxy !== buyProduct.proxy ||
+        _subscriptionManager.proxy !== subscriptionManager.proxy
+    )
+        throw new Error('Deployment addresses do not match the predicted addresses')
 
     await saveAddress('StrategyInvestor', strategyInvestor)
     await saveAddress('StrategyPositionManager', strategyPositionManager)
     await saveAddress('StrategyManager', strategyManager.proxy)
     await saveAddress('SubscriptionManager', subscriptionManager.proxy)
-    await saveAddress('ZapManager', zapManager.proxy)
     await saveAddress('DollarCostAverage', dca.proxy)
     await saveAddress('VaultManager', vaultManager.proxy)
     await saveAddress('LiquidityManager', liquidityManager.proxy)
@@ -268,7 +231,6 @@ async function deployProject() {
         vaultManager,
         liquidityManager,
         buyProduct,
-        zapManager,
     ]
 
     const implementations = [
@@ -276,28 +238,6 @@ async function deployProject() {
         strategyInvestor,
         strategyPositionManager,
     ]
-
-    for (const zapProtocolImplementation of zapProtocolImplementations) {
-        await saveAddress(`ZapProtocol:${ zapProtocolImplementation.protocol }`, zapProtocolImplementation.address)
-
-        await verify(
-            zapProtocolImplementation.address,
-            [
-                zapProtocolImplementation.type === ExchangeTypes.UniswapV2
-                    ? {
-                        treasury: TREASURY_ADDR,
-                        swapRouter: await ZapperUniswapV2__factory
-                            .connect(zapProtocolImplementation.address, deployer)
-                            .swapRouter(),
-                    }
-                    : {
-                        swapRouter: await SwapperUniswapV3__factory
-                            .connect(zapProtocolImplementation.address, deployer)
-                            .swapRouter(),
-                    },
-            ],
-        )
-    }
 
     for (const address of implementations)
         await verify(address)
@@ -309,7 +249,100 @@ async function deployProject() {
         )
     }
 
-    await upgrade(await findAddressOrFail('DollarCostAverage'), 'DollarCostAverage__NoDeadline')
+    await upgrade(
+        await findAddressOrFail('DollarCostAverage'),
+        'DollarCostAverage__NoDeadline',
+    )
+    await upgrade(
+        await findAddressOrFail('StrategyManager'),
+        'StrategyManager__v2',
+        StrategyManager__v2__factory
+            .createInterface()
+            .encodeFunctionData(
+                'initialize__v2',
+                [
+                    strategyInvestor,
+                    strategyPositionManager,
+                    10n,
+                ],
+            ),
+    )
+}
+
+async function getDeploymentInfos(saltBuilder: Salt) {
+    // strategy
+    const strategyDeploymentInfo = await getDeploymentInfo(saltBuilder, 'StrategyManager')
+    const strategyInvestorSalt = await getImplementationSalt(saltBuilder, 'StrategyInvestor')
+    const strategyPositionManagerSalt = await getImplementationSalt(saltBuilder, 'StrategyPositionManager')
+
+    // products
+    const dcaDeploymentInfo = await getDeploymentInfo(saltBuilder, 'DollarCostAverage')
+    const vaultDeploymentInfo = await getDeploymentInfo(saltBuilder, 'VaultManager')
+    const liquidityDeploymentInfo = await getDeploymentInfo(saltBuilder, 'LiquidityManager')
+    const buyProductDeploymentInfo = await getDeploymentInfo(saltBuilder, 'BuyProduct')
+
+    // helpers
+    const subscriptionDeploymentInfo = await getDeploymentInfo(saltBuilder, 'SubscriptionManager')
+
+    return {
+        strategyInvestorSalt,
+        strategyPositionManagerSalt,
+        strategyDeploymentInfo,
+        dcaDeploymentInfo,
+        vaultDeploymentInfo,
+        liquidityDeploymentInfo,
+        buyProductDeploymentInfo,
+        subscriptionDeploymentInfo,
+    }
+}
+
+async function predictDeploymentAddresses(
+    projectDeployer: ProjectDeployer,
+    {
+        strategyInvestorSalt,
+        strategyPositionManagerSalt,
+        strategyDeploymentInfo,
+        dcaDeploymentInfo,
+        vaultDeploymentInfo,
+        liquidityDeploymentInfo,
+        buyProductDeploymentInfo,
+        subscriptionDeploymentInfo,
+    }: Awaited<ReturnType<typeof getDeploymentInfos>>,
+) {
+    const [
+        strategyInvestor,
+        strategyPositionManager,
+    ] = await Promise.all([
+        projectDeployer.getDeployAddress(StrategyInvestor__factory.bytecode, strategyInvestorSalt),
+        projectDeployer.getDeployAddress(StrategyPositionManager__factory.bytecode, strategyPositionManagerSalt),
+    ])
+
+    const [
+        strategyManager,
+        dca,
+        vaultManager,
+        liquidityManager,
+        buyProduct,
+        subscriptionManager,
+    ] = await Promise.all([
+        projectDeployer.getDeployProxyAddress(strategyDeploymentInfo),
+        projectDeployer.getDeployProxyAddress(dcaDeploymentInfo),
+        projectDeployer.getDeployProxyAddress(vaultDeploymentInfo),
+        projectDeployer.getDeployProxyAddress(liquidityDeploymentInfo),
+        projectDeployer.getDeployProxyAddress(buyProductDeploymentInfo),
+        projectDeployer.getDeployProxyAddress(subscriptionDeploymentInfo),
+    ])
+
+    return {
+        strategyInvestor,
+        strategyPositionManager,
+        strategyManager,
+        dca,
+        vaultManager,
+        liquidityManager,
+        buyProduct,
+        subscriptionManager,
+    }
 }
 
 deployProject()

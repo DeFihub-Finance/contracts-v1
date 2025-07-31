@@ -1,13 +1,22 @@
 import { Signer } from 'ethers'
 import hre from 'hardhat'
-import { Salt, Storage, StorageType, VanityDeployer } from 'hardhat-vanity'
-import { GenericDeployer__factory, ProjectDeployer__factory } from '@src/typechain'
-import { sendDeploymentTransaction } from './transaction'
+import { CommandBuilder, Salt, Storage, StorageType, VanityDeployer } from 'hardhat-vanity'
+import { GenericDeployer__factory, ProjectDeployer, ProjectDeployer__factory } from '@src/typechain'
+import { sendDeploymentTransaction, sendTransaction } from './transaction'
+import { verify } from '@src/helpers/verify'
 
 export const vanityDeployer = new VanityDeployer({
     startsWith: process.env.STARTS_WITH,
     endsWith: process.env.ENDS_WITH,
 })
+
+export async function getSaltBuilder(projectDeployer: ProjectDeployer) {
+    return new Salt(
+        vanityDeployer.matcher,
+        new CommandBuilder({ skip: process.env.SKIP_GPU }),
+        await projectDeployer.getAddress(),
+    )
+}
 
 export async function getSigner() {
     return (await hre.ethers.getSigners())[0]
@@ -89,4 +98,24 @@ export async function findAddressOrFail(name: string) {
         return address
 
     throw new Error(`No address for ${ name }`)
+}
+
+export async function deployImplementation(
+    contractName: string,
+    bytecode: string,
+) {
+    const deployer = await getSigner()
+    const projectDeployer = await getProjectDeployer(deployer)
+    const saltBuilder = new Salt(
+        vanityDeployer.matcher,
+        new CommandBuilder(),
+        await projectDeployer.getAddress(),
+    )
+    const salt = await getImplementationSalt(saltBuilder, contractName)
+    const expectedImplementationAddress = await projectDeployer.getDeployAddress(bytecode, salt)
+
+    await sendTransaction(await projectDeployer.deploy.populateTransaction(bytecode, salt), deployer)
+    await verify(expectedImplementationAddress, [])
+
+    return expectedImplementationAddress
 }

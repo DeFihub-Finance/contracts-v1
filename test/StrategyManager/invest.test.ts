@@ -1,10 +1,9 @@
 import { expect } from 'chai'
-import { AbiCoder, parseEther, Signer } from 'ethers'
+import { AbiCoder, parseEther, Signer, ZeroAddress } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import {
     DollarCostAverage,
     StrategyInvestor,
-    StrategyInvestor__factory,
     StrategyManager__v2,
     SubscriptionManager,
     TestERC20,
@@ -17,12 +16,12 @@ import {
 import { createStrategyFixture } from './fixtures/create-strategy.fixture'
 import {
     expectCustomError,
-    getEventLog,
+    getFeeEventLog,
     LiquidityHelpers,
     SwapEncoder,
     UniswapV3 as UniswapV3Helper,
 } from '@src/helpers'
-import { ERC20Priced, Fees, PathUniswapV3, Slippage, UniswapV3, unwrapAddressLike } from '@defihub/shared'
+import { ERC20Priced, Fees, FeeTo, PathUniswapV3, Slippage, UniswapV3, unwrapAddressLike } from '@defihub/shared'
 import { SubscriptionSignature } from '@src/SubscriptionSignature'
 import { Compare } from '@src/Compare'
 import { ONE_PERCENT } from '@src/constants'
@@ -104,14 +103,12 @@ describe('StrategyManager#invest', () => {
         amount: bigint,
         _strategyId: bigint = strategyId,
         subscribedUser = true,
-        subscribedStrategist = true,
     ) {
         return Fees.deductStrategyFee(
             amount,
             strategyManager,
             _strategyId,
             subscribedUser,
-            subscribedStrategist,
             dca,
             vaultManager,
             liquidityManager,
@@ -131,6 +128,7 @@ describe('StrategyManager#invest', () => {
             _strategyId,
             subscribedUser,
             subscribedStrategist,
+            false,
             dca,
             vaultManager,
             liquidityManager,
@@ -185,7 +183,7 @@ describe('StrategyManager#invest', () => {
             investorPermit,
         ] = await Promise.all([
             strategyManager.getStrategyInvestments(strategyId),
-            deductFees(stableAmount, strategyId, investorSubscribed, strategistSubscribed),
+            deductFees(stableAmount, strategyId, investorSubscribed),
             getEncodedSwapV3(amountToInvest, inputToken, stablecoinPriced, isNativeInvest),
             subscriptionSignature
                 .signSubscriptionPermit(await investor.getAddress(), deadlineInvestor),
@@ -268,7 +266,11 @@ describe('StrategyManager#invest', () => {
     ) {
         return strategyManager
             .connect(investor)
-            .investNative(investParams || await getInvestNativeParams(investor), { value })
+            .investNativeV2(
+                investParams || await getInvestNativeParams(investor),
+                ZeroAddress,
+                { value },
+            )
     }
 
     beforeEach(async () => {
@@ -591,13 +593,13 @@ describe('StrategyManager#invest', () => {
 
                 const { protocolFee } = await getStrategyFeeAmount(amountToInvest, strategyId, true, false)
 
-                const feeEvent = getEventLog(receipt, 'Fee', StrategyInvestor__factory.createInterface())
+                const feeEvent = getFeeEventLog(receipt, FeeTo.PROTOCOL)
 
                 expect(feeEvent?.args).to.deep.equal([
                     await unwrapAddressLike(account1),
                     await unwrapAddressLike(treasury),
                     protocolFee,
-                    AbiCoder.defaultAbiCoder().encode(['uint'], [strategyId]),
+                    AbiCoder.defaultAbiCoder().encode(['uint', 'uint8'], [strategyId, FeeTo.PROTOCOL]),
                 ])
             })
 
@@ -616,13 +618,13 @@ describe('StrategyManager#invest', () => {
 
                 const { protocolFee } = await getStrategyFeeAmount(amountToInvest, strategyId, false, false)
 
-                const feeEvent = getEventLog(receipt, 'Fee', StrategyInvestor__factory.createInterface())
+                const feeEvent = getFeeEventLog(receipt, FeeTo.PROTOCOL)
 
                 expect(feeEvent?.args).to.deep.equal([
                     await unwrapAddressLike(account2),
                     await unwrapAddressLike(treasury),
                     protocolFee,
-                    AbiCoder.defaultAbiCoder().encode(['uint'], [strategyId]),
+                    AbiCoder.defaultAbiCoder().encode(['uint', 'uint8'], [strategyId, FeeTo.PROTOCOL]),
                 ])
             })
         })
