@@ -46,7 +46,10 @@ export async function proposeTransactions(
     const { signer, safe, apiSdk } = await getSafe(chainId)
 
     const safeTransaction = await safe
-        .createTransaction({ transactions: await convertTransactions(transactions) })
+        .createTransaction({
+            transactions: await convertTransactions(transactions),
+            onlyCalls: true,
+        })
 
     const safeTxHash = await safe
         .getTransactionHash(safeTransaction)
