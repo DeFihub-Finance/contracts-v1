@@ -1,5 +1,4 @@
-import { deployImplementation, findAddressOrFail } from '@src/helpers'
-import { upgrade } from '@src/helpers/upgrade'
+import { deployImplementation, findAddressOrFail, upgradeMany } from '@src/helpers'
 import { StrategyInvestor__factory, StrategyManager__v2__factory, StrategyPositionManager__factory } from '@src/typechain'
 
 async function upgradeToV2() {
@@ -12,25 +11,26 @@ async function upgradeToV2() {
         StrategyPositionManager__factory.bytecode,
     )
 
-    await upgrade(
-        await findAddressOrFail('StrategyManager'),
-        'StrategyManager__v2',
-        StrategyManager__v2__factory
-            .createInterface()
-            .encodeFunctionData(
-                'initialize__v2',
-                [
-                    strategyInvestor,
-                    strategyPositionManager,
-                    10n,
-                ],
-            ),
-    )
-
-    await upgrade(
-        await findAddressOrFail('LiquidityManager'),
-        'LiquidityManager',
-    )
+    await upgradeMany([
+        {
+            proxyAddress: await findAddressOrFail('StrategyManager'),
+            newImplementationName: 'StrategyManager__v2',
+            calldata: StrategyManager__v2__factory
+                .createInterface()
+                .encodeFunctionData(
+                    'initialize__v2',
+                    [
+                        strategyInvestor,
+                        strategyPositionManager,
+                        10n,
+                    ],
+                ),
+        },
+        {
+            proxyAddress: await findAddressOrFail('LiquidityManager'),
+            newImplementationName: 'LiquidityManager',
+        },
+    ])
 }
 
 upgradeToV2()

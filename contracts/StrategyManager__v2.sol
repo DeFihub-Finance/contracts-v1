@@ -23,7 +23,7 @@ contract StrategyManager__v2 is StrategyManager {
     ) external onlyOwner reinitializer(2) {
         strategyInvestor = _strategyInvestor;
         strategyPositionManager = _strategyPositionManager;
-        ReferralStorage.getReferralStruct().referrerPercentage = _referrerPercentage;
+        _setReferralPercentage(_referrerPercentage);
     }
 
     function investV2(StrategyInvestor.InvestParams calldata _params, address _referrer) external virtual {
@@ -68,6 +68,10 @@ contract StrategyManager__v2 is StrategyManager {
     }
 
     function setReferrerPercentage(uint32 _referrerPercentage) public virtual onlyOwner {
+        _setReferralPercentage(_referrerPercentage);
+    }
+
+    function _setReferralPercentage(uint32 _referrerPercentage) internal {
         if (_referrerPercentage > 100)
             revert PercentageTooHigh();
 

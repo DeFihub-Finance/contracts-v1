@@ -1,4 +1,9 @@
-import { createArrayOfIndexes, ERC20PricedJson, ERC20JsonAddressMap, exchangeDeploymentsByChain } from '@defihub/shared'
+import {
+    createArrayOfIndexes,
+    ERC20PricedJson,
+    ERC20JsonAddressMap,
+    HubExchange,
+} from '@defihub/shared'
 import { DollarCostAverage__factory, Quoter__factory } from '@src/typechain'
 import { API, findAddressOrFail, getChainId, getSigner, proposeTransactions } from '@src/helpers'
 import { BatchLimiter, BigNumber, ChainId, notEmpty } from '@ryze-blockchain/ethereum'
@@ -152,9 +157,7 @@ async function getQuotes(pool: Pool): Promise<{
     // TODO: API gives us `universalRouter`, but DCA still uses `swapRouter02`.
     // We map it using `exchangeDeploymentsByChain` for now.
     // Once DCA supports `universalRouter`, we can just use `updatedSwap.router` directly.
-    const updatedRouter = exchangeDeploymentsByChain[chainId]
-        ?.find(exchange => exchange.universalRouter === updatedSwap.router)
-        ?.swapRouter02
+    const updatedRouter = HubExchange.fromContract(chainId, updatedSwap.router)?.deployment.swapRouter02
 
     if (!updatedRouter)
         throw new Error(`Router not found for ${ updatedSwap.router }`)
@@ -197,10 +200,7 @@ async function getQuotes(pool: Pool): Promise<{
 }
 
 function routerToQuoter(router: string) {
-    // TODO this also needs to be updated once DCA supports `universalRouter`
-    const quoter = exchangeDeploymentsByChain[chainId]
-        ?.find(exchange => exchange.swapRouter02 === router)
-        ?.quoter
+    const quoter = HubExchange.fromContract(chainId, router)?.deployment.quoter
 
     if (!quoter)
         throw new Error(`Quoter not found for router ${ router }`)
@@ -225,6 +225,7 @@ async function getQuote(router: string, path: string, inputAmount: bigint) {
         const knownMessages = [
             'execution reverted: SPL',
             'execution reverted: Unexpected error',
+            'execution reverted: TF',
         ]
 
         if (knownMessages.includes(error.message))
