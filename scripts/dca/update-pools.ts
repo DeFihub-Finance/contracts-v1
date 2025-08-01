@@ -225,6 +225,7 @@ async function getQuote(router: string, path: string, inputAmount: bigint) {
         const knownMessages = [
             'execution reverted: SPL',
             'execution reverted: Unexpected error',
+            'execution reverted: TF',
         ]
 
         if (knownMessages.includes(error.message))
