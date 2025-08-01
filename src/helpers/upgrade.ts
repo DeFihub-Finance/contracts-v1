@@ -44,10 +44,10 @@ async function getUpgradeTransaction(
     const proxyContract = UUPSUpgradeable__factory.connect(proxyAddress, deployer)
 
     return calldata
-        ? await proxyContract
+        ? proxyContract
             .upgradeToAndCall
             .populateTransaction(newImplementationAddress, calldata)
-        : await proxyContract
+        : proxyContract
             .upgradeTo
             .populateTransaction(newImplementationAddress)
 }
