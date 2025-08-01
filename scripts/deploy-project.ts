@@ -23,9 +23,9 @@ import {
     findAddressOrFail,
     getSigner,
     getSaltBuilder,
+    upgradeMany,
 } from '@src/helpers'
 import { getMainStablecoinOrFail, getSafeOrFail } from '@defihub/shared'
-import { upgrade } from '@src/helpers/upgrade'
 import { parseUnits, ZeroAddress } from 'ethers'
 
 const TREASURY_ADDR = '0xb7f74ba999134fbb75285173856a808732d8c888' // only use ledger or multisig
@@ -249,24 +249,26 @@ async function deployProject() {
         )
     }
 
-    await upgrade(
-        await findAddressOrFail('DollarCostAverage'),
-        'DollarCostAverage__NoDeadline',
-    )
-    await upgrade(
-        await findAddressOrFail('StrategyManager'),
-        'StrategyManager__v2',
-        StrategyManager__v2__factory
-            .createInterface()
-            .encodeFunctionData(
-                'initialize__v2',
-                [
-                    strategyInvestor,
-                    strategyPositionManager,
-                    10n,
-                ],
-            ),
-    )
+    await upgradeMany([
+        {
+            proxyAddress: await findAddressOrFail('DollarCostAverage'),
+            newImplementationName: 'DollarCostAverage__NoDeadline',
+        },
+        {
+            proxyAddress: await findAddressOrFail('StrategyManager'),
+            newImplementationName: 'StrategyManager__v2',
+            calldata: StrategyManager__v2__factory
+                .createInterface()
+                .encodeFunctionData(
+                    'initialize__v2',
+                    [
+                        strategyInvestor,
+                        strategyPositionManager,
+                        10n,
+                    ],
+                ),
+        },
+    ])
 }
 
 async function getDeploymentInfos(saltBuilder: Salt) {

@@ -10,6 +10,13 @@ import { sendTransaction } from '@src/helpers/transaction'
 import { getChainId } from '@src/helpers/chain-id'
 import { verify } from '@src/helpers/verify'
 import { proposeTransactions } from '@src/helpers/safe'
+import { PreparedTransactionRequest } from 'ethers'
+
+export interface UpgradeParams {
+    proxyAddress: string
+    newImplementationName: string
+    calldata?: string
+}
 
 async function deployImplementation(newImplementationName: string) {
     const deployer = await getSigner()
@@ -25,25 +32,41 @@ async function deployImplementation(newImplementationName: string) {
     return expectedImplementationAddress
 }
 
-async function proposeUpgrade(proxyAddress: string, newImplementationAddress: string, calldata?: string) {
-    const chainId = await getChainId()
+async function getUpgradeTransaction(
+    {
+        proxyAddress,
+        newImplementationName,
+        calldata,
+    }: UpgradeParams,
+) {
     const deployer = await getSigner()
+    const newImplementationAddress = await deployImplementation(newImplementationName)
     const proxyContract = UUPSUpgradeable__factory.connect(proxyAddress, deployer)
-    const transactionData = calldata
+
+    return calldata
         ? await proxyContract
             .upgradeToAndCall
             .populateTransaction(newImplementationAddress, calldata)
         : await proxyContract
             .upgradeTo
             .populateTransaction(newImplementationAddress)
-
-    await proposeTransactions(chainId, [transactionData])
 }
 
-export async function upgrade(proxyAddress: string, newImplementationName: string, calldata?: string) {
-    return proposeUpgrade(
-        proxyAddress,
-        await deployImplementation(newImplementationName),
-        calldata,
+export async function upgrade(upgradeParams: UpgradeParams): Promise<void> {
+    await proposeTransactions(
+        await getChainId(),
+        [await getUpgradeTransaction(upgradeParams)],
+    )
+}
+
+export async function upgradeMany(upgrades: UpgradeParams[]): Promise<void> {
+    const transactions: PreparedTransactionRequest[] = []
+
+    for (const upgradeParams of upgrades)
+        transactions.push(await getUpgradeTransaction(upgradeParams))
+
+    await proposeTransactions(
+        await getChainId(),
+        transactions,
     )
 }
