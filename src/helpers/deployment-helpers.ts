@@ -106,11 +106,7 @@ export async function deployImplementation(
 ) {
     const deployer = await getSigner()
     const projectDeployer = await getProjectDeployer(deployer)
-    const saltBuilder = new Salt(
-        vanityDeployer.matcher,
-        new CommandBuilder(),
-        await projectDeployer.getAddress(),
-    )
+    const saltBuilder = await getSaltBuilder(projectDeployer)
     const salt = await getImplementationSalt(saltBuilder, contractName)
     const expectedImplementationAddress = await projectDeployer.getDeployAddress(bytecode, salt)
 
