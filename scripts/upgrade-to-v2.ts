@@ -22,7 +22,7 @@ async function upgradeToV2() {
                     [
                         strategyInvestor,
                         strategyPositionManager,
-                        10n,
+                        50n,
                     ],
                 ),
         },
