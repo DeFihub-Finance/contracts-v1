@@ -37,6 +37,9 @@ export async function verify<T>(
             return verify(address, constructorArguments)
         }
 
+        if (errorMessage.includes('is already verified'))
+            return
+
         throw e
     }
 }
