@@ -151,8 +151,11 @@ async function getQuotes(pool: Pool): Promise<{
         inputAmount,
     )
 
-    if (!updatedSwap)
-        throw new Error(`No path found for ${ pool.pid } (${ pool.inputToken } => ${ pool.outputToken })`)
+    if (!updatedSwap) {
+        console.error(red(`No path found for ${ pool.pid } (${ pool.inputToken } => ${ pool.outputToken })`))
+
+        return
+    }
 
     // TODO: API gives us `universalRouter`, but DCA still uses `swapRouter02`.
     // We map it using `exchangeDeploymentsByChain` for now.
