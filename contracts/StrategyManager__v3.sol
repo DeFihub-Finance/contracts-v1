@@ -18,7 +18,7 @@ contract StrategyManager__v3 is StrategyManager__v2 {
 
     uint32 constant public MAX_LIQUIDITY_FEE = 20 * 1e6 / 100; // 20% in basis points (1e6 = 100%)
 
-    event CollectedStrategistRewards(address user, address token, uint amount);
+    event CollectedRewards(address user, address token, uint amount);
     event LiquidityRewardFeeUpdated(uint strategyId, uint32 liquidityRewardFeeBP);
 
     error FeeTooHigh();
@@ -55,7 +55,7 @@ contract StrategyManager__v3 is StrategyManager__v2 {
 
         IERC20Upgradeable(_token).safeTransfer(msg.sender, amount);
 
-        emit CollectedStrategistRewards(msg.sender, _token, amount);
+        emit CollectedRewards(msg.sender, _token, amount);
     }
 
     function collectManyRewards(address[] memory _tokens) external virtual {
