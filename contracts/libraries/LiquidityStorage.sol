@@ -6,9 +6,9 @@ library LiquidityStorage {
     bytes32 constant private LIQUIDITY_FEE_STORAGE_POSITION = keccak256("liquidity.fee.storage");
 
     struct LiquidityStorageStruct {
-        uint32 baseRewardFeeBp;
         uint32 baseStrategistPercentageBp;
         mapping(address => mapping(address => uint)) rewardBalances;
+        mapping(uint => uint32) feePerStrategyId;
     }
 
     function getLiquidityStruct() internal pure returns (

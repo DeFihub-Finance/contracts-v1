@@ -280,9 +280,10 @@ contract StrategyPositionManager is StrategyStorage {
         LiquidityStorage.LiquidityStorageStruct storage liquidityStorage = LiquidityStorage.getLiquidityStruct();
         LiquidityFeeDistribution memory feeDistribution;
         address strategist = _strategies[_strategyId].creator;
+        uint32 baseRewardFeeBp = liquidityStorage.feePerStrategyId[_strategyId];
 
-        feeDistribution.totalFee0 = _amount0 * liquidityStorage.baseRewardFeeBp / 1e6;
-        feeDistribution.totalFee1 = _amount1 * liquidityStorage.baseRewardFeeBp / 1e6;
+        feeDistribution.totalFee0 = _amount0 * baseRewardFeeBp / 1e6;
+        feeDistribution.totalFee1 = _amount1 * baseRewardFeeBp / 1e6;
         feeDistribution.strategistFee0 = feeDistribution.totalFee0 * liquidityStorage.baseStrategistPercentageBp / 1e6;
         feeDistribution.strategistFee1 = feeDistribution.totalFee1 * liquidityStorage.baseStrategistPercentageBp / 1e6;
         feeDistribution.treasuryFee0 = feeDistribution.totalFee0 - feeDistribution.strategistFee0;

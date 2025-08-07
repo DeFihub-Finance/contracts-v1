@@ -13,18 +13,31 @@ contract StrategyManager__v3 is StrategyManager__v2 {
 
     struct InitializeParamsV3 {
         address strategyPositionManager;
-        uint32 liquidityBaseRewardFeeBp;
         uint32 liquidityBaseStrategistPercentageBp;
     }
 
+    uint32 constant public MAX_LIQUIDITY_FEE = 20 * 1e6 / 100; // 20% in basis points (1e6 = 100%)
+
     event CollectedStrategistRewards(address user, address token, uint amount);
+    event LiquidityRewardFeeUpdated(uint strategyId, uint32 liquidityRewardFeeBP);
+
+    error FeeTooHigh();
 
     function initialize_v3(
         InitializeParamsV3 memory _params
     ) external onlyOwner reinitializer(3) {
         strategyPositionManager = _params.strategyPositionManager;
-        LiquidityStorage.getLiquidityStruct().baseRewardFeeBp = _params.liquidityBaseRewardFeeBp;
         LiquidityStorage.getLiquidityStruct().baseStrategistPercentageBp = _params.liquidityBaseStrategistPercentageBp;
+    }
+
+    function createStrategyV2(
+        CreateStrategyParams memory _params,
+        uint32 _liquidityRewardFeeBP
+    ) external virtual {
+        _setLiquidityRewardFee(
+            createStrategy(_params),
+            _liquidityRewardFeeBP
+        );
     }
 
     function collectRewards(address _token) public virtual {
@@ -57,5 +70,18 @@ contract StrategyManager__v3 is StrategyManager__v2 {
         return _token == address(stable)
             ? _strategistRewards[_strategist] + liquidityRewards + referrerRewards
             : liquidityRewards;
+    }
+
+    function getLiquidityRewardFee(uint _strategyId) external view returns (uint32) {
+        return LiquidityStorage.getLiquidityStruct().feePerStrategyId[_strategyId];
+    }
+
+    function _setLiquidityRewardFee(uint _strategyId, uint32 _liquidityRewardFeeBP) internal virtual {
+        if (_liquidityRewardFeeBP > MAX_LIQUIDITY_FEE)
+            revert FeeTooHigh();
+
+        LiquidityStorage.getLiquidityStruct().feePerStrategyId[_strategyId] = _liquidityRewardFeeBP;
+
+        emit LiquidityRewardFeeUpdated(_strategyId, _liquidityRewardFeeBP);
     }
 }
