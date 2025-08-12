@@ -410,7 +410,10 @@ contract StrategyInvestor is StrategyStorage {
             );
         }
 
-        if (referrer != address(0)) {
+        if (
+            referrer != address(0) &&
+            referralStorage.referralDeadlines[msg.sender] >= block.timestamp
+        ) {
             referrerFee = (amountBaseFee - strategistFee) * referralStorage.referrerPercentage / 100;
 
             referralStorage.referrerRewards[referrer] += referrerFee;

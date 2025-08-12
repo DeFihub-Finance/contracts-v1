@@ -10,6 +10,8 @@ library ReferralStorage {
         mapping(address => address) referrals;
         mapping(address => uint) referrerRewards;
         uint32 referrerPercentage;
+        uint referralDuration;
+        mapping(address => uint) referralDeadlines;
     }
 
     function getReferralStruct() internal pure returns (ReferralStruct storage referralStruct) {

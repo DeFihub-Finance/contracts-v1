@@ -99,7 +99,7 @@ contract StrategyManager__v2 is StrategyManager {
         emit CollectedReferrerRewards(msg.sender, referrerReward);
     }
 
-    function _setReferrer(address _referrer) private {
+    function _setReferrer(address _referrer) internal virtual {
         ReferralStorage.ReferralStruct storage referralStorage = ReferralStorage.getReferralStruct();
 
         // return if user is not a new investor
