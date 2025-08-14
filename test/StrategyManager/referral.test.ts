@@ -4,6 +4,7 @@ import { AbiCoder, AddressLike, ContractTransactionReceipt, parseEther, Signer, 
 import { createStrategy, getEventLog, getFeeEventLog } from '@src/helpers'
 import { StrategyManager__v2, SubscriptionManager, TestERC20, UseFee } from '@src/typechain'
 import { baseStrategyManagerFixture } from './fixtures/base.fixture'
+import { YEAR_IN_SECONDS } from '@src/constants'
 
 /*
 -> when investV2 method is called
@@ -158,11 +159,15 @@ describe('StrategyManager#referral', () => {
 
         describe('if sender does not have a referrer', () => {
             it('emits Referral event', async () => {
-                const referralEvent = getEventLog(receipt, 'Referral', strategyManager.interface)
+                const referralEvent = getEventLog(receipt, 'ReferralLinked', strategyManager.interface)
+
+                const block = await receipt?.getBlock()
+                const timestamp = block?.timestamp || 0
 
                 expect(referralEvent?.args).to.deep.equal([
                     await referrer0.getAddress(),
                     await investor.getAddress(),
+                    timestamp + YEAR_IN_SECONDS * 3,
                 ])
             })
 
