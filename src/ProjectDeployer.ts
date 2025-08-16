@@ -51,6 +51,7 @@ export class ProjectDeployer {
             account0,
             account1,
             account2,
+            account3,
         } = await this.getAccounts()
 
         const subscriptionMonthlyPrice = parseEther('4.69')
@@ -148,6 +149,7 @@ export class ProjectDeployer {
             account0,
             account1,
             account2,
+            account3,
 
             // Constants
             subscriptionMonthlyPrice,
@@ -170,6 +172,8 @@ export class ProjectDeployer {
             /** strategist Permit */
             permitAccount0: await subscriptionSignature
                 .signSubscriptionPermit(await account0.getAddress(), deadline),
+            permitAccount3: await subscriptionSignature
+                .signSubscriptionPermit(await account3.getAddress(), deadline),
             expiredPermitAccount0: await subscriptionSignature
                 .signSubscriptionPermit(await account0.getAddress(), 0),
         }
@@ -411,6 +415,7 @@ export class ProjectDeployer {
             account0,
             account1,
             account2,
+            account3,
         ] = await ethers.getSigners()
 
         return {
@@ -422,6 +427,7 @@ export class ProjectDeployer {
             account0,
             account1,
             account2,
+            account3,
         }
     }
 }
