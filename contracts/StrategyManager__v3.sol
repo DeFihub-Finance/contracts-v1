@@ -66,11 +66,8 @@ contract StrategyManager__v3 is StrategyManager__v2 {
 
         referralStorage.investedBefore[msg.sender] = true;
 
-        if (
-            _referrer == address(0) || // ignores zero address
-            _referrer == msg.sender || // referrer cannot be msg.sender
-            referralStorage.referrals[msg.sender] != address(0) // referrer cannot be replaced
-        )
+        // ignores zero address and self-referral
+        if (_referrer == address(0) || _referrer == msg.sender)
             return;
 
         uint deadline = block.timestamp + referralStorage.referralDuration;
