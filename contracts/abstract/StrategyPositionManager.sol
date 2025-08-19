@@ -282,46 +282,48 @@ contract StrategyPositionManager is StrategyStorage {
         address strategist = _strategies[_strategyId].creator;
         uint32 strategyLiquidityFeeBP = liquidityStorage.strategiesLiquidityFeeBP[_strategyId];
 
-        feeDistribution.totalFee0 = _amount0 * strategyLiquidityFeeBP / 1e6;
-        feeDistribution.totalFee1 = _amount1 * strategyLiquidityFeeBP / 1e6;
-        feeDistribution.strategistFee0 = feeDistribution.totalFee0 * liquidityStorage.strategistRewardFeeSplitBP / 1e6;
-        feeDistribution.strategistFee1 = feeDistribution.totalFee1 * liquidityStorage.strategistRewardFeeSplitBP / 1e6;
-        feeDistribution.treasuryFee0 = feeDistribution.totalFee0 - feeDistribution.strategistFee0;
-        feeDistribution.treasuryFee1 = feeDistribution.totalFee1 - feeDistribution.strategistFee1;
+        if (strategyLiquidityFeeBP > 0) {
+            feeDistribution.totalFee0 = _amount0 * strategyLiquidityFeeBP / 1e6;
+            feeDistribution.totalFee1 = _amount1 * strategyLiquidityFeeBP / 1e6;
+            feeDistribution.strategistFee0 = feeDistribution.totalFee0 * liquidityStorage.strategistRewardFeeSplitBP / 1e6;
+            feeDistribution.strategistFee1 = feeDistribution.totalFee1 * liquidityStorage.strategistRewardFeeSplitBP / 1e6;
+            feeDistribution.treasuryFee0 = feeDistribution.totalFee0 - feeDistribution.strategistFee0;
+            feeDistribution.treasuryFee1 = feeDistribution.totalFee1 - feeDistribution.strategistFee1;
 
-        liquidityStorage.rewardBalances[strategist][_pair.token0] += feeDistribution.strategistFee0;
-        liquidityStorage.rewardBalances[strategist][_pair.token1] += feeDistribution.strategistFee1;
+            liquidityStorage.rewardBalances[strategist][_pair.token0] += feeDistribution.strategistFee0;
+            liquidityStorage.rewardBalances[strategist][_pair.token1] += feeDistribution.strategistFee1;
 
-        emit Fee(
-            msg.sender,
-            strategist,
-            feeDistribution.strategistFee0,
-            abi.encode(_strategyId, _pair.token0, FEE_TO_STRATEGIST, FEE_OP_LIQUIDITY_FEES)
-        );
+            emit Fee(
+                msg.sender,
+                strategist,
+                feeDistribution.strategistFee0,
+                abi.encode(_strategyId, _pair.token0, FEE_TO_STRATEGIST, FEE_OP_LIQUIDITY_FEES)
+            );
 
-        emit Fee(
-            msg.sender,
-            strategist,
-            feeDistribution.strategistFee1,
-            abi.encode(_strategyId, _pair.token1, FEE_TO_STRATEGIST, FEE_OP_LIQUIDITY_FEES)
-        );
+            emit Fee(
+                msg.sender,
+                strategist,
+                feeDistribution.strategistFee1,
+                abi.encode(_strategyId, _pair.token1, FEE_TO_STRATEGIST, FEE_OP_LIQUIDITY_FEES)
+            );
 
-        liquidityStorage.rewardBalances[treasury][_pair.token0] += feeDistribution.treasuryFee0;
-        liquidityStorage.rewardBalances[treasury][_pair.token1] += feeDistribution.treasuryFee1;
+            liquidityStorage.rewardBalances[treasury][_pair.token0] += feeDistribution.treasuryFee0;
+            liquidityStorage.rewardBalances[treasury][_pair.token1] += feeDistribution.treasuryFee1;
 
-        emit Fee(
-            msg.sender,
-            treasury,
-            feeDistribution.treasuryFee0,
-            abi.encode(_strategyId, _pair.token0, FEE_TO_PROTOCOL, FEE_OP_LIQUIDITY_FEES)
-        );
+            emit Fee(
+                msg.sender,
+                treasury,
+                feeDistribution.treasuryFee0,
+                abi.encode(_strategyId, _pair.token0, FEE_TO_PROTOCOL, FEE_OP_LIQUIDITY_FEES)
+            );
 
-        emit Fee(
-            msg.sender,
-            treasury,
-            feeDistribution.treasuryFee1,
-            abi.encode(_strategyId, _pair.token1, FEE_TO_PROTOCOL, FEE_OP_LIQUIDITY_FEES)
-        );
+            emit Fee(
+                msg.sender,
+                treasury,
+                feeDistribution.treasuryFee1,
+                abi.encode(_strategyId, _pair.token1, FEE_TO_PROTOCOL, FEE_OP_LIQUIDITY_FEES)
+            );
+        }
 
         userAmount0 = _amount0 - feeDistribution.totalFee0;
         userAmount1 = _amount1 - feeDistribution.totalFee1;
