@@ -162,7 +162,7 @@ describe('StrategyManager#referral', () => {
         beforeEach(async () => receipt = await (await investV2(referrer0)).wait())
 
         describe('if sender does not have a referrer', () => {
-            it('emits Referral event', async () => {
+            it('emits ReferralLinked event', async () => {
                 const referralEvent = getEventLog(receipt, 'ReferralLinked', strategyManager.interface)
 
                 const block = await receipt?.getBlock()
