@@ -8,7 +8,7 @@ library LiquidityStorage {
     struct LiquidityStorageStruct {
         uint32 strategistRewardFeeSplitBP; // amount of the liquidity fee that goes to the strategist, the remaining goes to the protocol
         mapping(address => mapping(address => uint)) rewardBalances;
-        mapping(uint => uint32) feePerStrategyId;
+        mapping(uint => uint32) strategiesLiquidityFeeBP;
     }
 
     function getLiquidityStruct() internal pure returns (

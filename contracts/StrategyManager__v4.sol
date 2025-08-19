@@ -70,7 +70,7 @@ contract StrategyManager__v4 is StrategyManager__v3 {
     }
 
     function getLiquidityRewardFee(uint _strategyId) external view returns (uint32) {
-        return LiquidityStorage.getLiquidityStruct().feePerStrategyId[_strategyId];
+        return LiquidityStorage.getLiquidityStruct().strategiesLiquidityFeeBP[_strategyId];
     }
 
     function updateStrategistRewardFeeSplitBP(uint32 _strategistRewardFeeSplitBP) external onlyOwner {
@@ -90,7 +90,7 @@ contract StrategyManager__v4 is StrategyManager__v3 {
         if (_liquidityRewardFeeBP > MAX_LIQUIDITY_FEE_BP)
             revert FeeTooHigh();
 
-        LiquidityStorage.getLiquidityStruct().feePerStrategyId[_strategyId] = _liquidityRewardFeeBP;
+        LiquidityStorage.getLiquidityStruct().strategiesLiquidityFeeBP[_strategyId] = _liquidityRewardFeeBP;
 
         emit LiquidityRewardFeeSet(_strategyId, _liquidityRewardFeeBP);
     }
