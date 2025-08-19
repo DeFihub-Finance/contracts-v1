@@ -7,7 +7,6 @@ import {
     SubscriptionManager,
     DollarCostAverage__factory,
     SubscriptionManager__factory,
-    StrategyManager__v2__factory,
     VaultManager__factory,
     StrategyManager,
     VaultManager,
@@ -30,11 +29,13 @@ import {
     NonFungiblePositionManager,
     UniswapV2Factory,
     TestWETH__factory,
+    StrategyManager__v3__factory,
 } from '@src/typechain'
 import { ZeroHash, ZeroAddress, Signer, parseEther } from 'ethers'
 import { NetworkService } from '@src/NetworkService'
 import { SubscriptionSignature } from '@src/SubscriptionSignature'
 import { POOL_INIT_CODE_HASH } from '@uniswap/v3-sdk'
+import { YEAR_IN_SECONDS } from '@src/constants'
 
 export class ProjectDeployer {
     private hashCount = 0
@@ -50,6 +51,7 @@ export class ProjectDeployer {
             account0,
             account1,
             account2,
+            account3,
         } = await this.getAccounts()
 
         const subscriptionMonthlyPrice = parseEther('4.69')
@@ -108,9 +110,17 @@ export class ProjectDeployer {
         )
 
         // Set referrer percentage to 1%
-        await StrategyManager__v2__factory
+        await StrategyManager__v3__factory
             .connect(strategyManager, owner)
             .initialize__v2(strategyInvestor, strategyPositionManager, 1)
+
+        // Set referral duration to 3 years
+        await StrategyManager__v3__factory
+            .connect(strategyManager, owner)
+            .initialize__v3(
+                strategyInvestor,
+                YEAR_IN_SECONDS * 3,
+            )
 
         const subscriptionSignature = new SubscriptionSignature(
             subscriptionManager,
@@ -121,7 +131,7 @@ export class ProjectDeployer {
         return {
             // Contracts
             strategyPositionManager: StrategyPositionManager__factory.connect(strategyPositionManager, owner),
-            strategyManager: StrategyManager__v2__factory.connect(strategyManager, owner),
+            strategyManager: StrategyManager__v3__factory.connect(strategyManager, owner),
             subscriptionManager,
             dca: DollarCostAverage__factory.connect(dca, owner),
             vaultManager: VaultManager__factory.connect(vaultManager, owner),
@@ -139,6 +149,7 @@ export class ProjectDeployer {
             account0,
             account1,
             account2,
+            account3,
 
             // Constants
             subscriptionMonthlyPrice,
@@ -161,6 +172,8 @@ export class ProjectDeployer {
             /** strategist Permit */
             permitAccount0: await subscriptionSignature
                 .signSubscriptionPermit(await account0.getAddress(), deadline),
+            permitAccount3: await subscriptionSignature
+                .signSubscriptionPermit(await account3.getAddress(), deadline),
             expiredPermitAccount0: await subscriptionSignature
                 .signSubscriptionPermit(await account0.getAddress(), 0),
         }
@@ -175,7 +188,7 @@ export class ProjectDeployer {
         const buyProductDeployParams = this.getDeploymentInfo(BuyProduct__factory)
         const vaultManagerDeployParams = this.getDeploymentInfo(VaultManager__factory)
         const liquidityManagerDeployParams = this.getDeploymentInfo(LiquidityManager__factory)
-        const strategyManagerDeployParams = this.getDeploymentInfo(StrategyManager__v2__factory)
+        const strategyManagerDeployParams = this.getDeploymentInfo(StrategyManager__v3__factory)
         const subscriptionManagerDeployParams = this.getDeploymentInfo(SubscriptionManager__factory)
 
         const {
@@ -402,6 +415,7 @@ export class ProjectDeployer {
             account0,
             account1,
             account2,
+            account3,
         ] = await ethers.getSigners()
 
         return {
@@ -413,6 +427,7 @@ export class ProjectDeployer {
             account0,
             account1,
             account2,
+            account3,
         }
     }
 }
