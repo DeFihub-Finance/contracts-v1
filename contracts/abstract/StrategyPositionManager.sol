@@ -136,9 +136,9 @@ contract StrategyPositionManager is StrategyStorage {
             );
 
             // Claim must be called before decreasing liquidity to subtract fees only from rewards
-            (uint fee0, uint fee1) = _claimLiquidityPositionTokens(position, pair);
+            (uint rewards0, uint rewards1) = _claimLiquidityPositionTokens(position, pair);
 
-            (uint userFee0, uint userFee1) = _distributeLiquidityRewards(_strategyId, pair, fee0, fee1);
+            (uint userRewards0, uint userRewards1) = _distributeLiquidityRewards(_strategyId, pair, rewards0, rewards1);
 
             position.positionManager.decreaseLiquidity(
                 INonfungiblePositionManager.DecreaseLiquidityParams({
@@ -150,12 +150,16 @@ contract StrategyPositionManager is StrategyStorage {
                 })
             );
 
-            (uint amount0, uint amount1) = _claimLiquidityPositionTokens(position, pair);
+            (uint balance0, uint balance1) = _claimLiquidityPositionTokens(position, pair);
+
+            // TODO maybe store in a variable instead of sum twice
+            IERC20Upgradeable(pair.token0).safeTransfer(msg.sender, balance0 + userRewards0);
+            IERC20Upgradeable(pair.token1).safeTransfer(msg.sender, balance1 + userRewards1);
 
             withdrawnAmounts[index] = new uint[](2);
 
-            withdrawnAmounts[index][0] = amount0 + userFee0;
-            withdrawnAmounts[index][1] = amount1 + userFee1;
+            withdrawnAmounts[index][0] = balance0 + userRewards0;
+            withdrawnAmounts[index][1] = balance1 + userRewards1;
         }
 
         return withdrawnAmounts;
@@ -223,14 +227,18 @@ contract StrategyPositionManager is StrategyStorage {
                 position.tokenId
             );
 
-            (uint fee0, uint fee1) = _claimLiquidityPositionTokens(position, pair);
+            (uint rewards0, uint rewards1) = _claimLiquidityPositionTokens(position, pair);
 
-            (uint userFee0, uint userFee1) = _distributeLiquidityRewards(_strategyId, pair, fee0, fee1);
+            (uint userRewards0, uint userRewards1) = _distributeLiquidityRewards(_strategyId, pair, rewards0, rewards1);
+
+
+            IERC20Upgradeable(pair.token0).safeTransfer(msg.sender, userRewards0);
+            IERC20Upgradeable(pair.token1).safeTransfer(msg.sender, userRewards1);
 
             withdrawnAmounts[index] = new uint[](2);
 
-            withdrawnAmounts[index][0] = userFee0;
-            withdrawnAmounts[index][1] = userFee1;
+            withdrawnAmounts[index][0] = userRewards0;
+            withdrawnAmounts[index][1] = userRewards1;
         }
 
         return withdrawnAmounts;
@@ -327,8 +335,5 @@ contract StrategyPositionManager is StrategyStorage {
 
         userAmount0 = _amount0 - feeDistribution.totalFee0;
         userAmount1 = _amount1 - feeDistribution.totalFee1;
-
-        IERC20Upgradeable(_pair.token0).safeTransfer(msg.sender, userAmount0);
-        IERC20Upgradeable(_pair.token1).safeTransfer(msg.sender, userAmount1);
     }
 }
