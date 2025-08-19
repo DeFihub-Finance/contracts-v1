@@ -11,23 +11,21 @@ import {ReferralStorage} from "./libraries/ReferralStorage.sol";
 contract StrategyManager__v4 is StrategyManager__v3 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
-    struct InitializeParamsV3 {
-        address strategyPositionManager;
-        uint32 liquidityBaseStrategistPercentageBp;
-    }
+    uint32 constant public MIN_STRATEGIST_SPLIT_BP = 50 * 1e6 / 100; // 50% in basis points (1e6 = 100%)
+    uint32 constant public MAX_LIQUIDITY_FEE_BP = 25 * 1e6 / 100; // 25% in basis points (1e6 = 100%)
 
-    uint32 constant public MAX_LIQUIDITY_FEE = 20 * 1e6 / 100; // 20% in basis points (1e6 = 100%)
+    event StrategistFeeSplitUpdated(uint32 strategistRewardFeeSplitBP);
+    event LiquidityRewardFeeSet(uint strategyId, uint32 liquidityRewardFeeBP);
 
-    event CollectedRewards(address user, address token, uint amount);
-    event LiquidityRewardFeeUpdated(uint strategyId, uint32 liquidityRewardFeeBP);
-
+    error InvalidAmount();
     error FeeTooHigh();
 
-    function initialize_v3(
-        InitializeParamsV3 memory _params
-    ) external onlyOwner reinitializer(3) {
-        strategyPositionManager = _params.strategyPositionManager;
-        LiquidityStorage.getLiquidityStruct().baseStrategistPercentageBp = _params.liquidityBaseStrategistPercentageBp;
+    function initialize__v4(
+        address _strategyPositionManager,
+        uint32 _strategistRewardFeeSplitBP
+    ) external onlyOwner reinitializer(4) {
+        strategyPositionManager = _strategyPositionManager;
+        _updateStrategistRewardFeeSplitBP(_strategistRewardFeeSplitBP);
     }
 
     function createStrategyV2(
@@ -40,7 +38,7 @@ contract StrategyManager__v4 is StrategyManager__v3 {
         );
     }
 
-    function collectRewards(address _token) public virtual {
+    function collectRewards(address _token) public virtual override {
         uint amount = getRewards(msg.sender, _token);
 
         if (amount == 0)
@@ -58,30 +56,42 @@ contract StrategyManager__v4 is StrategyManager__v3 {
         emit CollectedRewards(msg.sender, _token, amount);
     }
 
-    function collectManyRewards(address[] memory _tokens) external virtual {
-        for (uint i = 0; i < _tokens.length; ++i)
-            collectRewards(_tokens[i]);
-    }
-
-    function getRewards(address _strategist, address _token) public virtual view returns (uint) {
+    function getRewards(address _strategist, address _token) public virtual override view returns (uint) {
         uint liquidityRewards = LiquidityStorage.getLiquidityStruct().rewardBalances[_strategist][_token];
-        uint referrerRewards = ReferralStorage.getReferralStruct().referrerRewards[_strategist];
 
-        return _token == address(stable)
-            ? _strategistRewards[_strategist] + liquidityRewards + referrerRewards
-            : liquidityRewards;
+        if (_token == address(stable)) {
+            uint strategistRewards = _strategistRewards[_strategist];
+            uint referrerRewards = ReferralStorage.getReferralStruct().referrerRewards[_strategist];
+
+            return liquidityRewards + strategistRewards + referrerRewards;
+        }
+
+        return liquidityRewards;
     }
 
     function getLiquidityRewardFee(uint _strategyId) external view returns (uint32) {
         return LiquidityStorage.getLiquidityStruct().feePerStrategyId[_strategyId];
     }
 
+    function updateStrategistRewardFeeSplitBP(uint32 _strategistRewardFeeSplitBP) external onlyOwner {
+        _updateStrategistRewardFeeSplitBP(_strategistRewardFeeSplitBP);
+    }
+
+    function _updateStrategistRewardFeeSplitBP(uint32 _strategistRewardFeeSplitBP) internal {
+        if (_strategistRewardFeeSplitBP < MIN_STRATEGIST_SPLIT_BP)
+            revert InvalidAmount();
+
+        LiquidityStorage.getLiquidityStruct().strategistRewardFeeSplitBP = _strategistRewardFeeSplitBP;
+
+        emit StrategistFeeSplitUpdated(_strategistRewardFeeSplitBP);
+    }
+
     function _setLiquidityRewardFee(uint _strategyId, uint32 _liquidityRewardFeeBP) internal virtual {
-        if (_liquidityRewardFeeBP > MAX_LIQUIDITY_FEE)
+        if (_liquidityRewardFeeBP > MAX_LIQUIDITY_FEE_BP)
             revert FeeTooHigh();
 
         LiquidityStorage.getLiquidityStruct().feePerStrategyId[_strategyId] = _liquidityRewardFeeBP;
 
-        emit LiquidityRewardFeeUpdated(_strategyId, _liquidityRewardFeeBP);
+        emit LiquidityRewardFeeSet(_strategyId, _liquidityRewardFeeBP);
     }
 }
