@@ -61,8 +61,8 @@ contract StrategyPositionManager is StrategyStorage {
     ) private returns (uint[][] memory) {
         uint[][] memory withdrawnAmounts = new uint[][](_positions.length);
 
-        for (uint i; i < _positions.length; ++i) {
-            uint positionId = _positions[i];
+        for (uint index; index < _positions.length; ++index) {
+            uint positionId = _positions[index];
             DollarCostAverage.PoolInfo memory poolInfo = dca.getPool(
                 dca.getPosition(address(this), positionId).poolId
             );
@@ -77,15 +77,15 @@ contract StrategyPositionManager is StrategyStorage {
             uint outputTokenAmount = outputToken.balanceOf(address(this)) - initialOutputTokenBalance;
 
             if (inputTokenAmount > 0 || outputTokenAmount > 0) {
-                withdrawnAmounts[i] = new uint[](2);
+                withdrawnAmounts[index] = new uint[](2);
 
                 if (inputTokenAmount > 0) {
-                    withdrawnAmounts[i][0] = inputTokenAmount;
+                    withdrawnAmounts[index][0] = inputTokenAmount;
                     inputToken.safeTransfer(msg.sender, inputTokenAmount);
                 }
 
                 if (outputTokenAmount > 0) {
-                    withdrawnAmounts[i][1] = outputTokenAmount;
+                    withdrawnAmounts[index][1] = outputTokenAmount;
                     outputToken.safeTransfer(msg.sender, outputTokenAmount);
                 }
             }
@@ -99,8 +99,8 @@ contract StrategyPositionManager is StrategyStorage {
     ) private returns (uint[] memory) {
         uint[] memory withdrawnAmounts = new uint[](_positions.length);
 
-        for (uint i; i < _positions.length; ++i) {
-            VaultPosition memory vaultPosition = _positions[i];
+        for (uint index; index < _positions.length; ++index) {
+            VaultPosition memory vaultPosition = _positions[index];
             IBeefyVaultV7 vault = IBeefyVaultV7(vaultPosition.vault);
 
             uint initialBalance = vault.want().balanceOf(address(this));
@@ -110,7 +110,7 @@ contract StrategyPositionManager is StrategyStorage {
             uint withdrawnAmount = vault.want().balanceOf(address(this)) - initialBalance;
 
             if (withdrawnAmount > 0) {
-                withdrawnAmounts[i] = withdrawnAmount;
+                withdrawnAmounts[index] = withdrawnAmount;
                 vault.want().safeTransfer(msg.sender, withdrawnAmount);
             }
         }
@@ -195,8 +195,8 @@ contract StrategyPositionManager is StrategyStorage {
     function _collectPositionsDca(uint[] memory _positions) private returns (uint[] memory) {
         uint[] memory withdrawnAmounts = new uint[](_positions.length);
 
-        for (uint i; i < _positions.length; ++i) {
-            uint positionId = _positions[i];
+        for (uint index; index < _positions.length; ++index) {
+            uint positionId = _positions[index];
             DollarCostAverage.PoolInfo memory poolInfo = dca.getPool(dca.getPosition(address(this), positionId).poolId);
             IERC20Upgradeable outputToken = IERC20Upgradeable(poolInfo.outputToken);
             uint initialOutputTokenBalance = outputToken.balanceOf(address(this));
@@ -206,7 +206,7 @@ contract StrategyPositionManager is StrategyStorage {
             uint outputTokenAmount = outputToken.balanceOf(address(this)) - initialOutputTokenBalance;
 
             if (outputTokenAmount > 0) {
-                withdrawnAmounts[i] = outputTokenAmount;
+                withdrawnAmounts[index] = outputTokenAmount;
                 outputToken.safeTransfer(msg.sender, outputTokenAmount);
             }
         }
