@@ -24,7 +24,7 @@ import {
 import { ERC20Priced, Fees, FeeTo, PathUniswapV3, Slippage, UniswapV3, unwrapAddressLike } from '@defihub/shared'
 import { SubscriptionSignature } from '@src/SubscriptionSignature'
 import { Compare } from '@src/Compare'
-import { ONE_PERCENT } from '@src/constants'
+import { FeeOperations, ONE_PERCENT } from '@src/constants'
 
 // EFFECTS
 // => when user is subscribed
@@ -599,7 +599,10 @@ describe('StrategyManager#invest', () => {
                     await unwrapAddressLike(account1),
                     await unwrapAddressLike(treasury),
                     protocolFee,
-                    AbiCoder.defaultAbiCoder().encode(['uint', 'uint8'], [strategyId, FeeTo.PROTOCOL]),
+                    AbiCoder.defaultAbiCoder().encode(
+                        ['uint', 'address', 'uint8', 'uint8'],
+                        [strategyId, await unwrapAddressLike(stablecoin), FeeTo.PROTOCOL, FeeOperations.STRATEGY_DEPOSIT],
+                    ),
                 ])
             })
 
@@ -624,7 +627,10 @@ describe('StrategyManager#invest', () => {
                     await unwrapAddressLike(account2),
                     await unwrapAddressLike(treasury),
                     protocolFee,
-                    AbiCoder.defaultAbiCoder().encode(['uint', 'uint8'], [strategyId, FeeTo.PROTOCOL]),
+                    AbiCoder.defaultAbiCoder().encode(
+                        ['uint', 'address', 'uint8', 'uint8'],
+                        [strategyId, await unwrapAddressLike(stablecoin), FeeTo.PROTOCOL, FeeOperations.STRATEGY_DEPOSIT],
+                    ),
                 ])
             })
         })

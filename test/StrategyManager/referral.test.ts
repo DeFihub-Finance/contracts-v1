@@ -1,10 +1,11 @@
 import { expect } from 'chai'
-import { Fees, FeeTo } from '@defihub/shared'
+import { Fees, FeeTo, unwrapAddressLike } from '@defihub/shared'
 import { AbiCoder, AddressLike, ContractTransactionReceipt, parseEther, Signer, ZeroAddress } from 'ethers'
 import { createStrategy, getEventLog, getFeeEventLog } from '@src/helpers'
 import { StrategyManager__v3, SubscriptionManager, TestERC20, UseFee } from '@src/typechain'
 import { baseStrategyManagerFixture } from './fixtures/base.fixture'
 import { YEAR_IN_SECONDS } from '@src/constants'
+import { FeeOperations } from '@src/constants'
 
 /*
 -> when investV2 method is called
@@ -191,7 +192,10 @@ describe('StrategyManager#referral', () => {
                     await investor.getAddress(),
                     await referrer0.getAddress(),
                     referrerFee,
-                    AbiCoder.defaultAbiCoder().encode(['uint', 'uint8'], [strategyId, FeeTo.REFERRER]),
+                    AbiCoder.defaultAbiCoder().encode(
+                        ['uint', 'address', 'uint8', 'uint8'],
+                        [strategyId, await unwrapAddressLike(stablecoin), FeeTo.REFERRER, FeeOperations.STRATEGY_DEPOSIT],
+                    ),
                 ])
             })
         })
@@ -231,7 +235,10 @@ describe('StrategyManager#referral', () => {
                     await investor.getAddress(),
                     await referrer0.getAddress(),
                     referrerFee,
-                    AbiCoder.defaultAbiCoder().encode(['uint', 'uint8'], [strategyId, FeeTo.REFERRER]),
+                    AbiCoder.defaultAbiCoder().encode(
+                        ['uint', 'address', 'uint8', 'uint8'],
+                        [strategyId, await unwrapAddressLike(stablecoin), FeeTo.REFERRER, FeeOperations.STRATEGY_DEPOSIT],
+                    ),
                 ])
             })
         })
@@ -295,7 +302,10 @@ describe('StrategyManager#referral', () => {
                     await investor.getAddress(),
                     await referrer0.getAddress(),
                     referrerFee,
-                    AbiCoder.defaultAbiCoder().encode(['uint', 'uint8'], [strategyId, FeeTo.REFERRER]),
+                    AbiCoder.defaultAbiCoder().encode(
+                        ['uint', 'address', 'uint8', 'uint8'],
+                        [strategyId, await unwrapAddressLike(stablecoin), FeeTo.REFERRER, FeeOperations.STRATEGY_DEPOSIT],
+                    ),
                 ])
             })
         })

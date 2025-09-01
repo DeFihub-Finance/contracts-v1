@@ -1,10 +1,10 @@
-import { StrategyManager, SubscriptionManager } from '@src/typechain'
+import { StrategyManager, StrategyManager__v3, SubscriptionManager } from '@src/typechain'
 import { Signer, ZeroHash } from 'ethers'
 
 export async function createStrategy(
     strategist: Signer,
     permit: SubscriptionManager.PermitStruct,
-    strategyManager: StrategyManager,
+    strategyManager: StrategyManager__v3,
     {
         dcaInvestments,
         vaultInvestments,
