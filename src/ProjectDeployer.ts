@@ -29,7 +29,7 @@ import {
     NonFungiblePositionManager,
     UniswapV2Factory,
     TestWETH__factory,
-    StrategyManager__v3__factory,
+    StrategyManager__v4__factory,
 } from '@src/typechain'
 import { ZeroHash, ZeroAddress, Signer, parseEther } from 'ethers'
 import { NetworkService } from '@src/NetworkService'
@@ -110,16 +110,23 @@ export class ProjectDeployer {
         )
 
         // Set referrer percentage to 1%
-        await StrategyManager__v3__factory
+        await StrategyManager__v4__factory
             .connect(strategyManager, owner)
             .initialize__v2(strategyInvestor, strategyPositionManager, 1)
 
         // Set referral duration to 3 years
-        await StrategyManager__v3__factory
+        await StrategyManager__v4__factory
             .connect(strategyManager, owner)
             .initialize__v3(
                 strategyInvestor,
                 YEAR_IN_SECONDS * 3,
+            )
+
+        await StrategyManager__v4__factory
+            .connect(strategyManager, owner)
+            .initialize__v4(
+                strategyPositionManager,
+                1e6, // 100%
             )
 
         const subscriptionSignature = new SubscriptionSignature(
@@ -131,7 +138,7 @@ export class ProjectDeployer {
         return {
             // Contracts
             strategyPositionManager: StrategyPositionManager__factory.connect(strategyPositionManager, owner),
-            strategyManager: StrategyManager__v3__factory.connect(strategyManager, owner),
+            strategyManager: StrategyManager__v4__factory.connect(strategyManager, owner),
             subscriptionManager,
             dca: DollarCostAverage__factory.connect(dca, owner),
             vaultManager: VaultManager__factory.connect(vaultManager, owner),
@@ -188,7 +195,7 @@ export class ProjectDeployer {
         const buyProductDeployParams = this.getDeploymentInfo(BuyProduct__factory)
         const vaultManagerDeployParams = this.getDeploymentInfo(VaultManager__factory)
         const liquidityManagerDeployParams = this.getDeploymentInfo(LiquidityManager__factory)
-        const strategyManagerDeployParams = this.getDeploymentInfo(StrategyManager__v3__factory)
+        const strategyManagerDeployParams = this.getDeploymentInfo(StrategyManager__v4__factory)
         const subscriptionManagerDeployParams = this.getDeploymentInfo(SubscriptionManager__factory)
 
         const {
