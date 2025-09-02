@@ -1,6 +1,7 @@
 import { FeeToType } from '@defihub/shared'
 import { StrategyInvestor__factory } from '@src/typechain'
-import { AbiCoder, ContractTransactionReceipt, Interface } from 'ethers'
+import { ContractTransactionReceipt, Interface } from 'ethers'
+import { decodeFeeEventBytes } from './test-helpers'
 
 export function getEventLog(
     receipt: ContractTransactionReceipt | null,
@@ -29,9 +30,10 @@ export function getFeeEventLog(
 
             if (parsedLog && parsedLog.name === 'Fee') {
                 const [
-                    _,
+                    _strategyId,
+                    _tokenAddress,
                     resultingFeeTo,
-                ] = AbiCoder.defaultAbiCoder().decode(['uint', 'uint8'], parsedLog.args[3])
+                ] = decodeFeeEventBytes(parsedLog.args[3])
 
                 if (resultingFeeTo === BigInt(expectedFeeTo))
                     return parsedLog
