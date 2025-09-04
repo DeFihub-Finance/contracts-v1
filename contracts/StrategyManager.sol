@@ -87,7 +87,7 @@ contract StrategyManager is StrategyStorage, HubOwnable, ICall {
         buyProduct = _initializeParams.buyProduct;
     }
 
-    function createStrategy(CreateStrategyParams memory _params) external virtual {
+    function createStrategy(CreateStrategyParams memory _params) public virtual returns (uint strategyId) {
         uint investmentCount = _params.dcaInvestments.length + _params.vaultInvestments.length;
 
         if (!subscriptionManager.isSubscribed(msg.sender, _params.permit))
@@ -116,7 +116,7 @@ contract StrategyManager is StrategyStorage, HubOwnable, ICall {
         if (dcaPercentage + vaultPercentage + liquidityPercentage + tokenPercentage != 100)
             revert InvalidTotalPercentage();
 
-        uint strategyId = _strategies.length;
+        strategyId = _strategies.length;
 
         Strategy storage strategy = _strategies.push();
         strategy.creator = msg.sender;

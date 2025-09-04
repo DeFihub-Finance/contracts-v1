@@ -7,6 +7,7 @@ import {StrategyStorage} from "./StrategyStorage.sol";
 import {DollarCostAverage} from "../DollarCostAverage.sol";
 import {IBeefyVaultV7} from '../interfaces/IBeefyVaultV7.sol';
 import {INonfungiblePositionManager} from '../interfaces/INonfungiblePositionManager.sol';
+import {LiquidityStorage} from "../libraries/LiquidityStorage.sol";
 import {PairHelpers} from "../helpers/PairHelpers.sol";
 
 contract StrategyPositionManager is StrategyStorage {
@@ -15,6 +16,15 @@ contract StrategyPositionManager is StrategyStorage {
     struct LiquidityMinOutputs {
         uint minOutputToken0;
         uint minOutputToken1;
+    }
+
+    struct LiquidityFeeDistribution {
+        uint total0;
+        uint total1;
+        uint strategist0;
+        uint strategist1;
+        uint treasury0;
+        uint treasury1;
     }
 
     error PositionAlreadyClosed();
@@ -39,7 +49,8 @@ contract StrategyPositionManager is StrategyStorage {
             _closePositionsVault(_vaultPositionsPerPosition[msg.sender][_positionId]),
             _closePositionsLiquidity(
                 _liquidityPositionsPerPosition[msg.sender][_positionId],
-                _liquidityMinOutputs
+                _liquidityMinOutputs,
+                position.strategyId
             ),
             _collectPositionsBuy(_buyPositionsPerPosition[msg.sender][_positionId])
         );
@@ -50,8 +61,8 @@ contract StrategyPositionManager is StrategyStorage {
     ) private returns (uint[][] memory) {
         uint[][] memory withdrawnAmounts = new uint[][](_positions.length);
 
-        for (uint i; i < _positions.length; ++i) {
-            uint positionId = _positions[i];
+        for (uint index; index < _positions.length; ++index) {
+            uint positionId = _positions[index];
             DollarCostAverage.PoolInfo memory poolInfo = dca.getPool(
                 dca.getPosition(address(this), positionId).poolId
             );
@@ -66,15 +77,15 @@ contract StrategyPositionManager is StrategyStorage {
             uint outputTokenAmount = outputToken.balanceOf(address(this)) - initialOutputTokenBalance;
 
             if (inputTokenAmount > 0 || outputTokenAmount > 0) {
-                withdrawnAmounts[i] = new uint[](2);
+                withdrawnAmounts[index] = new uint[](2);
 
                 if (inputTokenAmount > 0) {
-                    withdrawnAmounts[i][0] = inputTokenAmount;
+                    withdrawnAmounts[index][0] = inputTokenAmount;
                     inputToken.safeTransfer(msg.sender, inputTokenAmount);
                 }
 
                 if (outputTokenAmount > 0) {
-                    withdrawnAmounts[i][1] = outputTokenAmount;
+                    withdrawnAmounts[index][1] = outputTokenAmount;
                     outputToken.safeTransfer(msg.sender, outputTokenAmount);
                 }
             }
@@ -88,8 +99,8 @@ contract StrategyPositionManager is StrategyStorage {
     ) private returns (uint[] memory) {
         uint[] memory withdrawnAmounts = new uint[](_positions.length);
 
-        for (uint i; i < _positions.length; ++i) {
-            VaultPosition memory vaultPosition = _positions[i];
+        for (uint index; index < _positions.length; ++index) {
+            VaultPosition memory vaultPosition = _positions[index];
             IBeefyVaultV7 vault = IBeefyVaultV7(vaultPosition.vault);
 
             uint initialBalance = vault.want().balanceOf(address(this));
@@ -99,7 +110,7 @@ contract StrategyPositionManager is StrategyStorage {
             uint withdrawnAmount = vault.want().balanceOf(address(this)) - initialBalance;
 
             if (withdrawnAmount > 0) {
-                withdrawnAmounts[i] = withdrawnAmount;
+                withdrawnAmounts[index] = withdrawnAmount;
                 vault.want().safeTransfer(msg.sender, withdrawnAmount);
             }
         }
@@ -109,7 +120,8 @@ contract StrategyPositionManager is StrategyStorage {
 
     function _closePositionsLiquidity(
         LiquidityPosition[] memory _positions,
-        LiquidityMinOutputs[] memory _minOutputs
+        LiquidityMinOutputs[] memory _minOutputs,
+        uint _strategyId
     ) private returns (uint[][] memory) {
         uint[][] memory withdrawnAmounts = new uint[][](_positions.length);
 
@@ -123,6 +135,11 @@ contract StrategyPositionManager is StrategyStorage {
                 position.tokenId
             );
 
+            // Claim must be called before decreasing liquidity to subtract fees only from rewards
+            (uint rewards0, uint rewards1) = _claimLiquidityPositionTokens(position, pair);
+
+            (uint userRewards0, uint userRewards1) = _distributeLiquidityRewards(_strategyId, pair, rewards0, rewards1);
+
             position.positionManager.decreaseLiquidity(
                 INonfungiblePositionManager.DecreaseLiquidityParams({
                     tokenId: position.tokenId,
@@ -133,12 +150,16 @@ contract StrategyPositionManager is StrategyStorage {
                 })
             );
 
-            (uint amount0, uint amount1) = _claimLiquidityPositionTokens(position, pair);
+            (uint balance0, uint balance1) = _claimLiquidityPositionTokens(position, pair);
+
+            // TODO maybe store in a variable instead of sum twice
+            IERC20Upgradeable(pair.token0).safeTransfer(msg.sender, balance0 + userRewards0);
+            IERC20Upgradeable(pair.token1).safeTransfer(msg.sender, balance1 + userRewards1);
 
             withdrawnAmounts[index] = new uint[](2);
 
-            withdrawnAmounts[index][0] = amount0;
-            withdrawnAmounts[index][1] = amount1;
+            withdrawnAmounts[index][0] = balance0 + userRewards0;
+            withdrawnAmounts[index][1] = balance1 + userRewards1;
         }
 
         return withdrawnAmounts;
@@ -163,7 +184,10 @@ contract StrategyPositionManager is StrategyStorage {
             position.strategyId,
             _positionId,
             _collectPositionsDca(_dcaPositionsPerPosition[msg.sender][_positionId]),
-            _collectPositionsLiquidity(_liquidityPositionsPerPosition[msg.sender][_positionId]),
+            _collectPositionsLiquidity(
+                _liquidityPositionsPerPosition[msg.sender][_positionId],
+                position.strategyId
+            ),
             _collectPositionsBuy(buyPositions)
         );
     }
@@ -171,8 +195,8 @@ contract StrategyPositionManager is StrategyStorage {
     function _collectPositionsDca(uint[] memory _positions) private returns (uint[] memory) {
         uint[] memory withdrawnAmounts = new uint[](_positions.length);
 
-        for (uint i; i < _positions.length; ++i) {
-            uint positionId = _positions[i];
+        for (uint index; index < _positions.length; ++index) {
+            uint positionId = _positions[index];
             DollarCostAverage.PoolInfo memory poolInfo = dca.getPool(dca.getPosition(address(this), positionId).poolId);
             IERC20Upgradeable outputToken = IERC20Upgradeable(poolInfo.outputToken);
             uint initialOutputTokenBalance = outputToken.balanceOf(address(this));
@@ -182,7 +206,7 @@ contract StrategyPositionManager is StrategyStorage {
             uint outputTokenAmount = outputToken.balanceOf(address(this)) - initialOutputTokenBalance;
 
             if (outputTokenAmount > 0) {
-                withdrawnAmounts[i] = outputTokenAmount;
+                withdrawnAmounts[index] = outputTokenAmount;
                 outputToken.safeTransfer(msg.sender, outputTokenAmount);
             }
         }
@@ -191,7 +215,8 @@ contract StrategyPositionManager is StrategyStorage {
     }
 
     function _collectPositionsLiquidity(
-        LiquidityPosition[] memory _positions
+        LiquidityPosition[] memory _positions,
+        uint _strategyId
     ) private returns (uint[][] memory) {
         uint[][] memory withdrawnAmounts = new uint[][](_positions.length);
 
@@ -202,12 +227,17 @@ contract StrategyPositionManager is StrategyStorage {
                 position.tokenId
             );
 
-            (uint amount0, uint amount1) = _claimLiquidityPositionTokens(position, pair);
+            (uint rewards0, uint rewards1) = _claimLiquidityPositionTokens(position, pair);
+
+            (uint userRewards0, uint userRewards1) = _distributeLiquidityRewards(_strategyId, pair, rewards0, rewards1);
+
+            IERC20Upgradeable(pair.token0).safeTransfer(msg.sender, userRewards0);
+            IERC20Upgradeable(pair.token1).safeTransfer(msg.sender, userRewards1);
 
             withdrawnAmounts[index] = new uint[](2);
 
-            withdrawnAmounts[index][0] = amount0;
-            withdrawnAmounts[index][1] = amount1;
+            withdrawnAmounts[index][0] = userRewards0;
+            withdrawnAmounts[index][1] = userRewards1;
         }
 
         return withdrawnAmounts;
@@ -231,21 +261,78 @@ contract StrategyPositionManager is StrategyStorage {
         LiquidityPosition memory _position,
         PairHelpers.Pair memory _pair
     ) private returns (uint amount0, uint amount1) {
-        address recipient = msg.sender;
-        (uint initialBalance0, uint initialBalance1) = PairHelpers.getBalances(_pair, recipient);
+        (uint initialBalance0, uint initialBalance1) = PairHelpers.getBalances(_pair, address(this));
 
         _position.positionManager.collect(
             INonfungiblePositionManager.CollectParams({
                 tokenId: _position.tokenId,
-                recipient: recipient,
+                recipient: address(this),
                 amount0Max: type(uint128).max,
                 amount1Max: type(uint128).max
             })
         );
 
-        (uint finalBalance0, uint finalBalance1) = PairHelpers.getBalances(_pair, recipient);
+        (uint finalBalance0, uint finalBalance1) = PairHelpers.getBalances(_pair, address(this));
 
         amount0 = finalBalance0 - initialBalance0;
         amount1 = finalBalance1 - initialBalance1;
+    }
+
+    function _distributeLiquidityRewards(
+        uint _strategyId,
+        PairHelpers.Pair memory _pair,
+        uint _amount0,
+        uint _amount1
+    ) private returns (uint userAmount0, uint userAmount1) {
+        LiquidityStorage.LiquidityStorageStruct storage liquidityStorage = LiquidityStorage.getLiquidityStruct();
+        LiquidityFeeDistribution memory feeDistribution;
+        address strategist = _strategies[_strategyId].creator;
+        uint32 strategyLiquidityFeeBP = liquidityStorage.strategiesLiquidityFeeBP[_strategyId];
+
+        if (strategyLiquidityFeeBP > 0) {
+            feeDistribution.total0 = _amount0 * strategyLiquidityFeeBP / 1e6;
+            feeDistribution.total1 = _amount1 * strategyLiquidityFeeBP / 1e6;
+            feeDistribution.strategist0 = feeDistribution.total0 * liquidityStorage.strategistRewardFeeSplitBP / 1e6;
+            feeDistribution.strategist1 = feeDistribution.total1 * liquidityStorage.strategistRewardFeeSplitBP / 1e6;
+            feeDistribution.treasury0 = feeDistribution.total0 - feeDistribution.strategist0;
+            feeDistribution.treasury1 = feeDistribution.total1 - feeDistribution.strategist1;
+
+            liquidityStorage.rewardBalances[strategist][_pair.token0] += feeDistribution.strategist0;
+            liquidityStorage.rewardBalances[strategist][_pair.token1] += feeDistribution.strategist1;
+
+            emit Fee(
+                msg.sender,
+                strategist,
+                feeDistribution.strategist0,
+                abi.encode(_strategyId, _pair.token0, FEE_TO_STRATEGIST, FEE_OP_LIQUIDITY_FEES)
+            );
+
+            emit Fee(
+                msg.sender,
+                strategist,
+                feeDistribution.strategist1,
+                abi.encode(_strategyId, _pair.token1, FEE_TO_STRATEGIST, FEE_OP_LIQUIDITY_FEES)
+            );
+
+            liquidityStorage.rewardBalances[treasury][_pair.token0] += feeDistribution.treasury0;
+            liquidityStorage.rewardBalances[treasury][_pair.token1] += feeDistribution.treasury1;
+
+            emit Fee(
+                msg.sender,
+                treasury,
+                feeDistribution.treasury0,
+                abi.encode(_strategyId, _pair.token0, FEE_TO_PROTOCOL, FEE_OP_LIQUIDITY_FEES)
+            );
+
+            emit Fee(
+                msg.sender,
+                treasury,
+                feeDistribution.treasury1,
+                abi.encode(_strategyId, _pair.token1, FEE_TO_PROTOCOL, FEE_OP_LIQUIDITY_FEES)
+            );
+        }
+
+        userAmount0 = _amount0 - feeDistribution.total0;
+        userAmount1 = _amount1 - feeDistribution.total1;
     }
 }

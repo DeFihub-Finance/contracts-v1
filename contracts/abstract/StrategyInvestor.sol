@@ -406,7 +406,7 @@ contract StrategyInvestor is StrategyStorage {
                 msg.sender,
                 strategy.creator,
                 strategistFee,
-                abi.encode(_params.strategyId, FEE_TO_STRATEGIST)
+                abi.encode(_params.strategyId, stable, FEE_TO_STRATEGIST, FEE_OP_STRATEGY_DEPOSIT)
             );
         }
 
@@ -422,7 +422,7 @@ contract StrategyInvestor is StrategyStorage {
                 msg.sender,
                 referrer,
                 referrerFee,
-                abi.encode(_params.strategyId, FEE_TO_REFERRER)
+                abi.encode(_params.strategyId, stable, FEE_TO_REFERRER, FEE_OP_STRATEGY_DEPOSIT)
             );
         }
 
@@ -434,7 +434,7 @@ contract StrategyInvestor is StrategyStorage {
             msg.sender,
             treasury,
             protocolFee,
-            abi.encode(_params.strategyId, FEE_TO_PROTOCOL)
+            abi.encode(_params.strategyId, stable, FEE_TO_PROTOCOL, FEE_OP_STRATEGY_DEPOSIT)
         );
 
         return _params.stableAmount - amountBaseFee - amountNonSubscriberFee;
