@@ -231,7 +231,6 @@ contract StrategyPositionManager is StrategyStorage {
 
             (uint userRewards0, uint userRewards1) = _distributeLiquidityRewards(_strategyId, pair, rewards0, rewards1);
 
-
             IERC20Upgradeable(pair.token0).safeTransfer(msg.sender, userRewards0);
             IERC20Upgradeable(pair.token1).safeTransfer(msg.sender, userRewards1);
 
