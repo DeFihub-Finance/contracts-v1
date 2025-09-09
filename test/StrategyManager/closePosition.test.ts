@@ -21,6 +21,7 @@ import {
     getAccountRewardsMap,
     getRewardsDistributionFeeEvents,
     getAllFeeEventLogs,
+    mapPositionsFeesByFeeToAndToken,
 } from '@src/helpers'
 
 /*
@@ -175,23 +176,9 @@ describe('StrategyManager#closePosition', () => {
                     account1,
                     strategyManager,
                 )
+
                 const tokens = new Set(positionsFees.flatMap(fees => fees.tokens))
-
-                const feesByFeeToAndToken = positionsFees.reduce<Record<number, Record<string, bigint>>>((acc, fees) => {
-                    for (let index = 0; index < fees.tokens.length; index++) {
-                        const token = fees.tokens[index]
-                        const protocolFee = fees[FeeTo.PROTOCOL][index]
-                        const strategistFee = fees[FeeTo.STRATEGIST][index]
-
-                        acc[FeeTo.PROTOCOL][token] = (acc[FeeTo.PROTOCOL][token] || BigInt(0)) + protocolFee
-                        acc[FeeTo.STRATEGIST][token] = (acc[FeeTo.STRATEGIST][token] || BigInt(0)) + strategistFee
-                    }
-
-                    return acc
-                }, {
-                    [FeeTo.PROTOCOL]: {},
-                    [FeeTo.STRATEGIST]: {},
-                })
+                const feesByFeeToAndToken = mapPositionsFeesByFeeToAndToken(positionsFees)
 
                 const [
                     treasuryRewardBalancesBefore,

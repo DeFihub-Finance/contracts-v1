@@ -199,23 +199,49 @@ export async function getRewardsDistributionFeeEvents(
         ),
     ])
 
+    const recipientOrder = [FeeTo.STRATEGIST, FeeTo.PROTOCOL] as const
     const expectedEvents: FeeEvent.OutputTuple[] = []
 
-    for (const fees of positionsFees) {
+    for (const { tokens, amountsByFeeTo } of positionsFees) {
         // When distributing liquidity rewards, Fee events are emitted first to
         // strategist and then to the protocol
-        for (const feeTo of [FeeTo.STRATEGIST, FeeTo.PROTOCOL]) {
+        for (const feeTo of recipientOrder) {
+            const amounts = amountsByFeeTo[feeTo]
+
             // Generate Fee event for each token
-            for (let index = 0; index < fees.tokens.length; index++) {
+            for (let index = 0; index < tokens.length; index++) {
                 expectedEvents.push([
                     investorAddress,
                     feeTo === FeeTo.PROTOCOL ? treasuryAddress : strategistAddress,
-                    fees[feeTo][index],
-                    encodeFeeEventBytes(strategyId, fees.tokens[index], feeTo, FeeOperations.LIQUIDITY_FEES),
+                    amounts[index],
+                    encodeFeeEventBytes(strategyId, tokens[index], feeTo, FeeOperations.LIQUIDITY_FEES),
                 ])
             }
         }
     }
 
     return expectedEvents
+}
+
+export function mapPositionsFeesByFeeToAndToken(
+    positionsFees: Awaited<ReturnType<typeof LiquidityHelpers.getPositionFeeAmounts>>,
+) {
+    return positionsFees.reduce<Record<number, Record<string, bigint>>>(
+        (acc, { amountsByFeeTo, tokens }) => {
+            for (let index = 0; index < tokens.length; index++) {
+                const token = tokens[index]
+                const protocolFee = amountsByFeeTo[FeeTo.PROTOCOL][index]
+                const strategistFee = amountsByFeeTo[FeeTo.STRATEGIST][index]
+
+                acc[FeeTo.PROTOCOL][token] = (acc[FeeTo.PROTOCOL][token] || BigInt(0)) + protocolFee
+                acc[FeeTo.STRATEGIST][token] = (acc[FeeTo.STRATEGIST][token] || BigInt(0)) + strategistFee
+            }
+
+            return acc
+        },
+        {
+            [FeeTo.PROTOCOL]: {},
+            [FeeTo.STRATEGIST]: {},
+        },
+    )
 }

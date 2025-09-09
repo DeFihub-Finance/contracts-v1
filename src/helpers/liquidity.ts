@@ -167,8 +167,10 @@ export class LiquidityHelpers {
 
             return {
                 tokens: [token0, token1],
-                [FeeTo.PROTOCOL]: [protocol0, protocol1],
-                [FeeTo.STRATEGIST]: [strategist0, strategist1],
+                amountsByFeeTo: {
+                    [FeeTo.PROTOCOL]: [protocol0, protocol1],
+                    [FeeTo.STRATEGIST]: [strategist0, strategist1],
+                },
             }
         }))
     }
