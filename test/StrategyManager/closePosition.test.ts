@@ -167,7 +167,7 @@ describe('StrategyManager#closePosition', () => {
         })
     })
 
-    describe.only('Given an open position with only liquidity', () => {
+    describe('Given an open position with only liquidity', () => {
         describe('When the owner of position calls closePosition', () => {
             it('Then liquidity reward fees are distributed to strategist and treasury', async () => {
                 const positionsFees = await LiquidityHelpers.getPositionFeeAmounts(
