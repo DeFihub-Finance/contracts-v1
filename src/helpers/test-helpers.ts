@@ -202,9 +202,10 @@ export async function getRewardsDistributionFeeEvents(
     const expectedEvents: FeeEvent.OutputTuple[] = []
 
     for (const fees of positionsFees) {
-        // Fee events are emitted first to strategist then to protocol
+        // When distributing liquidity rewards, Fee events are emitted first to
+        // strategist and then to the protocol
         for (const feeTo of [FeeTo.STRATEGIST, FeeTo.PROTOCOL]) {
-            // Generate event for each token
+            // Generate Fee event for each token
             for (let index = 0; index < fees.tokens.length; index++) {
                 expectedEvents.push([
                     investorAddress,
