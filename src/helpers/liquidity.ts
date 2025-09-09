@@ -1,10 +1,12 @@
 import { ethers } from 'hardhat'
-import { AddressLike, ZeroAddress } from 'ethers'
+import { AddressLike } from 'ethers'
 import { BigNumber } from '@ryze-blockchain/ethereum'
-import { ERC20Priced, MAX_UINT_128, PathUniswapV3, Slippage, UniswapV3 } from '@defihub/shared'
+import { ERC20Priced, FeeTo, PathUniswapV3, Slippage, UniswapV3 } from '@defihub/shared'
 import { StrategyStorage } from '@src/typechain/artifacts/contracts/StrategyManager'
 import {
     NonFungiblePositionManager,
+    NonFungiblePositionManager__factory,
+    StrategyManager__v4,
     UniswapV3Factory,
     UniversalRouter,
     UseFee,
@@ -14,6 +16,8 @@ import { SwapEncoder } from '@src/helpers/SwapEncoder'
 import { ONE_PERCENT } from '@src/constants'
 
 export class LiquidityHelpers {
+    private static readonly MAX_FEE = BigInt(1e6)
+
     public static getMinOutput(
         amount: bigint,
         inputToken: ERC20Priced,
@@ -106,26 +110,67 @@ export class LiquidityHelpers {
     }
 
     // TODO update on shared (UniswapV3.getPositionFees)
-    public static async getPositionFees(
+    public static async getDeductedPositionFees(
         tokenId: bigint,
         liquidityRewardFeeBP: bigint,
         positionManager: NonFungiblePositionManager,
         from: AddressLike,
     ): Promise<{ amount0: bigint, amount1: bigint }> {
-        const { amount0, amount1 } = await positionManager.collect.staticCall({
+        const { amount0, amount1 } = await UniswapV3.getPositionFees(
             tokenId,
-            recipient: ZeroAddress,
-            amount0Max: MAX_UINT_128,
-            amount1Max: MAX_UINT_128,
-        }, { from })
+            positionManager.connect(ethers.provider),
+            from,
+        )
 
-        const amountMinusFees0 = amount0 - (amount0 * liquidityRewardFeeBP / BigInt(1e6))
-        const amountMinusFees1 = amount1 - (amount1 * liquidityRewardFeeBP / BigInt(1e6))
+        const amountMinusFees0 = amount0 - (amount0 * liquidityRewardFeeBP / this.MAX_FEE)
+        const amountMinusFees1 = amount1 - (amount1 * liquidityRewardFeeBP / this.MAX_FEE)
 
         return {
             amount0: amountMinusFees0,
             amount1: amountMinusFees1,
         }
+    }
+
+    public static async getPositionFeeAmounts(
+        strategyId: bigint,
+        positionId: bigint,
+        investor: AddressLike,
+        strategyManager: StrategyManager__v4,
+    ) {
+        const [
+            strategistRewardFeeSplit,
+            strategyLiquidityFee,
+            { liquidityPositions },
+        ] = await Promise.all([
+            strategyManager.getStrategistRewardFeeSplitBP(),
+            strategyManager.getLiquidityRewardFee(strategyId),
+            strategyManager.getPositionInvestments(investor, positionId),
+        ])
+
+        return Promise.all(liquidityPositions.map(async position => {
+            const positionManager = NonFungiblePositionManager__factory.connect(position.positionManager, ethers.provider)
+
+            const [
+                { token0, token1 },
+                { amount0, amount1 },
+            ] = await Promise.all([
+                positionManager.positions(position.tokenId),
+                UniswapV3.getPositionFees(position.tokenId, positionManager, strategyManager),
+            ])
+
+            const total0 = amount0 * strategyLiquidityFee / this.MAX_FEE
+            const total1 = amount1 * strategyLiquidityFee / this.MAX_FEE
+            const strategist0 = total0 * strategistRewardFeeSplit / this.MAX_FEE
+            const strategist1 = total1 * strategistRewardFeeSplit / this.MAX_FEE
+            const protocol0 = total0 - strategist0
+            const protocol1 = total1 - strategist1
+
+            return {
+                tokens: [token0, token1],
+                [FeeTo.PROTOCOL]: [protocol0, protocol1],
+                [FeeTo.STRATEGIST]: [strategist0, strategist1],
+            }
+        }))
     }
 
     public static async getLiquidityPositionInfo(
@@ -147,7 +192,7 @@ export class LiquidityHelpers {
             fees,
         ] = await Promise.all([
             positionManager.positions(tokenId),
-            this.getPositionFees(
+            this.getDeductedPositionFees(
                 tokenId,
                 liquidityRewardFeeBP,
                 positionManager.connect(ethers.provider),

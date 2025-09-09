@@ -35,6 +35,22 @@ export async function getAccountBalanceMap(
     return tokenBalanceMap
 }
 
+export async function getAccountRewardsMap(
+    account: Signer,
+    tokens: Set<string>,
+    strategyManager: StrategyManager__v4,
+) {
+    const liquidityRewardsMap: Record<string, bigint> = {}
+
+    await Promise.all(
+        Array.from(tokens).map(async token => {
+            liquidityRewardsMap[token] = await strategyManager.getRewards(account, token)
+        }),
+    )
+
+    return liquidityRewardsMap
+}
+
 export async function getStrategyBalanceMap(
     strategyManager: StrategyManager__v4,
     dca: DollarCostAverage,
