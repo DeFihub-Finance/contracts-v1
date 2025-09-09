@@ -19,6 +19,9 @@ export const StrategyBalanceModes = {
 
 export type StrategyBalanceMode = typeof StrategyBalanceModes[keyof typeof StrategyBalanceModes]
 
+// Order of recipients when distributing liquidity reward fees
+const RECIPIENT_ORDER = [FeeTo.STRATEGIST, FeeTo.PROTOCOL] as const
+
 export async function getAccountBalanceMap(
     tokens: Set<string>,
     account: Signer,
@@ -199,13 +202,12 @@ export async function getRewardsDistributionFeeEvents(
         ),
     ])
 
-    const recipientOrder = [FeeTo.STRATEGIST, FeeTo.PROTOCOL] as const
     const expectedEvents: FeeEvent.OutputTuple[] = []
 
     for (const { tokens, amountsByFeeTo } of positionsFees) {
         // When distributing liquidity rewards, Fee events are emitted first to
         // strategist and then to the protocol
-        for (const feeTo of recipientOrder) {
+        for (const feeTo of RECIPIENT_ORDER) {
             const amounts = amountsByFeeTo[feeTo]
 
             // Generate Fee event for each token
@@ -230,11 +232,12 @@ export function mapPositionsFeesByFeeToAndToken(
         (acc, { amountsByFeeTo, tokens }) => {
             for (let index = 0; index < tokens.length; index++) {
                 const token = tokens[index]
-                const protocolFee = amountsByFeeTo[FeeTo.PROTOCOL][index]
-                const strategistFee = amountsByFeeTo[FeeTo.STRATEGIST][index]
 
-                acc[FeeTo.PROTOCOL][token] = (acc[FeeTo.PROTOCOL][token] || BigInt(0)) + protocolFee
-                acc[FeeTo.STRATEGIST][token] = (acc[FeeTo.STRATEGIST][token] || BigInt(0)) + strategistFee
+                for (const feeTo of RECIPIENT_ORDER) {
+                    const amount = amountsByFeeTo[feeTo][index]
+
+                    acc[feeTo][token] = (acc[feeTo][token] || BigInt(0)) + amount
+                }
             }
 
             return acc
