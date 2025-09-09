@@ -195,7 +195,7 @@ export class LiquidityHelpers {
             this.getDeductedPositionFees(
                 tokenId,
                 liquidityRewardFeeBP,
-                positionManager.connect(ethers.provider),
+                positionManager,
                 from,
             ),
         ])
