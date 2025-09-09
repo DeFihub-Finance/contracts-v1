@@ -69,6 +69,10 @@ contract StrategyManager__v4 is StrategyManager__v3 {
         return liquidityRewards;
     }
 
+    function getStrategistRewardFeeSplitBP() external view returns (uint32) {
+        return LiquidityStorage.getLiquidityStruct().strategistRewardFeeSplitBP;
+    }
+
     function getLiquidityRewardFee(uint _strategyId) external view returns (uint32) {
         return LiquidityStorage.getLiquidityStruct().strategiesLiquidityFeeBP[_strategyId];
     }
