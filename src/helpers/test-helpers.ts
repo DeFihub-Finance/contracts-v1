@@ -9,7 +9,8 @@ import {
 } from '@src/typechain'
 import { ethers } from 'hardhat'
 import { LiquidityHelpers } from '@src/helpers/liquidity'
-import { FeeOperation, FeeToType } from '@defihub/shared'
+import { FeeOperation, FeeOperations, FeeTo, FeeToType, unwrapAddressLike } from '@defihub/shared'
+import { FeeEvent } from '@src/typechain/artifacts/contracts/abstract/StrategyStorage'
 
 export const StrategyBalanceModes = {
     ALL: 'all',
@@ -159,4 +160,61 @@ export function decodeFeeEventBytes(bytes: string) {
         ['uint', 'address', 'uint8', 'uint8'],
         bytes,
     )
+}
+
+/**
+ * Get expected emitted Fee events when collecting or closing a position.
+ *
+ * @param treasury The treasury address
+ * @param investor The investor address who owns the position
+ * @param strategist The strategist address who owns the strategy
+ * @param strategyId the ID of the strategy
+ * @param positionId the ID of the position
+ * @param strategyManager The strategy manager contract
+ *
+ * @returns an array of expected Fee events
+ */
+export async function getRewardsDistributionFeeEvents(
+    treasury: Signer,
+    investor: Signer,
+    strategist: Signer,
+    strategyId: bigint,
+    positionId: bigint,
+    strategyManager: StrategyManager__v4,
+) {
+    const [
+        treasuryAddress,
+        investorAddress,
+        strategistAddress,
+        positionsFees,
+    ] = await Promise.all([
+        unwrapAddressLike(treasury),
+        unwrapAddressLike(investor),
+        unwrapAddressLike(strategist),
+        LiquidityHelpers.getPositionFeeAmounts(
+            strategyId,
+            positionId,
+            investor,
+            strategyManager,
+        ),
+    ])
+
+    const expectedEvents: FeeEvent.OutputTuple[] = []
+
+    for (const fees of positionsFees) {
+        // Fee events are emitted first to strategist then to protocol
+        for (const feeTo of [FeeTo.STRATEGIST, FeeTo.PROTOCOL]) {
+            // Generate event for each token
+            for (let index = 0; index < fees.tokens.length; index++) {
+                expectedEvents.push([
+                    investorAddress,
+                    feeTo === FeeTo.PROTOCOL ? treasuryAddress : strategistAddress,
+                    fees[feeTo][index],
+                    encodeFeeEventBytes(strategyId, fees.tokens[index], feeTo, FeeOperations.LIQUIDITY_FEES),
+                ])
+            }
+        }
+    }
+
+    return expectedEvents
 }

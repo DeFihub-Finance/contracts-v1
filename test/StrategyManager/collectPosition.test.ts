@@ -18,11 +18,10 @@ import {
     getStrategyBalanceMap,
     StrategyBalanceModes,
     getAllFeeEventLogs,
-    encodeFeeEventBytes,
     getAccountRewardsMap,
+    getRewardsDistributionFeeEvents,
 } from '@src/helpers'
-import { FeeOperations, FeeTo } from '@defihub/shared'
-import { FeeEvent } from '@src/typechain/artifacts/contracts/StrategyManager__v4'
+import { FeeTo } from '@defihub/shared'
 
 /*
     => Given an investor with a position in a strategy
@@ -80,45 +79,6 @@ describe('StrategyManager#collectPosition', () => {
             strategyPositionId,
             StrategyBalanceModes.REWARDS,
         )
-    }
-
-    // Get expected Fee events from a collect transaction
-    async function getExpectedFeeEvents() {
-        const [
-            senderAddress,
-            treasuryAddress,
-            strategistAddress,
-            positionsFees,
-        ] = await Promise.all([
-            account1.getAddress(),
-            treasury.getAddress(),
-            account0.getAddress(),
-            LiquidityHelpers.getPositionFeeAmounts(
-                liquidityStrategyId,
-                liquidityPositionId,
-                account1,
-                strategyManager,
-            ),
-        ])
-
-        const expectedEvents: FeeEvent.OutputTuple[] = []
-
-        for (const fees of positionsFees) {
-            // Fee events are emitted first to strategist then to protocol
-            for (const feeTo of [FeeTo.STRATEGIST, FeeTo.PROTOCOL]) {
-                // Generate event for each token
-                for (let index = 0; index < fees.tokens.length; index++) {
-                    expectedEvents.push([
-                        senderAddress,
-                        feeTo === FeeTo.PROTOCOL ? treasuryAddress : strategistAddress,
-                        fees[feeTo][index],
-                        encodeFeeEventBytes(liquidityStrategyId, fees.tokens[index], feeTo, FeeOperations.LIQUIDITY_FEES),
-                    ])
-                }
-            }
-        }
-
-        return expectedEvents
     }
 
     beforeEach(async () => {
@@ -255,7 +215,14 @@ describe('StrategyManager#collectPosition', () => {
                 })
 
                 it('then emit Fee event to strategist and treasury', async () => {
-                    const expectedFeeEvents = await getExpectedFeeEvents()
+                    const expectedFeeEvents = await getRewardsDistributionFeeEvents(
+                        treasury,
+                        account1,
+                        account0,
+                        liquidityStrategyId,
+                        liquidityPositionId,
+                        strategyManager,
+                    )
 
                     const receipt = await (
                         await strategyManager.connect(account1).collectPosition(liquidityPositionId)
