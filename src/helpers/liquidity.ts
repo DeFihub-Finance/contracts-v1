@@ -16,7 +16,7 @@ import { SwapEncoder } from '@src/helpers/SwapEncoder'
 import { ONE_PERCENT } from '@src/constants'
 
 export class LiquidityHelpers {
-    private static readonly MAX_FEE = BigInt(1e6)
+    private static readonly ONE_HUNDRED_PERCENT_IN_BP = BigInt(1e6)
 
     public static getMinOutput(
         amount: bigint,
@@ -122,8 +122,8 @@ export class LiquidityHelpers {
             from,
         )
 
-        const amountMinusFees0 = amount0 - (amount0 * liquidityRewardFeeBP / this.MAX_FEE)
-        const amountMinusFees1 = amount1 - (amount1 * liquidityRewardFeeBP / this.MAX_FEE)
+        const amountMinusFees0 = amount0 - (amount0 * liquidityRewardFeeBP / this.ONE_HUNDRED_PERCENT_IN_BP)
+        const amountMinusFees1 = amount1 - (amount1 * liquidityRewardFeeBP / this.ONE_HUNDRED_PERCENT_IN_BP)
 
         return {
             amount0: amountMinusFees0,
@@ -158,10 +158,10 @@ export class LiquidityHelpers {
                 UniswapV3.getPositionFees(position.tokenId, positionManager, strategyManager),
             ])
 
-            const total0 = amount0 * strategyLiquidityFee / this.MAX_FEE
-            const total1 = amount1 * strategyLiquidityFee / this.MAX_FEE
-            const strategist0 = total0 * strategistRewardFeeSplit / this.MAX_FEE
-            const strategist1 = total1 * strategistRewardFeeSplit / this.MAX_FEE
+            const total0 = amount0 * strategyLiquidityFee / this.ONE_HUNDRED_PERCENT_IN_BP
+            const total1 = amount1 * strategyLiquidityFee / this.ONE_HUNDRED_PERCENT_IN_BP
+            const strategist0 = total0 * strategistRewardFeeSplit / this.ONE_HUNDRED_PERCENT_IN_BP
+            const strategist1 = total1 * strategistRewardFeeSplit / this.ONE_HUNDRED_PERCENT_IN_BP
             const protocol0 = total0 - strategist0
             const protocol1 = total1 - strategist1
 
