@@ -152,14 +152,16 @@ contract StrategyPositionManager is StrategyStorage {
 
             (uint balance0, uint balance1) = _claimLiquidityPositionTokens(position, pair);
 
-            // TODO maybe store in a variable instead of sum twice
-            IERC20Upgradeable(pair.token0).safeTransfer(msg.sender, balance0 + userRewards0);
-            IERC20Upgradeable(pair.token1).safeTransfer(msg.sender, balance1 + userRewards1);
+            uint transferAmount0 = balance0 + userRewards0;
+            uint transferAmount1 = balance1 + userRewards1;
+
+            IERC20Upgradeable(pair.token0).safeTransfer(msg.sender, transferAmount0);
+            IERC20Upgradeable(pair.token1).safeTransfer(msg.sender, transferAmount1);
 
             withdrawnAmounts[index] = new uint[](2);
 
-            withdrawnAmounts[index][0] = balance0 + userRewards0;
-            withdrawnAmounts[index][1] = balance1 + userRewards1;
+            withdrawnAmounts[index][0] = transferAmount0;
+            withdrawnAmounts[index][1] = transferAmount1;
         }
 
         return withdrawnAmounts;
