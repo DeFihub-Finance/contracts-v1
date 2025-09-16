@@ -1,10 +1,10 @@
 import { expect } from 'chai'
-import { AbiCoder, parseEther, Signer, ZeroAddress } from 'ethers'
+import { parseEther, Signer, ZeroAddress } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import {
     DollarCostAverage,
     StrategyInvestor,
-    StrategyManager__v2,
+    StrategyManager__v4,
     SubscriptionManager,
     TestERC20,
     TestVault,
@@ -15,13 +15,14 @@ import {
 } from '@src/typechain'
 import { createStrategyFixture } from './fixtures/create-strategy.fixture'
 import {
+    encodeFeeEventBytes,
     expectCustomError,
     getFeeEventLog,
     LiquidityHelpers,
     SwapEncoder,
     UniswapV3 as UniswapV3Helper,
 } from '@src/helpers'
-import { ERC20Priced, Fees, FeeTo, PathUniswapV3, Slippage, UniswapV3, unwrapAddressLike } from '@defihub/shared'
+import { ERC20Priced, FeeOperations, Fees, FeeTo, PathUniswapV3, Slippage, UniswapV3, unwrapAddressLike } from '@defihub/shared'
 import { SubscriptionSignature } from '@src/SubscriptionSignature'
 import { Compare } from '@src/Compare'
 import { ONE_PERCENT } from '@src/constants'
@@ -69,7 +70,7 @@ describe('StrategyManager#invest', () => {
     let wethPriced: ERC20Priced
 
     // hub contracts
-    let strategyManager: StrategyManager__v2
+    let strategyManager: StrategyManager__v4
     let vault: TestVault
     let dca: DollarCostAverage
     let liquidityManager: UseFee
@@ -599,7 +600,7 @@ describe('StrategyManager#invest', () => {
                     await unwrapAddressLike(account1),
                     await unwrapAddressLike(treasury),
                     protocolFee,
-                    AbiCoder.defaultAbiCoder().encode(['uint', 'uint8'], [strategyId, FeeTo.PROTOCOL]),
+                    encodeFeeEventBytes(strategyId, await unwrapAddressLike(stablecoin), FeeTo.PROTOCOL, FeeOperations.STRATEGY_DEPOSIT),
                 ])
             })
 
@@ -624,7 +625,7 @@ describe('StrategyManager#invest', () => {
                     await unwrapAddressLike(account2),
                     await unwrapAddressLike(treasury),
                     protocolFee,
-                    AbiCoder.defaultAbiCoder().encode(['uint', 'uint8'], [strategyId, FeeTo.PROTOCOL]),
+                    encodeFeeEventBytes(strategyId, await unwrapAddressLike(stablecoin), FeeTo.PROTOCOL, FeeOperations.STRATEGY_DEPOSIT),
                 ])
             })
         })
