@@ -292,10 +292,10 @@ contract StrategyPositionManager is StrategyStorage {
         uint32 strategyLiquidityFeeBP = liquidityStorage.strategiesLiquidityFeeBP[_strategyId];
 
         if (strategyLiquidityFeeBP > 0) {
-            feeDistribution.total0 = _amount0 * strategyLiquidityFeeBP / 1e6;
-            feeDistribution.total1 = _amount1 * strategyLiquidityFeeBP / 1e6;
-            feeDistribution.strategist0 = feeDistribution.total0 * liquidityStorage.strategistRewardFeeSplitBP / 1e6;
-            feeDistribution.strategist1 = feeDistribution.total1 * liquidityStorage.strategistRewardFeeSplitBP / 1e6;
+            feeDistribution.total0 = _amount0 * strategyLiquidityFeeBP / ONE_HUNDRED_PERCENT_BP;
+            feeDistribution.total1 = _amount1 * strategyLiquidityFeeBP / ONE_HUNDRED_PERCENT_BP;
+            feeDistribution.strategist0 = feeDistribution.total0 * liquidityStorage.strategistRewardFeeSplitBP / ONE_HUNDRED_PERCENT_BP;
+            feeDistribution.strategist1 = feeDistribution.total1 * liquidityStorage.strategistRewardFeeSplitBP / ONE_HUNDRED_PERCENT_BP;
             feeDistribution.treasury0 = feeDistribution.total0 - feeDistribution.strategist0;
             feeDistribution.treasury1 = feeDistribution.total1 - feeDistribution.strategist1;
 
