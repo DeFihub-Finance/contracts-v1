@@ -1,4 +1,7 @@
 import { expect } from 'chai'
+import { Signer } from 'ethers'
+import { ethers } from 'hardhat'
+import { FeeTo, UniswapV3 } from '@defihub/shared'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import {
     DollarCostAverage,
@@ -8,7 +11,6 @@ import {
     UniswapPositionManager,
     UniswapV3Factory,
 } from '@src/typechain'
-import {  Signer } from 'ethers'
 import { runStrategy } from './fixtures/run-strategy.fixture'
 import {
     expectCustomError,
@@ -22,7 +24,6 @@ import {
     getRewardsDistributionFeeEvents,
     mapPositionsFeesByFeeToAndToken,
 } from '@src/helpers'
-import { FeeTo } from '@defihub/shared'
 
 /*
     => Given an investor with a position in a strategy
@@ -227,10 +228,10 @@ describe('StrategyManager#collectPosition', () => {
 
                     const liquidityWithdrawAmounts = await Promise.all(
                         investments.liquidityPositions.map(async position => {
-                            const { amount0, amount1 } = await LiquidityHelpers.getDeductedPositionFees(
+                            const { amount0, amount1 } = await UniswapV3.getDeductedPositionFees(
                                 position.tokenId,
                                 liquidityRewardFeeBP,
-                                positionManagerUniV3,
+                                positionManagerUniV3.connect(ethers.provider),
                                 strategyManager,
                             )
 

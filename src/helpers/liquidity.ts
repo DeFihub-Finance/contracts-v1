@@ -109,28 +109,6 @@ export class LiquidityHelpers {
         }
     }
 
-    // TODO update on shared (UniswapV3.getPositionFees)
-    public static async getDeductedPositionFees(
-        tokenId: bigint,
-        liquidityRewardFeeBP: bigint,
-        positionManager: NonFungiblePositionManager,
-        from: AddressLike,
-    ): Promise<{ amount0: bigint, amount1: bigint }> {
-        const { amount0, amount1 } = await UniswapV3.getPositionFees(
-            tokenId,
-            positionManager.connect(ethers.provider),
-            from,
-        )
-
-        const amountMinusFees0 = amount0 - (amount0 * liquidityRewardFeeBP / this.ONE_HUNDRED_PERCENT_IN_BP)
-        const amountMinusFees1 = amount1 - (amount1 * liquidityRewardFeeBP / this.ONE_HUNDRED_PERCENT_IN_BP)
-
-        return {
-            amount0: amountMinusFees0,
-            amount1: amountMinusFees1,
-        }
-    }
-
     public static async getPositionFeeAmounts(
         strategyId: bigint,
         positionId: bigint,
@@ -194,10 +172,10 @@ export class LiquidityHelpers {
             fees,
         ] = await Promise.all([
             positionManager.positions(tokenId),
-            this.getDeductedPositionFees(
+            UniswapV3.getDeductedPositionFees(
                 tokenId,
                 liquidityRewardFeeBP,
-                positionManager,
+                positionManager.connect(ethers.provider),
                 from,
             ),
         ])
