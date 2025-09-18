@@ -97,6 +97,9 @@ contract StrategyStorage is UseTreasury {
     uint8 public constant FEE_OP_STRATEGY_DEPOSIT = 0;
     uint8 public constant FEE_OP_LIQUIDITY_FEES = 1;
 
+    // HELPERS
+    uint32 constant public ONE_HUNDRED_PERCENT_BP = 1e6; // 100% in basis points (1e6 = 100%)
+
     Strategy[] internal _strategies;
     mapping(uint => bool) internal _hottestStrategiesMapping;
     uint[] internal _hottestStrategiesArray;

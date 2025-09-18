@@ -9,11 +9,11 @@ import { YEAR_IN_SECONDS } from '@src/constants'
 /*
 -> when investV2 method is called
     -> if sender does not have a referrer
-        -> emits Referral event
+        -> emits ReferralLinked event
         -> send fees to referrer
         -> emits Fee event with referrer
     -> if sender already has a referrer
-        -> not emits Referral event
+        -> not emits ReferralLinked event
         -> send fees to first referrer used
         -> emits Fee event with first referrer used
 
@@ -26,7 +26,7 @@ import { YEAR_IN_SECONDS } from '@src/constants'
         -> emits Fee event with referrer
 
 -> when investV2 method is called using an invalid referrer
-    -> not emits Referral event
+    -> not emits ReferralLinked event
     -> not emits Fee event with referrer
     -> send fees only to treasury and strategist
 
@@ -162,7 +162,7 @@ describe('StrategyManager#referral', () => {
         beforeEach(async () => receipt = await (await investV2(referrer0)).wait())
 
         describe('if sender does not have a referrer', () => {
-            it('emits Referral event', async () => {
+            it('emits ReferralLinked event', async () => {
                 const referralEvent = getEventLog(receipt, 'ReferralLinked', strategyManager.interface)
 
                 const block = await receipt?.getBlock()
@@ -209,10 +209,12 @@ describe('StrategyManager#referral', () => {
                 referrerRewardsDelta = await strategyManager.getReferrerRewards(referrer0) - referrerRewardsBefore
             })
 
-            it('not emits Referral event', async () => {
+            it('not emits Referral/ReferralLinked event', async () => {
                 const referralEvent = getEventLog(receipt, 'Referral', strategyManager.interface)
+                const referralLinkedEvent = getEventLog(receipt, 'ReferralLinked', strategyManager.interface)
 
                 expect(referralEvent).to.be.undefined
+                expect(referralLinkedEvent).to.be.undefined
             })
 
             it('send fees to first referrer used', async () => {
@@ -304,10 +306,12 @@ describe('StrategyManager#referral', () => {
     describe('when investV2 method is called using an invalid referrer', () => {
         beforeEach(async () => receipt = await (await investV2(ZeroAddress)).wait())
 
-        it('not emits Referral event', async () => {
+        it('not emits Referral/ReferralLinked event', async () => {
             const referralEvent = getEventLog(receipt, 'Referral', strategyManager.interface)
+            const referralLinkedEvent = getEventLog(receipt, 'ReferralLinked', strategyManager.interface)
 
             expect(referralEvent).to.be.undefined
+            expect(referralLinkedEvent).to.be.undefined
         })
 
         it('not emits Fee event with referrer', async () => {

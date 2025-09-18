@@ -11,12 +11,20 @@ import 'tsconfig-paths/register'
 import 'solidity-coverage'
 import 'solidity-docgen'
 import 'hardhat-contract-sizer'
-import explorerKeys from './.explorer-keys.json'
 import { HardhatUserConfig } from 'hardhat/config'
 import { ChainIds, chainNameSchema, getNetworkConfig } from '@ryze-blockchain/ethereum'
 
+function getExplorerKeys() {
+    try {
+        return require('./.explorer-keys.json')
+    }
+    catch (error) {
+        console.warn('No explorer keys file found, deploys won\'t be verified')
+    }
+}
+
 const currentNetwork = process.env.HARDHAT_NETWORK
-    ? getNetworkConfig(chainNameSchema.parse(process.env.HARDHAT_NETWORK), explorerKeys)
+    ? getNetworkConfig(chainNameSchema.parse(process.env.HARDHAT_NETWORK), getExplorerKeys())
     : undefined
 const accounts = process.env.PRIVATE_KEY
     ? [process.env.PRIVATE_KEY]

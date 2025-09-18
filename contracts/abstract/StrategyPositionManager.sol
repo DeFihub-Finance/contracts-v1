@@ -18,13 +18,10 @@ contract StrategyPositionManager is StrategyStorage {
         uint minOutputToken1;
     }
 
-    struct LiquidityFeeDistribution {
-        uint total0;
-        uint total1;
-        uint strategist0;
-        uint strategist1;
-        uint treasury0;
-        uint treasury1;
+    struct LiquidityRewardSplit {
+        uint userAmount;
+        uint strategistAmount;
+        uint treasuryAmount;
     }
 
     error PositionAlreadyClosed();
@@ -152,14 +149,16 @@ contract StrategyPositionManager is StrategyStorage {
 
             (uint balance0, uint balance1) = _claimLiquidityPositionTokens(position, pair);
 
-            // TODO maybe store in a variable instead of sum twice
-            IERC20Upgradeable(pair.token0).safeTransfer(msg.sender, balance0 + userRewards0);
-            IERC20Upgradeable(pair.token1).safeTransfer(msg.sender, balance1 + userRewards1);
+            uint transferAmount0 = balance0 + userRewards0;
+            uint transferAmount1 = balance1 + userRewards1;
+
+            IERC20Upgradeable(pair.token0).safeTransfer(msg.sender, transferAmount0);
+            IERC20Upgradeable(pair.token1).safeTransfer(msg.sender, transferAmount1);
 
             withdrawnAmounts[index] = new uint[](2);
 
-            withdrawnAmounts[index][0] = balance0 + userRewards0;
-            withdrawnAmounts[index][1] = balance1 + userRewards1;
+            withdrawnAmounts[index][0] = transferAmount0;
+            withdrawnAmounts[index][1] = transferAmount1;
         }
 
         return withdrawnAmounts;
@@ -231,7 +230,6 @@ contract StrategyPositionManager is StrategyStorage {
 
             (uint userRewards0, uint userRewards1) = _distributeLiquidityRewards(_strategyId, pair, rewards0, rewards1);
 
-
             IERC20Upgradeable(pair.token0).safeTransfer(msg.sender, userRewards0);
             IERC20Upgradeable(pair.token1).safeTransfer(msg.sender, userRewards1);
 
@@ -286,54 +284,73 @@ contract StrategyPositionManager is StrategyStorage {
         uint _amount1
     ) private returns (uint userAmount0, uint userAmount1) {
         LiquidityStorage.LiquidityStorageStruct storage liquidityStorage = LiquidityStorage.getLiquidityStruct();
-        LiquidityFeeDistribution memory feeDistribution;
         address strategist = _strategies[_strategyId].creator;
         uint32 strategyLiquidityFeeBP = liquidityStorage.strategiesLiquidityFeeBP[_strategyId];
 
-        if (strategyLiquidityFeeBP > 0) {
-            feeDistribution.total0 = _amount0 * strategyLiquidityFeeBP / 1e6;
-            feeDistribution.total1 = _amount1 * strategyLiquidityFeeBP / 1e6;
-            feeDistribution.strategist0 = feeDistribution.total0 * liquidityStorage.strategistRewardFeeSplitBP / 1e6;
-            feeDistribution.strategist1 = feeDistribution.total1 * liquidityStorage.strategistRewardFeeSplitBP / 1e6;
-            feeDistribution.treasury0 = feeDistribution.total0 - feeDistribution.strategist0;
-            feeDistribution.treasury1 = feeDistribution.total1 - feeDistribution.strategist1;
+        if (strategyLiquidityFeeBP == 0)
+            return (_amount0, _amount1);
 
-            liquidityStorage.rewardBalances[strategist][_pair.token0] += feeDistribution.strategist0;
-            liquidityStorage.rewardBalances[strategist][_pair.token1] += feeDistribution.strategist1;
+        LiquidityRewardSplit memory split0 = _calculateLiquidityRewardSplits(
+            _amount0,
+            strategyLiquidityFeeBP,
+            liquidityStorage.strategistRewardFeeSplitBP
+        );
 
-            emit Fee(
-                msg.sender,
-                strategist,
-                feeDistribution.strategist0,
-                abi.encode(_strategyId, _pair.token0, FEE_TO_STRATEGIST, FEE_OP_LIQUIDITY_FEES)
-            );
+        LiquidityRewardSplit memory split1 = _calculateLiquidityRewardSplits(
+            _amount1,
+            strategyLiquidityFeeBP,
+            liquidityStorage.strategistRewardFeeSplitBP
+        );
 
-            emit Fee(
-                msg.sender,
-                strategist,
-                feeDistribution.strategist1,
-                abi.encode(_strategyId, _pair.token1, FEE_TO_STRATEGIST, FEE_OP_LIQUIDITY_FEES)
-            );
+        liquidityStorage.rewardBalances[strategist][_pair.token0] += split0.strategistAmount;
+        liquidityStorage.rewardBalances[strategist][_pair.token1] += split1.strategistAmount;
 
-            liquidityStorage.rewardBalances[treasury][_pair.token0] += feeDistribution.treasury0;
-            liquidityStorage.rewardBalances[treasury][_pair.token1] += feeDistribution.treasury1;
+        liquidityStorage.rewardBalances[treasury][_pair.token0] += split0.treasuryAmount;
+        liquidityStorage.rewardBalances[treasury][_pair.token1] += split1.treasuryAmount;
 
-            emit Fee(
-                msg.sender,
-                treasury,
-                feeDistribution.treasury0,
-                abi.encode(_strategyId, _pair.token0, FEE_TO_PROTOCOL, FEE_OP_LIQUIDITY_FEES)
-            );
+        emit Fee(
+            msg.sender,
+            strategist,
+            split0.strategistAmount,
+            abi.encode(_strategyId, _pair.token0, FEE_TO_STRATEGIST, FEE_OP_LIQUIDITY_FEES)
+        );
 
-            emit Fee(
-                msg.sender,
-                treasury,
-                feeDistribution.treasury1,
-                abi.encode(_strategyId, _pair.token1, FEE_TO_PROTOCOL, FEE_OP_LIQUIDITY_FEES)
-            );
-        }
+        emit Fee(
+            msg.sender,
+            strategist,
+            split1.strategistAmount,
+            abi.encode(_strategyId, _pair.token1, FEE_TO_STRATEGIST, FEE_OP_LIQUIDITY_FEES)
+        );
 
-        userAmount0 = _amount0 - feeDistribution.total0;
-        userAmount1 = _amount1 - feeDistribution.total1;
+        emit Fee(
+            msg.sender,
+            treasury,
+            split0.treasuryAmount,
+            abi.encode(_strategyId, _pair.token0, FEE_TO_PROTOCOL, FEE_OP_LIQUIDITY_FEES)
+        );
+
+        emit Fee(
+            msg.sender,
+            treasury,
+            split1.treasuryAmount,
+            abi.encode(_strategyId, _pair.token1, FEE_TO_PROTOCOL, FEE_OP_LIQUIDITY_FEES)
+        );
+
+        return (split0.userAmount, split1.userAmount);
+    }
+
+    function _calculateLiquidityRewardSplits(
+        uint _amount,
+        uint _strategyLiquidityFeeBP,
+        uint32 _strategistRewardFeeSplitBP
+    ) internal pure returns (LiquidityRewardSplit memory split) {
+        uint totalFees = _amount * _strategyLiquidityFeeBP / ONE_HUNDRED_PERCENT_BP;
+        uint strategistAmount = totalFees * _strategistRewardFeeSplitBP / ONE_HUNDRED_PERCENT_BP;
+
+        return LiquidityRewardSplit({
+            userAmount: _amount - totalFees,
+            strategistAmount: strategistAmount,
+            treasuryAmount: totalFees - strategistAmount
+        });
     }
 }

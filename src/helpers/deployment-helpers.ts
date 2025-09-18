@@ -44,10 +44,14 @@ export async function getGenericDeployer(deployer: Signer) {
     return genericDeployer
 }
 
-export function getImplementationSalt(saltBuilder: Salt, contract: string) {
+export function getImplementationSalt(
+    saltBuilder: Salt,
+    contract: string,
+    { saveAs }: { saveAs?: string } = {},
+) {
     return saltBuilder.getImplementationSalt(
         contract,
-        { saveAs: contract + 'Implementation' },
+        { saveAs: saveAs || contract + 'Implementation' },
     )
 }
 
@@ -103,11 +107,12 @@ export async function findAddressOrFail(name: string) {
 export async function deployImplementation(
     contractName: string,
     bytecode: string,
+    { saveAs }: { saveAs?: string } = {},
 ) {
     const deployer = await getSigner()
     const projectDeployer = await getProjectDeployer(deployer)
     const saltBuilder = await getSaltBuilder(projectDeployer)
-    const salt = await getImplementationSalt(saltBuilder, contractName)
+    const salt = await getImplementationSalt(saltBuilder, contractName, { saveAs })
     const expectedImplementationAddress = await projectDeployer.getDeployAddress(bytecode, salt)
 
     await sendTransaction(await projectDeployer.deploy.populateTransaction(bytecode, salt), deployer)

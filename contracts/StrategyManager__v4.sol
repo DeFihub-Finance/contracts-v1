@@ -11,8 +11,8 @@ import {ReferralStorage} from "./libraries/ReferralStorage.sol";
 contract StrategyManager__v4 is StrategyManager__v3 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
-    uint32 constant public MIN_STRATEGIST_SPLIT_BP = 50 * 1e6 / 100; // 50% in basis points (1e6 = 100%)
-    uint32 constant public MAX_LIQUIDITY_FEE_BP = 25 * 1e6 / 100; // 25% in basis points (1e6 = 100%)
+    uint32 constant public MIN_STRATEGIST_LIQUIDITY_SPLIT_BP = 50 * ONE_HUNDRED_PERCENT_BP / 100; // 50%
+    uint32 constant public MAX_LIQUIDITY_FEE_BP = 25 * ONE_HUNDRED_PERCENT_BP / 100; // 25%
 
     event StrategistFeeSplitUpdated(uint32 strategistRewardFeeSplitBP);
     event LiquidityRewardFeeSet(uint strategyId, uint32 liquidityRewardFeeBP);
@@ -82,7 +82,10 @@ contract StrategyManager__v4 is StrategyManager__v3 {
     }
 
     function _updateStrategistRewardFeeSplitBP(uint32 _strategistRewardFeeSplitBP) internal {
-        if (_strategistRewardFeeSplitBP < MIN_STRATEGIST_SPLIT_BP)
+        if (
+            _strategistRewardFeeSplitBP < MIN_STRATEGIST_LIQUIDITY_SPLIT_BP ||
+            _strategistRewardFeeSplitBP > ONE_HUNDRED_PERCENT_BP
+        )
             revert InvalidAmount();
 
         LiquidityStorage.getLiquidityStruct().strategistRewardFeeSplitBP = _strategistRewardFeeSplitBP;
