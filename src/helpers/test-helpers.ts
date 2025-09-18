@@ -9,7 +9,8 @@ import {
 } from '@src/typechain'
 import { ethers } from 'hardhat'
 import { LiquidityHelpers } from '@src/helpers/liquidity'
-import { FeeOperation, FeeToType } from '@defihub/shared'
+import { FeeOperation, FeeOperations, FeeTo, FeeToType, unwrapAddressLike } from '@defihub/shared'
+import { FeeEvent } from '@src/typechain/artifacts/contracts/abstract/StrategyStorage'
 
 export const StrategyBalanceModes = {
     ALL: 'all',
@@ -17,6 +18,9 @@ export const StrategyBalanceModes = {
 } as const
 
 export type StrategyBalanceMode = typeof StrategyBalanceModes[keyof typeof StrategyBalanceModes]
+
+// Order of recipients when distributing liquidity reward fees
+const RECIPIENT_ORDER = [FeeTo.STRATEGIST, FeeTo.PROTOCOL] as const
 
 export async function getAccountBalanceMap(
     tokens: Set<string>,
@@ -33,6 +37,22 @@ export async function getAccountBalanceMap(
     )
 
     return tokenBalanceMap
+}
+
+export async function getAccountRewardsMap(
+    account: Signer,
+    tokens: Set<string>,
+    strategyManager: StrategyManager__v4,
+) {
+    const liquidityRewardsMap: Record<string, bigint> = {}
+
+    await Promise.all(
+        Array.from(tokens).map(async token => {
+            liquidityRewardsMap[token] = await strategyManager.getRewards(account, token)
+        }),
+    )
+
+    return liquidityRewardsMap
 }
 
 export async function getStrategyBalanceMap(
@@ -142,5 +162,89 @@ export function decodeFeeEventBytes(bytes: string) {
         // [strategyId, tokenAddress, feeTo, feeOp]
         ['uint', 'address', 'uint8', 'uint8'],
         bytes,
+    )
+}
+
+/**
+ * Get expected emitted Fee events when collecting or closing a position.
+ *
+ * @param treasury The treasury address
+ * @param investor The investor address who owns the position
+ * @param strategist The strategist address who owns the strategy
+ * @param strategyId the ID of the strategy
+ * @param positionId the ID of the position
+ * @param strategyManager The strategy manager contract
+ *
+ * @returns an array of expected Fee events
+ */
+export async function getRewardsDistributionFeeEvents(
+    treasury: Signer,
+    investor: Signer,
+    strategist: Signer,
+    strategyId: bigint,
+    positionId: bigint,
+    strategyManager: StrategyManager__v4,
+) {
+    const [
+        treasuryAddress,
+        investorAddress,
+        strategistAddress,
+        positionsFees,
+    ] = await Promise.all([
+        unwrapAddressLike(treasury),
+        unwrapAddressLike(investor),
+        unwrapAddressLike(strategist),
+        LiquidityHelpers.getPositionFeeAmounts(
+            strategyId,
+            positionId,
+            investor,
+            strategyManager,
+        ),
+    ])
+
+    const expectedEvents: FeeEvent.OutputTuple[] = []
+
+    for (const { tokens, amountsByFeeTo } of positionsFees) {
+        // When distributing liquidity rewards, Fee events are emitted first to
+        // strategist and then to the protocol
+        for (const feeTo of RECIPIENT_ORDER) {
+            const amounts = amountsByFeeTo[feeTo]
+
+            // Generate Fee event for each token
+            for (let index = 0; index < tokens.length; index++) {
+                expectedEvents.push([
+                    investorAddress,
+                    feeTo === FeeTo.PROTOCOL ? treasuryAddress : strategistAddress,
+                    amounts[index],
+                    encodeFeeEventBytes(strategyId, tokens[index], feeTo, FeeOperations.LIQUIDITY_FEES),
+                ])
+            }
+        }
+    }
+
+    return expectedEvents
+}
+
+export function mapPositionsFeesByFeeToAndToken(
+    positionsFees: Awaited<ReturnType<typeof LiquidityHelpers.getPositionFeeAmounts>>,
+) {
+    return positionsFees.reduce<Record<number, Record<string, bigint>>>(
+        (acc, { amountsByFeeTo, tokens }) => {
+            for (let index = 0; index < tokens.length; index++) {
+                const token = tokens[index]
+
+                for (const feeTo of RECIPIENT_ORDER) {
+                    const amount = amountsByFeeTo[feeTo][index]
+
+                    acc[feeTo][token] = (acc[feeTo][token] || BigInt(0)) + amount
+                }
+            }
+
+            return acc
+        },
+        {
+            [FeeTo.PROTOCOL]: {},
+            [FeeTo.STRATEGIST]: {},
+        },
     )
 }

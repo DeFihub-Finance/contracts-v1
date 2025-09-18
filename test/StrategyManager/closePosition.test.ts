@@ -1,5 +1,5 @@
 import { expect } from 'chai'
-import { UniswapV3, unwrapAddressLike } from '@defihub/shared'
+import { FeeTo, UniswapV3, unwrapAddressLike } from '@defihub/shared'
 import { Signer } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import {
@@ -18,22 +18,37 @@ import {
     UniswapV3 as UniswapV3Helpers,
     getStrategyBalanceMap,
     StrategyBalanceModes,
+    getAccountRewardsMap,
+    getRewardsDistributionFeeEvents,
+    getAllFeeEventLogs,
+    mapPositionsFeesByFeeToAndToken,
 } from '@src/helpers'
 
-// => Given an open position
-//      => When the owner of position calls closePosition
-//          => Then the user receives remaining tokens of all positions in a strategy
-//          => Then the contract emits a PositionClosed event
-//          => Then position should be marked as closed
-//      => When the owner of position calls closePositionIgnoringSlippage
-//          => Then the user receives remaining tokens of all positions in a strategy
-//          => Then the contract emits a PositionClosed event
-//          => Then position should be marked as closed
-//
-// => Given a closed position
-//     => When the owner of position calls closePosition
-//          => Then the contract reverts with PositionAlreadyClosed
+/*
+    => Given an open position with only DCA
+        => When the owner of position calls closePosition
+            => Then the user receives remaining tokens of all DCA positions in a strategy
+            => Then position should be marked as closed
+
+    => Given an open position with only liquidity
+        => When the owner of position calls closePosition
+            => Then liquidity reward fees are distributed to strategist and treasury
+            => Then the user receives remaining tokens of all liquidity positions in a strategy
+            => Then the contract emits Fee events to strategist and treasury
+            => Then the contract emits a PositionClosed event
+            => Then position should be marked as closed
+        => When the owner of position calls closePositionIgnoringSlippage
+            => Then the user receives remaining tokens of all positions in a strategy
+            => Then the contract emits a PositionClosed event
+            => Then position should be marked as closed
+
+    => Given a closed position
+        => When the owner of position calls closePosition
+            => Then the contract reverts with PositionAlreadyClosed
+*/
 describe('StrategyManager#closePosition', () => {
+    let treasury: Signer
+    let account0: Signer
     let account1: Signer
     let dca: DollarCostAverage
     let strategyManager: StrategyManager__v4
@@ -112,6 +127,8 @@ describe('StrategyManager#closePosition', () => {
         ({
             strategyManager,
             strategyPositionManager,
+            treasury,
+            account0,
             account1,
             dca,
             dcaPositionId,
@@ -152,6 +169,47 @@ describe('StrategyManager#closePosition', () => {
 
     describe('Given an open position with only liquidity', () => {
         describe('When the owner of position calls closePosition', () => {
+            it('Then liquidity reward fees are distributed to strategist and treasury', async () => {
+                const positionsFees = await LiquidityHelpers.getPositionFeeAmounts(
+                    liquidityStrategyId,
+                    liquidityPositionId,
+                    account1,
+                    strategyManager,
+                )
+
+                const tokens = new Set(positionsFees.flatMap(fees => fees.tokens))
+                const feesByFeeToAndToken = mapPositionsFeesByFeeToAndToken(positionsFees)
+
+                const [
+                    treasuryRewardBalancesBefore,
+                    strategistRewardBalancesBefore,
+                ] = await Promise.all([
+                    getAccountRewardsMap(treasury, tokens, strategyManager),
+                    getAccountRewardsMap(account0, tokens, strategyManager),
+                ])
+
+                await strategyManager.connect(account1).closePosition(
+                    liquidityPositionId,
+                    await getLiquidityMinOutputs(liquidityPositionId),
+                )
+
+                const [
+                    treasuryRewardBalancesAfter,
+                    strategistRewardBalancesAfter,
+                ] = await Promise.all([
+                    getAccountRewardsMap(treasury, tokens, strategyManager),
+                    getAccountRewardsMap(account0, tokens, strategyManager),
+                ])
+
+                for (const token of tokens) {
+                    expect(strategistRewardBalancesAfter[token] - strategistRewardBalancesBefore[token])
+                        .to.equal(feesByFeeToAndToken[FeeTo.STRATEGIST][token])
+
+                    expect(treasuryRewardBalancesAfter[token] - treasuryRewardBalancesBefore[token])
+                        .to.equal(feesByFeeToAndToken[FeeTo.PROTOCOL][token])
+                }
+            })
+
             it('Then the user receives remaining tokens of all liquidity positions in a strategy', async () => {
                 const strategyTokenBalancesBefore = await _getStrategyBalanceMap(
                     liquidityStrategyId,
@@ -171,6 +229,29 @@ describe('StrategyManager#closePosition', () => {
                     expect(userTokenBalancesAfter[token])
                         .to.equal(strategyTokenBalancesBefore[token] + userTokenBalancesBefore[token])
                 }
+            })
+
+            it('Then emit Fee events to strategist and treasury', async () => {
+                const expectedFeeEvents = await getRewardsDistributionFeeEvents(
+                    treasury,
+                    account1,
+                    account0,
+                    liquidityStrategyId,
+                    liquidityPositionId,
+                    strategyManager,
+                )
+
+                const receipt = await (
+                    await strategyManager.connect(account1).closePosition(
+                        liquidityPositionId,
+                        await getLiquidityMinOutputs(liquidityPositionId),
+                    )
+                ).wait()
+
+                const feeEvents = getAllFeeEventLogs(receipt)
+
+                expect(feeEvents?.length).to.be.greaterThan(0)
+                feeEvents?.forEach((event, index) => expect(event.args).to.deep.equal(expectedFeeEvents[index]))
             })
 
             it('Then the contract emits a PositionClosed event', async () => {

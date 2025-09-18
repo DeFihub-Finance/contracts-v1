@@ -75,6 +75,7 @@ export async function investFixture() {
             ],
             buyInvestments: [],
         },
+        10_000, // 1% liquidity reward fee in BP
     )
     const buyOnlyStrategyId = await createStrategy(
         account0,
@@ -202,6 +203,7 @@ export async function investFixture() {
         permitAccount0,
         factoryUniV3,
         positionManagerUniV3,
+        universalRouter,
         ...rest,
     }
 }

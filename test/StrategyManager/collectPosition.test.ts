@@ -1,4 +1,7 @@
 import { expect } from 'chai'
+import { Signer } from 'ethers'
+import { ethers } from 'hardhat'
+import { FeeTo, UniswapV3 } from '@defihub/shared'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import {
     DollarCostAverage,
@@ -8,7 +11,6 @@ import {
     UniswapPositionManager,
     UniswapV3Factory,
 } from '@src/typechain'
-import {  Signer } from 'ethers'
 import { runStrategy } from './fixtures/run-strategy.fixture'
 import {
     expectCustomError,
@@ -17,24 +19,42 @@ import {
     LiquidityHelpers,
     getStrategyBalanceMap,
     StrategyBalanceModes,
+    getAllFeeEventLogs,
+    getAccountRewardsMap,
+    getRewardsDistributionFeeEvents,
+    mapPositionsFeesByFeeToAndToken,
 } from '@src/helpers'
 
-// => Given an investor with a position in a strategy which contains a DCA pool
-//      => When the investor collects the position
-//          => Then the DCA pool input token balance of the investor should increase by the position's output token balance
-//          => Then emits PositionCollected event
-//      => When the investor collects the position but there is nothing to collect
-//          => Then output token balance of the investor should not change
-//
-// => Given an investor with no position
-//     => When the investor collects the position
-//          => Then revert with InvalidPositionId
+/*
+    => Given an investor with a position in a strategy
+        => Which contains a DCA pool
+            => When the investor collects the position
+                => Then increase DCA pool output token balance of investor
+                => Then emits PositionCollected event
+        => Which contains a Liquidity Position
+            => When the investor collects the position
+                => Then increase balance of investor from liquidity position fees
+                => Then distribute liquidity reward fee to strategist and treasury
+                => Then emit Fee event to strategist and treasury
+                => Then emit PositionCollected event
+        => When the investor collects the position but there is nothing to collect
+            => Then output token balance of investor should not change
+                => Works for DCA
+                => Works for Buy
+
+    => Given an investor with no position
+        => When the investor collects the position
+            => Then revert with InvalidPositionId
+*/
 describe('StrategyManager#collectPosition', () => {
     let strategyManager: StrategyManager__v4
     let strategyPositionManager: StrategyPositionManager
     let dca: DollarCostAverage
+    let account0: Signer
     let account1: Signer
     let account2: Signer
+    let treasury: Signer
+
     let weth: TestERC20
     let dcaOutputToken: TestERC20
 
@@ -67,8 +87,10 @@ describe('StrategyManager#collectPosition', () => {
         ({
             strategyManager,
             strategyPositionManager,
+            account0,
             account1,
             account2,
+            treasury,
             weth,
             dca,
             dcaOutputToken,
@@ -108,9 +130,9 @@ describe('StrategyManager#collectPosition', () => {
                     )
 
                     const receipt = await (await strategyManager.connect(account1).collectPosition(dcaPositionId)).wait()
-                    const feeEvent = getEventLog(receipt, 'PositionCollected', strategyPositionManager.interface)
+                    const positionCollectedEvent = getEventLog(receipt, 'PositionCollected', strategyPositionManager.interface)
 
-                    expect(feeEvent?.args).to.deep.equal([
+                    expect(positionCollectedEvent?.args).to.deep.equal([
                         await account1.getAddress(),
                         dcaStrategyId,
                         dcaPositionId,
@@ -122,9 +144,9 @@ describe('StrategyManager#collectPosition', () => {
             })
         })
 
-        describe('Which contains a Liquidity pool', () => {
+        describe('Which contains a Liquidity Position', () => {
             describe('When the investor collects the position', () => {
-                it('then increase liquidity pool output tokens balance of investor', async () => {
+                it('then increase balance of investor from liquidity position fees', async () => {
                     const positionTokenCollectables = await _getStrategyBalanceMap(
                         liquidityStrategyId,
                         liquidityPositionId,
@@ -142,89 +164,85 @@ describe('StrategyManager#collectPosition', () => {
                     }
                 })
 
+                it('then distribute liquidity reward fees to strategist and treasury ', async () => {
+                    const positionsFees = await LiquidityHelpers.getPositionFeeAmounts(
+                        liquidityStrategyId,
+                        liquidityPositionId,
+                        account1,
+                        strategyManager,
+                    )
+
+                    const tokens = new Set(positionsFees.flatMap(fees => fees.tokens))
+                    const feesByFeeToAndToken = mapPositionsFeesByFeeToAndToken(positionsFees)
+
+                    const [
+                        treasuryRewardBalancesBefore,
+                        strategistRewardBalancesBefore,
+                    ] = await Promise.all([
+                        getAccountRewardsMap(treasury, tokens, strategyManager),
+                        getAccountRewardsMap(account0, tokens, strategyManager),
+                    ])
+
+                    await strategyManager.connect(account1).collectPosition(liquidityPositionId)
+
+                    const [
+                        treasuryRewardBalancesAfter,
+                        strategistRewardBalancesAfter,
+                    ] = await Promise.all([
+                        getAccountRewardsMap(treasury, tokens, strategyManager),
+                        getAccountRewardsMap(account0, tokens, strategyManager),
+                    ])
+
+                    for (const token of tokens) {
+                        expect(strategistRewardBalancesAfter[token] - strategistRewardBalancesBefore[token])
+                            .to.equal(feesByFeeToAndToken[FeeTo.STRATEGIST][token])
+
+                        expect(treasuryRewardBalancesAfter[token] - treasuryRewardBalancesBefore[token])
+                            .to.equal(feesByFeeToAndToken[FeeTo.PROTOCOL][token])
+                    }
+                })
+
+                it('then emit Fee event to strategist and treasury', async () => {
+                    const expectedFeeEvents = await getRewardsDistributionFeeEvents(
+                        treasury,
+                        account1,
+                        account0,
+                        liquidityStrategyId,
+                        liquidityPositionId,
+                        strategyManager,
+                    )
+
+                    const receipt = await (
+                        await strategyManager.connect(account1).collectPosition(liquidityPositionId)
+                    ).wait()
+
+                    const feeEvents = getAllFeeEventLogs(receipt)
+
+                    expect(feeEvents?.length).to.be.greaterThan(0)
+                    feeEvents?.forEach((event, index) => expect(event.args).to.deep.equal(expectedFeeEvents[index]))
+                })
+
                 it('then emit PositionCollected event', async () => {
                     const investments = await strategyManager.getPositionInvestments(account1, liquidityPositionId)
                     const liquidityRewardFeeBP = await strategyManager.getLiquidityRewardFee(liquidityStrategyId)
-                    // const initial = await Promise.all(
-                    //     investments.liquidityPositions.map(async position => {
-                    //         const { token0, token1 } = await INonfungiblePositionManager__factory
-                    //             .connect(position.positionManager, account1)
-                    //             .positions(position.tokenId)
-                    //
-                    //         const [
-                    //             balance0,
-                    //             balance1,
-                    //         ] = await Promise.all([
-                    //             TestERC20__factory.connect(token0, account1).balanceOf(account1),
-                    //             TestERC20__factory.connect(token1, account1).balanceOf(account1),
-                    //         ])
-                    //
-                    //         return [
-                    //             {
-                    //                 token: token0,
-                    //                 balance: balance0.toString(),
-                    //             },
-                    //             {
-                    //                 token: token1,
-                    //                 balance: balance1.toString(),
-                    //             },
-                    //         ]
-                    //     }),
-                    // )
 
-                    const liquidityWithdrawAmounts = (await Promise.all(
-                        investments
-                            .liquidityPositions.map(position => LiquidityHelpers.getLiquidityPositionInfo(
+                    const liquidityWithdrawAmounts = await Promise.all(
+                        investments.liquidityPositions.map(async position => {
+                            const { amount0, amount1 } = await UniswapV3.getDeductedPositionFees(
                                 position.tokenId,
                                 liquidityRewardFeeBP,
-                                positionManagerUniV3,
-                                factoryUniV3,
+                                positionManagerUniV3.connect(ethers.provider),
                                 strategyManager,
-                            )),
-                    )).map(({ fees }) => ([fees.amount0, fees.amount1]))
+                            )
+
+                            return [amount0, amount1]
+                        }),
+                    )
 
                     const receipt = await (await strategyManager.connect(account1).collectPosition(liquidityPositionId)).wait()
-                    const feeEvent = getEventLog(receipt, 'PositionCollected', strategyPositionManager.interface)
+                    const positionCollectedEvent = getEventLog(receipt, 'PositionCollected', strategyPositionManager.interface)
 
-                    // TODO review if must be subtracted here
-
-                    // const after = await Promise.all(
-                    //     investments.liquidityPositions.map(async position => {
-                    //         const { token0, token1 } = await INonfungiblePositionManager__factory
-                    //             .connect(position.positionManager, account1)
-                    //             .positions(position.tokenId)
-                    //
-                    //         const [
-                    //             balance0,
-                    //             balance1,
-                    //         ] = await Promise.all([
-                    //             TestERC20__factory.connect(token0, account1).balanceOf(account1),
-                    //             TestERC20__factory.connect(token1, account1).balanceOf(account1),
-                    //         ])
-                    //
-                    //         return [
-                    //             {
-                    //                 token: token0,
-                    //                 balance: balance0.toString(),
-                    //             },
-                    //             {
-                    //                 token: token1,
-                    //                 balance: balance1.toString(),
-                    //             },
-                    //         ]
-                    //     }),
-                    // )
-
-                    // console.log({
-                    //     liquidityWithdrawAmounts,
-                    //     initial: JSON.stringify(initial),
-                    //     after: JSON.stringify(after),
-                    //     fromStrat: await strategyManager.getStrategyCreator(liquidityPositionId),
-                    //     acc1: await account1.getAddress(),
-                    //     equal: (await strategyManager.getStrategyCreator(liquidityPositionId)) === await account1.getAddress(),
-                    // })
-
-                    expect(feeEvent?.args).to.deep.equal([
+                    expect(positionCollectedEvent?.args).to.deep.equal([
                         await account1.getAddress(),
                         liquidityStrategyId,
                         liquidityPositionId,
