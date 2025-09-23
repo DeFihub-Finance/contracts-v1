@@ -1,11 +1,11 @@
 import { expect } from 'chai'
-import { parseEther, Signer } from 'ethers'
+import { parseEther, Signer, ZeroHash } from 'ethers'
 import { PathUniswapV3, Fees } from '@defihub/shared'
 import { BigNumber } from '@ryze-blockchain/ethereum'
 
 import { Compare } from '@src/Compare'
 import { ProjectDeployer } from '@src/ProjectDeployer'
-import { createStrategy, SwapEncoder, UniswapV3 } from '@src/helpers'
+import { SwapEncoder, UniswapV3 } from '@src/helpers'
 import { ETH_PRICE, ETH_PRICE_BN, ETH_QUOTE, ONE_PERCENT, USD_PRICE_BN, USD_QUOTE } from '@src/constants'
 import {
     StrategyManager,
@@ -133,12 +133,13 @@ describe('StrategyManager#upgrade', () => {
             buyInvestments: [{ percentage: 100, token: weth }],
         }
 
-        strategyId = await createStrategy(
-            account0,
-            permitAccount0,
-            strategyManagerV1,
-            investments,
-        )
+        strategyId = await strategyManagerV1.getStrategiesLength()
+
+        await strategyManagerV1.connect(account0).createStrategy({
+            ...investments,
+            permit: permitAccount0,
+            metadataHash: ZeroHash,
+        })
 
         //////////////////////////////////
         // Add liquidity to make swaps //

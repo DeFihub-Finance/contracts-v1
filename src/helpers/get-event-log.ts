@@ -1,4 +1,5 @@
 import { FeeToType } from '@defihub/shared'
+import { notEmpty } from '@ryze-blockchain/ethereum'
 import { StrategyInvestor__factory } from '@src/typechain'
 import { ContractTransactionReceipt, Interface } from 'ethers'
 import { decodeFeeEventBytes } from './test-helpers'
@@ -39,5 +40,17 @@ export function getFeeEventLog(
                     return parsedLog
             }
         }
+    }
+}
+
+export function getAllFeeEventLogs(receipt: ContractTransactionReceipt | null) {
+    const contractInterface = StrategyInvestor__factory.createInterface()
+
+    if (receipt?.logs) {
+        return receipt.logs.map(log => {
+            const parsedLog = contractInterface.parseLog(log)
+
+            return parsedLog && parsedLog.name === 'Fee' ? parsedLog : null
+        }).filter(notEmpty)
     }
 }
