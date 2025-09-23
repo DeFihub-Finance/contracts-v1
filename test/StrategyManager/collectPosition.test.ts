@@ -22,7 +22,7 @@ import {
     getAllFeeEventLogs,
     getAccountRewardsMap,
     getRewardsDistributionFeeEvents,
-    mapPositionsFeesByFeeToAndToken,
+    sumPositionsFeesByFeeToAndToken,
 } from '@src/helpers'
 
 /*
@@ -173,7 +173,7 @@ describe('StrategyManager#collectPosition', () => {
                     )
 
                     const tokens = new Set(positionsFees.flatMap(fees => fees.tokens))
-                    const feesByFeeToAndToken = mapPositionsFeesByFeeToAndToken(positionsFees)
+                    const feesByFeeToAndToken = sumPositionsFeesByFeeToAndToken(positionsFees)
 
                     const [
                         treasuryRewardBalancesBefore,

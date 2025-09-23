@@ -225,7 +225,7 @@ export async function getRewardsDistributionFeeEvents(
     return expectedEvents
 }
 
-export function mapPositionsFeesByFeeToAndToken(
+export function sumPositionsFeesByFeeToAndToken(
     positionsFees: Awaited<ReturnType<typeof LiquidityHelpers.getPositionFeeAmounts>>,
 ) {
     return positionsFees.reduce<Record<number, Record<string, bigint>>>(
