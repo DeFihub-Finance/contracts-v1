@@ -186,7 +186,7 @@ contract StrategyManager is StrategyStorage, HubOwnable, ICall {
         );
     }
 
-    function collectStrategistRewards() public virtual {
+    function collectStrategistRewards() external virtual {
         uint strategistReward = _strategistRewards[msg.sender];
 
         _strategistRewards[msg.sender] = 0;
