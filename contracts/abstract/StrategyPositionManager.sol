@@ -341,7 +341,7 @@ contract StrategyPositionManager is StrategyStorage {
 
     function _calculateLiquidityRewardSplits(
         uint _amount,
-        uint _strategyLiquidityFeeBP,
+        uint32 _strategyLiquidityFeeBP,
         uint32 _strategistRewardFeeSplitBP
     ) internal pure returns (LiquidityRewardSplit memory split) {
         uint totalFees = _amount * _strategyLiquidityFeeBP / ONE_HUNDRED_PERCENT_BP;
